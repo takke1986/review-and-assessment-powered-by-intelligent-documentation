@@ -322,6 +322,7 @@ export const makePrismaReviewJobRepository = async (
               : undefined,
             previousResultId: result.previousResultId,
             carriedOver: result.carriedOver ?? false,
+            judgedInReviewJobId: result.judgedInReviewJobId,
           },
         });
       }

@@ -205,6 +205,10 @@ export const createRerunResults = (
         externalSources: previous.externalSources,
         previousResultId: previous.id,
         carriedOver: true,
+        // 判定に使った文書は、判定を下したジョブにある。
+        // 引き継ぎを重ねても、最初に判定したジョブを指し続ける
+        judgedInReviewJobId:
+          previous.judgedInReviewJobId ?? previous.reviewJobId,
       };
     });
 };

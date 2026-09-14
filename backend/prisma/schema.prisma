@@ -142,7 +142,9 @@ model ReviewJob {
   sourceReviewJobId String?          @map("source_review_job_id") @db.VarChar(26)
   documents         ReviewDocument[]
   checkListSet      CheckListSet     @relation(fields: [checkListSetId], references: [id])
-  reviewResults     ReviewResult[]
+  reviewResults     ReviewResult[]   @relation("ReviewJobResults")
+  /// このジョブで下した判定を引き継いだ、再審査ジョブの結果
+  judgedResults     ReviewResult[]   @relation("ReviewResultJudgedIn")
   sourceReviewJob   ReviewJob?       @relation("ReviewJobRerun", fields: [sourceReviewJobId], references: [id], onDelete: SetNull)
   rerunJobs         ReviewJob[]      @relation("ReviewJobRerun")
 
@@ -152,33 +154,36 @@ model ReviewJob {
 }
 
 model ReviewResult {
-  id               String         @id @map("review_result_id") @db.VarChar(26)
-  reviewJobId      String         @map("review_job_id") @db.VarChar(26)
-  checkId          String         @map("check_id") @db.VarChar(26)
-  status           String         @default("pending") @db.VarChar(20)
-  result           String?        @db.VarChar(20)
-  confidenceScore  Float?         @map("confidence_score")
-  explanation      String?        @db.Text
-  shortExplanation String?        @map("short_explanation") @db.VarChar(80)
-  extractedText    String?        @map("extracted_text") @db.Text
-  userOverride     Boolean        @default(false) @map("user_override")
-  userComment      String?        @map("user_comment") @db.Text
-  reviewMeta       Json?          @map("review_meta")
-  inputTokens      Int?           @map("input_tokens")
-  outputTokens     Int?           @map("output_tokens")
-  totalCost        Decimal?       @map("total_cost") @db.Decimal(10, 4)
-  createdAt        DateTime       @map("created_at") @db.Timestamp(0)
-  updatedAt        DateTime       @map("updated_at") @db.Timestamp(0)
-  sourceReferences Json?          @map("source_references")
-  externalSources  Json?          @map("external_sources")
+  id                  String         @id @map("review_result_id") @db.VarChar(26)
+  reviewJobId         String         @map("review_job_id") @db.VarChar(26)
+  checkId             String         @map("check_id") @db.VarChar(26)
+  status              String         @default("pending") @db.VarChar(20)
+  result              String?        @db.VarChar(20)
+  confidenceScore     Float?         @map("confidence_score")
+  explanation         String?        @db.Text
+  shortExplanation    String?        @map("short_explanation") @db.VarChar(80)
+  extractedText       String?        @map("extracted_text") @db.Text
+  userOverride        Boolean        @default(false) @map("user_override")
+  userComment         String?        @map("user_comment") @db.Text
+  reviewMeta          Json?          @map("review_meta")
+  inputTokens         Int?           @map("input_tokens")
+  outputTokens        Int?           @map("output_tokens")
+  totalCost           Decimal?       @map("total_cost") @db.Decimal(10, 4)
+  createdAt           DateTime       @map("created_at") @db.Timestamp(0)
+  updatedAt           DateTime       @map("updated_at") @db.Timestamp(0)
+  sourceReferences    Json?          @map("source_references")
+  externalSources     Json?          @map("external_sources")
   /// 元のジョブにおける、同じチェック項目の結果。元の結果が削除されたら NULL になる
-  previousResultId String?        @map("previous_result_id") @db.VarChar(26)
+  previousResultId    String?        @map("previous_result_id") @db.VarChar(26)
   /// 審査せずに元の結果を引き継いだか
-  carriedOver      Boolean        @default(false) @map("carried_over")
-  checkList        CheckList      @relation(fields: [checkId], references: [id])
-  reviewJob        ReviewJob      @relation(fields: [reviewJobId], references: [id])
-  previousResult   ReviewResult?  @relation("ReviewResultHistory", fields: [previousResultId], references: [id], onDelete: SetNull)
-  nextResults      ReviewResult[] @relation("ReviewResultHistory")
+  carriedOver         Boolean        @default(false) @map("carried_over")
+  /// この判定を下したジョブ（判定に使った文書を持つジョブ）。引き継いだ結果にだけ入る。そのジョブが削除されたら NULL になる
+  judgedInReviewJobId String?        @map("judged_in_review_job_id") @db.VarChar(26)
+  checkList           CheckList      @relation(fields: [checkId], references: [id])
+  reviewJob           ReviewJob      @relation("ReviewJobResults", fields: [reviewJobId], references: [id])
+  previousResult      ReviewResult?  @relation("ReviewResultHistory", fields: [previousResultId], references: [id], onDelete: SetNull)
+  nextResults         ReviewResult[] @relation("ReviewResultHistory")
+  judgedInReviewJob   ReviewJob?     @relation("ReviewResultJudgedIn", fields: [judgedInReviewJobId], references: [id], onDelete: SetNull)
 
   /// `checkId` 単体で詳細取得する際に使用（`findDetailedReviewResultById` で JOIN される）
   @@index([checkId], map: "review_results_check_id_fkey")
@@ -190,5 +195,6 @@ model ReviewResult {
   /// 子結果の有無チェックで `WHERE reviewJobId = ? AND checkId IN (…)` が発生するため追加
   @@index([reviewJobId, checkId], map: "idx_review_results_job_check")
   @@index([previousResultId], map: "idx_review_results_previous_result")
+  @@index([judgedInReviewJobId], map: "idx_review_results_judged_in_job")
   @@map("review_results")
 }
