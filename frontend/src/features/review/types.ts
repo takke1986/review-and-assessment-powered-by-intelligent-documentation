@@ -4,6 +4,7 @@
  */
 
 import { ApiResponse } from "../../types/api";
+import { CHECK_ITEM_IMPORTANCE } from "../checklist/types";
 
 // Enum types
 /**
@@ -407,4 +408,6 @@ export interface CheckListItemEntity {
   setId: string;
   name: string;
   description?: string;
+  /** 重要度を返さない API（この変更より前のバックエンド）では無い */
+  importance?: CHECK_ITEM_IMPORTANCE;
 }
