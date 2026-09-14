@@ -112,6 +112,35 @@ export interface ReviewJobDetail {
   totalInputTokens?: number;
   totalOutputTokens?: number;
   totalCost?: number;
+  /** 再審査の元になったジョブ。元のジョブが削除されていれば無い */
+  sourceReviewJob?: ReviewJobLink;
+  /** このジョブを元にした再審査ジョブ（新しい順） */
+  rerunJobs: ReviewJobLink[];
+}
+
+/**
+ * 再審査でつながったジョブへのリンク
+ */
+export interface ReviewJobLink {
+  id: string;
+  name: string;
+  status: REVIEW_JOB_STATUS;
+  createdAt: Date;
+}
+
+/**
+ * 再審査の元になったジョブでの、同じチェック項目の結果の要約
+ */
+export interface PreviousReviewResult {
+  id: string;
+  reviewJobId: string;
+  status: REVIEW_RESULT_STATUS;
+  result?: REVIEW_RESULT;
+  confidenceScore?: number;
+  explanation?: string;
+  shortExplanation?: string;
+  userOverride: boolean;
+  userComment?: string;
 }
 
 /**
@@ -167,6 +196,8 @@ export interface ReviewResultEntity {
 export interface ReviewResultDetail extends ReviewResultEntity {
   checkList: CheckListItemEntity;
   hasChildren: boolean;
+  /** 元のジョブでの結果。元の結果が削除されていれば無い */
+  previousResult?: PreviousReviewResult;
 }
 
 export const ReviewResultDomain = (() => {
@@ -219,7 +250,39 @@ export const ReviewResultDomain = (() => {
     }));
   };
 
+  const _toPreviousResult = (
+    previous: any
+  ): PreviousReviewResult | undefined => {
+    if (!previous) return undefined;
+    return {
+      id: previous.id,
+      reviewJobId: previous.reviewJobId,
+      status: previous.status as REVIEW_RESULT_STATUS,
+      result: (previous.result as REVIEW_RESULT | null) ?? undefined,
+      confidenceScore: previous.confidenceScore ?? undefined,
+      explanation: previous.explanation ?? undefined,
+      shortExplanation: previous.shortExplanation ?? undefined,
+      userOverride: previous.userOverride ?? false,
+      userComment: previous.userComment ?? undefined,
+    };
+  };
+
   return {
+    /** 前回の結果を読み込むときに Prisma の select に渡す列 */
+    previousResultSelect: {
+      id: true,
+      reviewJobId: true,
+      status: true,
+      result: true,
+      confidenceScore: true,
+      explanation: true,
+      shortExplanation: true,
+      userOverride: true,
+      userComment: true,
+    },
+
+    toPreviousResult: _toPreviousResult,
+
     fromPrismaReviewResult: (prismaResult: any): ReviewResultEntity => {
       return {
         id: prismaResult.id,
@@ -265,6 +328,7 @@ export const ReviewResultDomain = (() => {
           parentId: prismaResult.checkList.parentId ?? undefined,
         },
         hasChildren,
+        previousResult: _toPreviousResult(prismaResult.previousResult),
       };
     },
 

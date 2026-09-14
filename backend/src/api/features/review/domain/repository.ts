@@ -168,6 +168,13 @@ export const makePrismaReviewJobRepository = async (
     const job = await client.reviewJob.findUnique({
       where: { id: reviewJobId },
       include: {
+        sourceReviewJob: {
+          select: { id: true, name: true, status: true, createdAt: true },
+        },
+        rerunJobs: {
+          select: { id: true, name: true, status: true, createdAt: true },
+          orderBy: { createdAt: "desc" },
+        },
         documents: {
           orderBy: {
             id: "asc",
@@ -222,6 +229,16 @@ export const makePrismaReviewJobRepository = async (
       totalInputTokens: job.totalInputTokens || undefined,
       totalOutputTokens: job.totalOutputTokens || undefined,
       totalCost: job.totalCost ? Number(job.totalCost) : undefined,
+      sourceReviewJob: job.sourceReviewJob
+        ? {
+            ...job.sourceReviewJob,
+            status: job.sourceReviewJob.status as REVIEW_JOB_STATUS,
+          }
+        : undefined,
+      rerunJobs: job.rerunJobs.map((rerun) => ({
+        ...rerun,
+        status: rerun.status as REVIEW_JOB_STATUS,
+      })),
     };
   };
 
@@ -383,7 +400,10 @@ export const makePrismaReviewResultRepository = async (
     // 1) 対象の ReviewResult と紐づく CheckList を取得
     const result = await client.reviewResult.findUnique({
       where: { id: resultId },
-      include: { checkList: true },
+      include: {
+        checkList: true,
+        previousResult: { select: ReviewResultDomain.previousResultSelect },
+      },
     });
 
     if (!result) {
@@ -444,6 +464,7 @@ export const makePrismaReviewResultRepository = async (
       where: whereCondition,
       include: {
         checkList: true,
+        previousResult: { select: ReviewResultDomain.previousResultSelect },
       },
       orderBy: {
         checkId: "asc",
@@ -511,6 +532,9 @@ export const makePrismaReviewResultRepository = async (
           parentId: result.checkList.parentId || undefined,
         },
         hasChildren: parentsWithChildren.has(result.checkId),
+        previousResult: ReviewResultDomain.toPreviousResult(
+          result.previousResult
+        ),
       };
     });
 
