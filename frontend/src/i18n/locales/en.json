@@ -359,7 +359,8 @@
     "noResults": "No review results",
     "childItemsLoadError": "Failed to load child items.",
     "noChildItemsForFilter": "No child items match the selected filter",
-    "noChildItems": "No child items"
+    "noChildItems": "No child items",
+    "progress": "{{completed}} of {{total}} items reviewed"
   },
   "fileUploader": {
     "dropFiles": "Drop files here",

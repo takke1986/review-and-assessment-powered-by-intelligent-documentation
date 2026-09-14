@@ -1,5 +1,6 @@
 // src/hooks/useApiClient.ts
 import { useState } from "react";
+import { SWRConfiguration } from "swr";
 import useHttp from "./useHttp";
 import { ApiResponse } from "../types/api";
 
@@ -9,8 +10,11 @@ export function useApiClient() {
   const http = useHttp();
 
   /** Query 用フック */
-  function useQuery<R extends ApiResponse<any>>(url: string | null) {
-    const { data: res, error, isLoading, mutate } = http.get<R>(url);
+  function useQuery<R extends ApiResponse<any>>(
+    url: string | null,
+    config?: SWRConfiguration<R>
+  ) {
+    const { data: res, error, isLoading, mutate } = http.get<R>(url, config);
 
     type SuccessData<T> = T extends { success: true; data: infer D }
       ? D

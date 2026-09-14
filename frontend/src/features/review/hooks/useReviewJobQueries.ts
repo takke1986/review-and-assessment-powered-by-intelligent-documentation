@@ -5,6 +5,15 @@ import type {
   ReviewJobDetail,
   GetReviewJobDetailResponse,
 } from "../types";
+import { REVIEW_JOB_STATUS } from "../types";
+
+/** 実行中のジョブを読み直す間隔 */
+export const RUNNING_JOB_REFRESH_INTERVAL_MS = 5000;
+
+/** 審査が終わっていない（待機中か処理中の）ジョブか */
+export const isJobRunning = (status: REVIEW_JOB_STATUS) =>
+  status === REVIEW_JOB_STATUS.PENDING ||
+  status === REVIEW_JOB_STATUS.PROCESSING;
 
 /**
  * 審査ジョブ一覧のキャッシュキーを生成する関数
@@ -48,7 +57,14 @@ export function useReviewJobs(
     isLoading,
     error,
     refetch,
-  } = useApiClient().useQuery<GetAllReviewJobsResponse>(url);
+  } = useApiClient().useQuery<GetAllReviewJobsResponse>(url, {
+    // 実行中のジョブがあるあいだは数秒ごとに読み直して、状態と進み具合を更新する
+    refreshInterval: (latest) =>
+      latest?.success &&
+      latest.data?.items?.some((job) => isJobRunning(job.status))
+        ? RUNNING_JOB_REFRESH_INTERVAL_MS
+        : 0,
+  });
 
   return {
     items: result?.items ?? [],
@@ -68,7 +84,13 @@ export function useReviewJobs(
 export function useReviewJobDetail(jobId: string | null) {
   const url = getReviewJobDetailKey(jobId);
   const { data, isLoading, error, refetch } =
-    useApiClient().useQuery<GetReviewJobDetailResponse>(url);
+    useApiClient().useQuery<GetReviewJobDetailResponse>(url, {
+      // 実行中は数秒ごとに読み直して、状態と進み具合を更新する
+      refreshInterval: (latest) =>
+        latest?.success && latest.data && isJobRunning(latest.data.status)
+          ? RUNNING_JOB_REFRESH_INTERVAL_MS
+          : 0,
+    });
 
   return {
     job: data as ReviewJobDetail | null,

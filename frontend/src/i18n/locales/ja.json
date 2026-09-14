@@ -359,7 +359,8 @@
     "noResults": "審査結果がありません",
     "childItemsLoadError": "子項目の読み込みに失敗しました。",
     "noChildItemsForFilter": "選択したフィルタ条件に一致する子項目がありません",
-    "noChildItems": "子項目はありません"
+    "noChildItems": "子項目はありません",
+    "progress": "{{total}} 項目中 {{completed}} 項目の審査が完了"
   },
   "fileUploader": {
     "dropFiles": "ファイルをドロップしてください",

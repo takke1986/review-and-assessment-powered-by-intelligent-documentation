@@ -190,6 +190,14 @@ export interface ReviewJobStats {
 }
 
 /**
+ * 審査の進み具合。子を持たない項目（審査する項目）で数える
+ */
+export interface ReviewJobProgress {
+  completed: number;
+  total: number;
+}
+
+/**
  * Review job entity model
  */
 export interface ReviewJobEntity {
@@ -242,6 +250,8 @@ export interface ReviewJobSummary {
   };
   stats: ReviewJobStats;
   checkItemCounts?: CheckItemCounts;
+  /** 進み具合を返さない API（この変更より前のバックエンド）では無い */
+  progress?: ReviewJobProgress;
 }
 
 /**
@@ -280,6 +290,8 @@ export interface ReviewJobDetail {
   /** このジョブを元にした再審査ジョブ（新しい順） */
   rerunJobs?: ReviewJobLink[];
   checkItemCounts?: CheckItemCounts;
+  /** 進み具合を返さない API（この変更より前のバックエンド）では無い */
+  progress?: ReviewJobProgress;
 }
 
 /**

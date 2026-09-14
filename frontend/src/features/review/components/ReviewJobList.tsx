@@ -7,6 +7,7 @@ import { HiEye, HiTrash } from "react-icons/hi";
 import Table, { TableColumn, TableAction } from "../../../components/Table";
 import StatusBadge from "../../../components/StatusBadge";
 import { useDeleteReviewJob } from "../hooks/useReviewJobMutations";
+import { isJobRunning } from "../hooks/useReviewJobQueries";
 
 interface ReviewJobListProps {
   jobs: ReviewJobSummary[];
@@ -124,7 +125,17 @@ export const ReviewJobList: React.FC<ReviewJobListProps> = ({
     {
       key: "status",
       header: t("review.status"),
-      render: (job) => <StatusBadge status={job.status} />,
+      // 実行中は、審査が終わった項目の数も出す
+      render: (job) => (
+        <StatusBadge
+          status={job.status}
+          label={
+            isJobRunning(job.status) && job.progress
+              ? `${t(`status.${job.status}`)} ${job.progress.completed}/${job.progress.total}`
+              : undefined
+          }
+        />
+      ),
     },
     {
       key: "createdAt",

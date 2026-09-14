@@ -1,10 +1,14 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { mutate } from "swr";
 import { useTranslation } from "react-i18next";
 import ReviewResultTree from "../components/ReviewResultTree";
 import ReviewResultFilter from "../components/ReviewResultFilter";
 import { FilterType } from "../hooks/useReviewResultQueries";
-import { useReviewJobDetail } from "../hooks/useReviewJobQueries";
+import {
+  isJobRunning,
+  useReviewJobDetail,
+} from "../hooks/useReviewJobQueries";
 import { ErrorAlert } from "../../../components/ErrorAlert";
 import Slider from "../../../components/Slider";
 import { DetailSkeleton } from "../../../components/Skeleton";
@@ -34,6 +38,21 @@ export default function ReviewDetailPage() {
     error: jobError,
     refetch: refetchJob,
   } = useReviewJobDetail(id || null);
+
+  // 実行中は、項目の審査が終わるたびに結果のツリーも読み直す。
+  // 最後に親の判定がまとまるので、ジョブの状態が変わったときも読み直す
+  const completedCount = job?.progress?.completed;
+  const jobStatus = job?.status;
+  useEffect(() => {
+    if (!id || completedCount === undefined) {
+      return;
+    }
+    mutate(
+      (key) =>
+        typeof key === "string" &&
+        key.startsWith(`/review-jobs/${id}/results`)
+    );
+  }, [id, completedCount, jobStatus]);
 
   // When filter state changes
   const handleFilterChange = (newFilter: FilterType) => {
@@ -162,6 +181,34 @@ export default function ReviewDetailPage() {
               {t(`status.${job.status}`)}
             </span>
           </p>
+          {/* 実行中は、審査が終わった項目の数を出す */}
+          {isJobRunning(job.status) && job.progress && (
+            <div className="text-aws-font-color-gray">
+              <p>
+                {t("review.progress", {
+                  completed: job.progress.completed,
+                  total: job.progress.total,
+                })}
+              </p>
+              <div
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={job.progress.total}
+                aria-valuenow={job.progress.completed}
+                className="mt-1 h-2 w-64 max-w-full overflow-hidden rounded bg-light-gray">
+                <div
+                  className="h-full bg-aws-sea-blue-light transition-all"
+                  style={{
+                    width: `${
+                      job.progress.total > 0
+                        ? (job.progress.completed / job.progress.total) * 100
+                        : 0
+                    }%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
           <p className="text-aws-font-color-gray">
             {t("review.createdAt")}: {new Date(job.createdAt).toLocaleString()}
           </p>

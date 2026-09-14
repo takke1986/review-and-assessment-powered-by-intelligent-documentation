@@ -20,6 +20,7 @@ import {
   parseCheckItemImportance,
 } from "../../checklist/domain/model/checklist";
 import { countCheckItems } from "./service/check-item-selection";
+import { countReviewProgress } from "./service/review-progress";
 
 export interface ReviewJobRepository {
   findAllReviewJobs(params?: {
@@ -129,6 +130,7 @@ export const makePrismaReviewJobRepository = async (
               checkId: true,
               status: true,
               result: true,
+              checkList: { select: { parentId: true } },
             },
           },
         },
@@ -185,6 +187,13 @@ export const makePrismaReviewJobRepository = async (
             (item) => item.checkListSetId === job.checkListSetId
           ),
           reviewResults.map((r) => r.checkId)
+        ),
+        progress: countReviewProgress(
+          reviewResults.map((r) => ({
+            checkId: r.checkId,
+            status: r.status,
+            parentId: r.checkList.parentId,
+          }))
         ),
       };
     });
@@ -245,11 +254,16 @@ export const makePrismaReviewJobRepository = async (
       throw new NotFoundError(`Review job not found`, reviewJobId);
     }
 
-    // 項目を選んで作ったジョブを見分けるため、結果の項目とチェックリストの項目を読む
-    const [resultCheckIds, checkItems] = await Promise.all([
+    // 項目を選んで作ったジョブを見分けるためと、進み具合を数えるため、
+    // 結果の項目と状態、チェックリストの項目を読む
+    const [jobResults, checkItems] = await Promise.all([
       client.reviewResult.findMany({
         where: { reviewJobId },
-        select: { checkId: true },
+        select: {
+          checkId: true,
+          status: true,
+          checkList: { select: { parentId: true } },
+        },
       }),
       client.checkList.findMany({
         where: { checkListSetId: job.checkListSetId },
@@ -304,7 +318,14 @@ export const makePrismaReviewJobRepository = async (
       revisionNote: job.revisionNote ?? undefined,
       checkItemCounts: countCheckItems(
         checkItems,
-        resultCheckIds.map((r) => r.checkId)
+        jobResults.map((r) => r.checkId)
+      ),
+      progress: countReviewProgress(
+        jobResults.map((r) => ({
+          checkId: r.checkId,
+          status: r.status,
+          parentId: r.checkList.parentId,
+        }))
       ),
     };
   };

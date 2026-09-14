@@ -49,6 +49,16 @@ export interface ReviewJobStats {
 }
 
 /**
+ * 審査の進み具合。子を持たない項目（審査する項目）で数える
+ */
+export interface ReviewJobProgress {
+  /** 審査が終わった項目 */
+  completed: number;
+  /** 審査する項目 */
+  total: number;
+}
+
+/**
  * 審査した項目の数と、チェックリストの項目の数。どちらも子を持たない項目で数える。
  * 項目を選んで作ったジョブでは reviewed が total より少ない
  */
@@ -106,6 +116,7 @@ export interface ReviewJobSummary {
   };
   stats: ReviewJobStats;
   checkItemCounts: CheckItemCounts;
+  progress: ReviewJobProgress;
 }
 
 /**
@@ -137,6 +148,7 @@ export interface ReviewJobDetail {
   /** このジョブを元にした再審査ジョブ（新しい順） */
   rerunJobs: ReviewJobLink[];
   checkItemCounts: CheckItemCounts;
+  progress: ReviewJobProgress;
 }
 
 /**
