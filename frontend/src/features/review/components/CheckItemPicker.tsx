@@ -10,18 +10,30 @@ export interface CheckItemPickerProps {
   selectedIds: Set<string>;
   /** 選択が変わったとき。total は選べる項目（子を持たない項目）の数 */
   onChange: (selectedIds: Set<string>, total: number) => void;
+  /** 最初に選んでおく項目。省略するとすべての項目 */
+  initialSelectedIds?: string[];
+  /** 印を付ける項目と、その印の文言（再審査で前回不合格だった項目など） */
+  markedIds?: Set<string>;
+  markLabel?: string;
+  /** 説明文。省略すると通常の審査向けの説明 */
+  helpText?: string;
 }
 
 /**
  * 審査するチェック項目を選ぶ。
  *
  * 選べるのは子を持たない項目で、親のチェックは配下の項目をまとめて切り替える。
- * チェックリストを選ぶと、すべての項目を選んだ状態から始まる。
+ * チェックリストを選ぶと、initialSelectedIds（省略時はすべての項目）を
+ * 選んだ状態から始まる。
  */
 export default function CheckItemPicker({
   setId,
   selectedIds,
   onChange,
+  initialSelectedIds,
+  markedIds,
+  markLabel,
+  helpText,
 }: CheckItemPickerProps) {
   const { t } = useTranslation();
   const { items, isLoading, error } = useChecklistItems(setId, undefined, true);
@@ -53,15 +65,27 @@ export default function CheckItemPicker({
     return { roots, childrenOf, leavesUnder, leafIds };
   }, [items]);
 
-  // チェックリストごとに一度だけ、すべて選んだ状態にする。
+  // チェックリストごとに一度だけ、最初の選択にする。
   // 再取得のたびに戻すと、利用者が外した項目がまた選ばれてしまう
   const initializedFor = useRef<string | null>(null);
   useEffect(() => {
     if (isLoading || error || items.length === 0) return;
     if (initializedFor.current === setId) return;
     initializedFor.current = setId;
-    onChange(new Set(leafIds), leafIds.length);
-  }, [setId, isLoading, error, items.length, leafIds, onChange]);
+    const leaves = new Set(leafIds);
+    const initial = initialSelectedIds
+      ? initialSelectedIds.filter((id) => leaves.has(id))
+      : leafIds;
+    onChange(new Set(initial), leafIds.length);
+  }, [
+    setId,
+    isLoading,
+    error,
+    items.length,
+    leafIds,
+    initialSelectedIds,
+    onChange,
+  ]);
 
   const setLeaves = (leaves: string[], selected: boolean) => {
     const next = new Set(selectedIds);
@@ -92,6 +116,11 @@ export default function CheckItemPicker({
           <span className="text-sm text-aws-squid-ink-light dark:text-aws-font-color-white-dark">
             {item.name}
           </span>
+          {markLabel && markedIds?.has(item.id) && (
+            <span className="bg-red-100 text-red-800 rounded-full px-2 py-0.5 text-xs">
+              {markLabel}
+            </span>
+          )}
         </label>
         {children && (
           <ul>{children.map((child) => renderItem(child, level + 1))}</ul>
@@ -106,7 +135,7 @@ export default function CheckItemPicker({
         {t("review.checkItemSelection")}
       </h3>
       <p className="mt-1 text-sm text-aws-font-color-gray">
-        {t("review.checkItemSelectionHelp")}
+        {helpText ?? t("review.checkItemSelectionHelp")}
       </p>
 
       {isLoading ? (

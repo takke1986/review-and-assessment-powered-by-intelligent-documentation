@@ -42,3 +42,20 @@ export function useReviewResultItems(
     refetch,
   };
 }
+
+/**
+ * ジョブのすべての審査結果を、階層をたどらず一度に取得するフック
+ */
+export function useAllReviewResults(jobId: string | null) {
+  const url = jobId
+    ? `/review-jobs/${jobId}/results/items?includeAllChildren=true`
+    : null;
+  const { data, isLoading, error } =
+    useApiClient().useQuery<GetReviewResultItemsResponse>(url);
+
+  return {
+    items: (data ?? []) as ReviewResultDetailModel[],
+    isLoading,
+    error,
+  };
+}

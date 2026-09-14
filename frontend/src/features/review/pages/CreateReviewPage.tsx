@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Button from "../../../components/Button";
 import PageHeader from "../../../components/PageHeader";
@@ -10,6 +10,8 @@ import ComparisonIndicator from "../components/ComparisonIndicator";
 import DuplicateFileModal from "../components/DuplicateFileModal";
 import CheckItemPicker from "../components/CheckItemPicker";
 import { useCreateReviewJob } from "../hooks/useReviewJobMutations";
+import { useReviewJobDetail } from "../hooks/useReviewJobQueries";
+import { useAllReviewResults } from "../hooks/useReviewResultQueries";
 import { useDocumentUpload } from "../../../hooks/useDocumentUpload";
 import { useChecklistSets } from "../../checklist/hooks/useCheckListSetQueries";
 import { CHECK_LIST_STATUS, CheckListSet } from "../../checklist/types";
@@ -19,7 +21,11 @@ import {
   HiPhotograph,
 } from "react-icons/hi";
 import SegmentedControl from "../../../components/SegmentedControl";
-import { REVIEW_FILE_TYPE } from "../types";
+import {
+  REVIEW_FILE_TYPE,
+  REVIEW_RESULT,
+  REVIEW_RESULT_STATUS,
+} from "../types";
 import {
   validateFileSize,
   formatFileSize,
@@ -32,6 +38,13 @@ import {
 export const CreateReviewPage: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  // 再審査: ?source=<ジョブID> で開くと、そのジョブで不合格だった項目を
+  // 差し替えた文書で審査し直す。選ばなかった項目は元の結果を引き継ぐ
+  const [searchParams] = useSearchParams();
+  const sourceJobId = searchParams.get("source");
+  const { job: sourceJob } = useReviewJobDetail(sourceJobId);
+  const { items: sourceResults, isLoading: isLoadingSourceResults } =
+    useAllReviewResults(sourceJobId);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   // 選択したファイルと、そのアップロード先のドキュメントIDの対応。
   // 同じ名前の別ファイルを区別できるよう、名前ではなくファイルそのもので引く
@@ -98,10 +111,46 @@ export const CreateReviewPage: React.FC = () => {
     deleteEndpointPrefix: "/documents/review/",
   });
 
+  // 再審査で最初に選んでおく項目: 元のジョブで不合格だった子項目と、
+  // 審査が完了しなかった子項目（バックエンドの既定と同じ）
+  const failedCheckIds = useMemo(() => {
+    if (!sourceJobId || isLoadingSourceResults) return undefined;
+    const parentIds = new Set(
+      sourceResults.map((result) => result.checkList.parentId)
+    );
+    return sourceResults
+      .filter((result) => !parentIds.has(result.checkId))
+      .filter(
+        (result) =>
+          result.status !== REVIEW_RESULT_STATUS.COMPLETED ||
+          result.result === REVIEW_RESULT.FAIL
+      )
+      .map((result) => result.checkId);
+  }, [sourceJobId, isLoadingSourceResults, sourceResults]);
+  const failedCheckIdSet = useMemo(
+    () => new Set(failedCheckIds ?? []),
+    [failedCheckIds]
+  );
+
+  // 再審査では元のジョブのチェックリストを使う
+  const checkListSetId = sourceJobId
+    ? (sourceJob?.checkList.id ?? null)
+    : (selectedChecklist?.id ?? null);
+
+  // 再審査のジョブ名の初期値（利用者が入力していれば変えない）
+  const jobNameInitialized = useRef(false);
+  useEffect(() => {
+    if (!sourceJob || jobNameInitialized.current) return;
+    jobNameInitialized.current = true;
+    setJobName(
+      (name) => name || `${sourceJob.name}${t("review.rerunJobNameSuffix")}`
+    );
+  }, [sourceJob, t]);
+
   // ファイルが選択されチェックリストも選択されているかチェック
   const isReady =
     uploadedDocuments?.length > 0 &&
-    selectedChecklist !== null &&
+    checkListSetId !== null &&
     (checkSelection?.ids.size ?? 0) > 0 &&
     jobName.trim() !== "";
 
@@ -320,7 +369,7 @@ export const CreateReviewPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validate() || !selectedChecklist) return;
+    if (!validate() || !checkListSetId) return;
 
     try {
       // すべてのドキュメントを同じ構造で扱う
@@ -333,13 +382,17 @@ export const CreateReviewPage: React.FC = () => {
 
       await createReviewJob({
         name: jobName,
-        checkListSetId: selectedChecklist.id,
+        checkListSetId,
         documents: documents,
-        // すべて選んでいるときは送らず、従来どおり全項目を審査する
+        // 再審査では選んだ項目を必ず送る（省略すると元のジョブで不合格だった
+        // 項目になる）。通常の審査では、すべて選んでいるときは送らず、
+        // 従来どおり全項目を審査する
         checkIds:
-          checkSelection && checkSelection.ids.size < checkSelection.total
+          checkSelection &&
+          (sourceJobId || checkSelection.ids.size < checkSelection.total)
             ? Array.from(checkSelection.ids)
             : undefined,
+        sourceReviewJobId: sourceJobId ?? undefined,
       });
 
       clearUploadedDocuments();
@@ -357,8 +410,12 @@ export const CreateReviewPage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title={t("review.createTitle")}
-        description={t("review.createDescription")}
+        title={sourceJobId ? t("review.rerunTitle") : t("review.createTitle")}
+        description={
+          sourceJobId
+            ? t("review.rerunDescription")
+            : t("review.createDescription")
+        }
         backLink={{
           to: "/review",
           label: t("review.backToList"),
@@ -447,9 +504,33 @@ export const CreateReviewPage: React.FC = () => {
               <ComparisonIndicator isReady={isReady} />
             </div>
 
-            {/* 右側: チェックリスト選択 */}
+            {/* 右側: チェックリスト選択（再審査では元のジョブを表示） */}
             <div className="lg:col-span-3">
-              {isLoadingCheckListSets ? (
+              {sourceJobId ? (
+                <div className="rounded-md border border-light-gray bg-white p-4 shadow-sm dark:bg-aws-squid-ink-dark">
+                  <h3 className="text-lg font-medium text-aws-squid-ink-light dark:text-aws-font-color-white-dark">
+                    {t("review.rerunSourceJob")}
+                  </h3>
+                  {sourceJob ? (
+                    <>
+                      <p className="mt-2">
+                        <Link
+                          to={`/review/${sourceJob.id}`}
+                          className="text-aws-font-color-blue hover:underline">
+                          {sourceJob.name}
+                        </Link>
+                      </p>
+                      <p className="mt-1 text-sm text-aws-font-color-gray">
+                        {t("review.checklist")}: {sourceJob.checkList.name}
+                      </p>
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-center p-8">
+                      <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2 border-t-2"></div>
+                    </div>
+                  )}
+                </div>
+              ) : isLoadingCheckListSets ? (
                 <div className="flex h-full items-center justify-center p-8">
                   <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2 border-t-2"></div>
                 </div>
@@ -474,12 +555,18 @@ export const CreateReviewPage: React.FC = () => {
           </div>
 
           {/* 審査するチェック項目 */}
-          {selectedChecklist && (
+          {checkListSetId && (!sourceJobId || failedCheckIds) && (
             <div className="mt-6">
               <CheckItemPicker
-                setId={selectedChecklist.id}
+                setId={checkListSetId}
                 selectedIds={checkSelection?.ids ?? new Set()}
                 onChange={(ids, total) => setCheckSelection({ ids, total })}
+                initialSelectedIds={failedCheckIds}
+                markedIds={failedCheckIdSet}
+                markLabel={t("review.previousFail")}
+                helpText={
+                  sourceJobId ? t("review.rerunSelectionHelp") : undefined
+                }
               />
             </div>
           )}

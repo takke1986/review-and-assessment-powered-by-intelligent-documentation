@@ -11,6 +11,7 @@ import { DetailSkeleton } from "../../../components/Skeleton";
 import { REVIEW_JOB_STATUS } from "../types";
 import Breadcrumb from "../../../components/Breadcrumb";
 import TotalReviewCostSummary from "../components/TotalReviewCostSummary";
+import Button from "../../../components/Button";
 
 export default function ReviewDetailPage() {
   const { t } = useTranslation();
@@ -134,6 +135,16 @@ export default function ReviewDetailPage() {
             </p>
           )}
         </div>
+        {/* 不合格の項目を、差し替えた文書で審査し直す */}
+        {job.status === REVIEW_JOB_STATUS.COMPLETED && (
+          <Button
+            to={`/review/create?source=${job.id}`}
+            variant="primary"
+            outline
+            className="self-start">
+            {t("review.rerunFailedItems")}
+          </Button>
+        )}
       </div>
 
       {/* Error details */}

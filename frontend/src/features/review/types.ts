@@ -79,6 +79,11 @@ export interface CreateReviewJobRequest {
   mcpServerName?: string;
   /** 審査するチェック項目。省略するとすべての項目を審査する */
   checkIds?: string[];
+  /**
+   * 再審査の元になる審査ジョブ。指定すると、checkIds の項目（省略時は元のジョブで
+   * 不合格だった項目）だけを審査し、それ以外は元の結果を引き継ぐ
+   */
+  sourceReviewJobId?: string;
 }
 
 /**
@@ -256,6 +261,35 @@ export interface ReviewJobDetail {
   totalInputTokens?: number;
   totalOutputTokens?: number;
   totalCost?: number;
+  /** 再審査の元になったジョブ */
+  sourceReviewJob?: ReviewJobLink;
+  /** このジョブを元にした再審査ジョブ（新しい順） */
+  rerunJobs?: ReviewJobLink[];
+}
+
+/**
+ * 再審査でつながったジョブへのリンク
+ */
+export interface ReviewJobLink {
+  id: string;
+  name: string;
+  status: REVIEW_JOB_STATUS;
+  createdAt: Date;
+}
+
+/**
+ * 再審査の元になったジョブでの、同じチェック項目の結果の要約
+ */
+export interface PreviousReviewResult {
+  id: string;
+  reviewJobId: string;
+  status: REVIEW_RESULT_STATUS;
+  result?: REVIEW_RESULT;
+  confidenceScore?: number;
+  explanation?: string;
+  shortExplanation?: string;
+  userOverride: boolean;
+  userComment?: string;
 }
 
 /**
@@ -320,6 +354,12 @@ export interface ReviewResultEntity {
 export interface ReviewResultDetail extends ReviewResultEntity {
   checkList: CheckListItemEntity;
   hasChildren: boolean;
+  /** 元のジョブにおける、同じチェック項目の結果のID */
+  previousResultId?: string;
+  /** 審査せずに元の結果を引き継いだか */
+  carriedOver?: boolean;
+  /** 元のジョブでの結果。元の結果が削除されていれば無い */
+  previousResult?: PreviousReviewResult;
 }
 
 /**
