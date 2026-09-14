@@ -14,6 +14,7 @@ import {
   ReviewResultDomain,
 } from "./model/review";
 import { CHECK_LIST_STATUS } from "../../checklist/domain/model/checklist";
+import { countCheckItems } from "./service/check-item-selection";
 
 export interface ReviewJobRepository {
   findAllReviewJobs(params?: {
@@ -120,6 +121,7 @@ export const makePrismaReviewJobRepository = async (
           // サマリー情報計算用にレビュー結果も同時取得
           reviewResults: {
             select: {
+              checkId: true,
               status: true,
               result: true,
             },
@@ -130,6 +132,16 @@ export const makePrismaReviewJobRepository = async (
         where: whereCondition,
       }),
     ]);
+
+    // 項目を選んで作ったジョブを見分けるため、チェックリストの項目を読む
+    const checkItems = await client.checkList.findMany({
+      where: {
+        checkListSetId: {
+          in: Array.from(new Set(jobs.map((job) => job.checkListSetId))),
+        },
+      },
+      select: { id: true, parentId: true, checkListSetId: true },
+    });
 
     // 各ジョブのモデルを構築
     const mappedJobs = jobs.map((job) => {
@@ -163,6 +175,12 @@ export const makePrismaReviewJobRepository = async (
           name: job.checkListSet.name,
         },
         stats,
+        checkItemCounts: countCheckItems(
+          checkItems.filter(
+            (item) => item.checkListSetId === job.checkListSetId
+          ),
+          reviewResults.map((r) => r.checkId)
+        ),
       };
     });
 
@@ -222,6 +240,18 @@ export const makePrismaReviewJobRepository = async (
       throw new NotFoundError(`Review job not found`, reviewJobId);
     }
 
+    // 項目を選んで作ったジョブを見分けるため、結果の項目とチェックリストの項目を読む
+    const [resultCheckIds, checkItems] = await Promise.all([
+      client.reviewResult.findMany({
+        where: { reviewJobId },
+        select: { checkId: true },
+      }),
+      client.checkList.findMany({
+        where: { checkListSetId: job.checkListSetId },
+        select: { id: true, parentId: true },
+      }),
+    ]);
+
     console.log(
       `[DEBUG REPO] Full job data from database: ${JSON.stringify(job)}`
     );
@@ -267,6 +297,10 @@ export const makePrismaReviewJobRepository = async (
         revisionNote: rerun.revisionNote ?? undefined,
       })),
       revisionNote: job.revisionNote ?? undefined,
+      checkItemCounts: countCheckItems(
+        checkItems,
+        resultCheckIds.map((r) => r.checkId)
+      ),
     };
   };
 

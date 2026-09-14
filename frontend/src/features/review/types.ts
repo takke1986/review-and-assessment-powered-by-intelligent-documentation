@@ -209,6 +209,15 @@ export interface ReviewJobEntity {
 }
 
 /**
+ * 審査した項目の数と、チェックリストの項目の数。どちらも子を持たない項目で数える。
+ * 項目を選んで作ったジョブでは reviewed が total より少ない
+ */
+export interface CheckItemCounts {
+  reviewed: number;
+  total: number;
+}
+
+/**
  * Review job summary model (for list view)
  */
 export interface ReviewJobSummary {
@@ -231,6 +240,7 @@ export interface ReviewJobSummary {
     name: string;
   };
   stats: ReviewJobStats;
+  checkItemCounts?: CheckItemCounts;
 }
 
 /**
@@ -268,6 +278,7 @@ export interface ReviewJobDetail {
   revisionNote?: string;
   /** このジョブを元にした再審査ジョブ（新しい順） */
   rerunJobs?: ReviewJobLink[];
+  checkItemCounts?: CheckItemCounts;
 }
 
 /**

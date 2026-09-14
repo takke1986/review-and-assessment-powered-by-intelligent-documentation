@@ -217,6 +217,8 @@
     "selectAllCheckItems": "Select all",
     "clearCheckItems": "Clear",
     "checkItemRequired": "Select at least one item to review",
+    "partialCheckItems": "This job reviewed {{reviewed}} of the {{total}} items in the checklist. Items that were not selected were not reviewed and do not appear in the results.",
+    "partialCheckItemsBadge": "Partial ({{reviewed}}/{{total}})",
     "rerunFailedItems": "Re-review failed items",
     "rerunTitle": "Create Re-review Job",
     "rerunDescription": "Upload the revised document and review only the selected items again. Other items keep their results from the source job",

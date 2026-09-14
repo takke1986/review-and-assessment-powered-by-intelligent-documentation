@@ -200,9 +200,21 @@ export default function ReviewDetailPage() {
       {/* Review results */}
       <div className="rounded-lg border border-light-gray bg-white p-6 shadow-md">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-medium text-aws-squid-ink-light">
-            {t("review.results")}
-          </h2>
+          <div>
+            <h2 className="text-xl font-medium text-aws-squid-ink-light">
+              {t("review.results")}
+            </h2>
+            {/* 項目を選んで作ったジョブ。選ばなかった項目は結果に出ない */}
+            {job.checkItemCounts &&
+              job.checkItemCounts.reviewed < job.checkItemCounts.total && (
+                <p className="mt-1 text-sm text-aws-font-color-gray">
+                  {t("review.partialCheckItems", {
+                    reviewed: job.checkItemCounts.reviewed,
+                    total: job.checkItemCounts.total,
+                  })}
+                </p>
+              )}
+          </div>
           <div className="w-64">
             <Slider
               min={0}

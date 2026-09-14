@@ -108,6 +108,16 @@ export const ReviewJobList: React.FC<ReviewJobListProps> = ({
       render: (job) => (
         <div className="text-sm text-aws-font-color-gray">
           {job.checkListSet.name}
+          {/* 項目を選んで作ったジョブ */}
+          {job.checkItemCounts &&
+            job.checkItemCounts.reviewed < job.checkItemCounts.total && (
+              <span className="ml-2 whitespace-nowrap rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-800">
+                {t("review.partialCheckItemsBadge", {
+                  reviewed: job.checkItemCounts.reviewed,
+                  total: job.checkItemCounts.total,
+                })}
+              </span>
+            )}
         </div>
       ),
     },

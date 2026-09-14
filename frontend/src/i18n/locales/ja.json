@@ -217,6 +217,8 @@
     "selectAllCheckItems": "すべて選択",
     "clearCheckItems": "選択を解除",
     "checkItemRequired": "審査する項目を1つ以上選んでください",
+    "partialCheckItems": "チェックリストの {{total}} 項目中 {{reviewed}} 項目だけを審査したジョブです。選ばなかった項目は審査していないため、結果に表示されません。",
+    "partialCheckItemsBadge": "一部の項目（{{reviewed}}/{{total}}）",
     "rerunFailedItems": "不合格の項目を差し替えて再審査",
     "rerunTitle": "再審査ジョブの作成",
     "rerunDescription": "修正した文書をアップロードし、選んだ項目だけを審査し直します。選ばなかった項目は元のジョブの結果を引き継ぎます",

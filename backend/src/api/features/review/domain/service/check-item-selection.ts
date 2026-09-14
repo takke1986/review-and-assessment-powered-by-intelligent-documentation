@@ -1,4 +1,5 @@
 import { ValidationError } from "../../../../core/errors";
+import { CheckItemCounts } from "../model/review";
 
 /**
  * 子を持たない項目の結果だけを返す。
@@ -15,6 +16,28 @@ export const leafResults = <
       .filter((parentId): parentId is string => !!parentId)
   );
   return results.filter((result) => !parentIds.has(result.checkId));
+};
+
+/**
+ * ジョブの結果にある項目と、チェックリストの項目を、子を持たない項目で数える。
+ * 審査ジョブのあるチェックリストは編集できないので、total はジョブを作ったときと変わらない。
+ */
+export const countCheckItems = (
+  items: Array<{ id: string; parentId?: string | null }>,
+  resultCheckIds: string[]
+): CheckItemCounts => {
+  const parentIds = new Set(
+    items
+      .map((item) => item.parentId)
+      .filter((parentId): parentId is string => !!parentId)
+  );
+  const leafIds = new Set(
+    items.filter((item) => !parentIds.has(item.id)).map((item) => item.id)
+  );
+  return {
+    reviewed: new Set(resultCheckIds.filter((id) => leafIds.has(id))).size,
+    total: leafIds.size,
+  };
 };
 
 /**
