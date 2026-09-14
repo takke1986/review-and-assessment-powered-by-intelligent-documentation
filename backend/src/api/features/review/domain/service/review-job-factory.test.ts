@@ -1,8 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import {
-  createInitialReviewJobModel,
-  selectCheckItems,
-} from "./review-job-factory";
+import { createInitialReviewJobModel } from "./review-job-factory";
+import { selectCheckItems } from "./check-item-selection";
 import { ValidationError } from "../../../../core/errors";
 import type { CheckRepository } from "../../../checklist/domain/repository";
 import type { CheckListItemDetail } from "../../../checklist/domain/model/checklist";

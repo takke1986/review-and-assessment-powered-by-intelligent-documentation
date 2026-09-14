@@ -1,9 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import {
-  createInitialReviewJobModel,
-  createRerunResults,
-  failedLeafCheckIds,
-} from "./review-job-factory";
+import { createInitialReviewJobModel } from "./review-job-factory";
+import { createRerunResults, failedLeafCheckIds } from "./review-rerun";
 import { ValidationError } from "../../../../core/errors";
 import type { CheckRepository } from "../../../checklist/domain/repository";
 import {

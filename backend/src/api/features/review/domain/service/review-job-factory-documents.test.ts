@@ -1,8 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import {
-  buildRerunDocuments,
-  createInitialReviewJobModel,
-} from "./review-job-factory";
+import { createInitialReviewJobModel } from "./review-job-factory";
+import { buildRerunDocuments } from "./review-rerun";
 import { ValidationError } from "../../../../core/errors";
 import type { CheckRepository } from "../../../checklist/domain/repository";
 import { REVIEW_FILE_TYPE, ReviewJobDocument } from "../model/review";

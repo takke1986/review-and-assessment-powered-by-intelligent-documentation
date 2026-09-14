@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createRerunResults } from "./review-job-factory";
+import { createRerunResults } from "./review-rerun";
 import {
   REVIEW_RESULT,
   REVIEW_RESULT_STATUS,

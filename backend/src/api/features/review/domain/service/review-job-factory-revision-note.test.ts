@@ -1,8 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import {
-  createInitialReviewJobModel,
-  normalizeRevisionNote,
-} from "./review-job-factory";
+import { createInitialReviewJobModel } from "./review-job-factory";
+import { normalizeRevisionNote } from "./review-rerun";
 import { ValidationError } from "../../../../core/errors";
 import { MAX_REVISION_NOTE_LENGTH } from "../../../../constants";
 import type { CheckRepository } from "../../../checklist/domain/repository";

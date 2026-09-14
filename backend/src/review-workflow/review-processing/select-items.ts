@@ -2,6 +2,7 @@ import {
   REVIEW_RESULT_STATUS,
   ReviewResultDetail,
 } from "../../api/features/review/domain/model/review";
+import { leafResults } from "../../api/features/review/domain/service/check-item-selection";
 
 /**
  * ジョブの結果から、審査する項目を選ぶ。
@@ -13,14 +14,7 @@ import {
 export const selectItemsToReview = (
   results: ReviewResultDetail[]
 ): Array<{ checkId: string; reviewResultId: string }> => {
-  const parentIds = new Set(
-    results
-      .map((result) => result.checkList.parentId)
-      .filter((parentId): parentId is string => !!parentId)
-  );
-
-  return results
-    .filter((result) => !parentIds.has(result.checkId))
+  return leafResults(results)
     .filter((result) => result.status !== REVIEW_RESULT_STATUS.COMPLETED)
     .map((result) => ({
       checkId: result.checkList.id,

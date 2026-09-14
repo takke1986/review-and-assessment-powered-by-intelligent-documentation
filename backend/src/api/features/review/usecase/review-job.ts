@@ -189,26 +189,16 @@ export const getReviewImagesPresignedUrl = async (params: {
   };
 };
 
-export const createReviewJob = async (params: {
-  requestBody: CreateReviewJobRequest & { userId: string; userName?: string };
-  user?: RequestUser;
-  deps?: {
-    checkRepo?: CheckRepository;
-    reviewJobRepo?: ReviewJobRepository;
-    reviewResultRepo?: ReviewResultRepository;
-  };
-}): Promise<void> => {
-  const checkRepo =
-    params.deps?.checkRepo || (await makePrismaCheckRepository());
-  const reviewJobRepo =
-    params.deps?.reviewJobRepo || (await makePrismaReviewJobRepository());
-
-  // バリデーション
-  // 再審査では、元のジョブから引き継ぐ文書も審査する文書に数える
-  const uploadedDocuments = params.requestBody.documents ?? [];
+/**
+ * 審査する文書の数と、アップロードした文書のファイルサイズを確認する。
+ * 再審査では、元のジョブから引き継ぐ文書も審査する文書に数える。
+ */
+const validateJobDocuments = async (
+  requestBody: CreateReviewJobRequest
+): Promise<void> => {
+  const uploadedDocuments = requestBody.documents ?? [];
   const documentCount =
-    uploadedDocuments.length +
-    (params.requestBody.keptDocumentIds?.length ?? 0);
+    uploadedDocuments.length + (requestBody.keptDocumentIds?.length ?? 0);
   if (documentCount === 0) {
     throw new ApplicationError("At least one document is required");
   }
@@ -239,6 +229,23 @@ export const createReviewJob = async (params: {
       console.warn(`Could not validate file size for ${doc.s3Key}:`, error);
     }
   }
+};
+
+export const createReviewJob = async (params: {
+  requestBody: CreateReviewJobRequest & { userId: string; userName?: string };
+  user?: RequestUser;
+  deps?: {
+    checkRepo?: CheckRepository;
+    reviewJobRepo?: ReviewJobRepository;
+    reviewResultRepo?: ReviewResultRepository;
+  };
+}): Promise<void> => {
+  const checkRepo =
+    params.deps?.checkRepo || (await makePrismaCheckRepository());
+  const reviewJobRepo =
+    params.deps?.reviewJobRepo || (await makePrismaReviewJobRepository());
+
+  await validateJobDocuments(params.requestBody);
 
   const source = params.requestBody.sourceReviewJobId
     ? await loadRerunSource({
