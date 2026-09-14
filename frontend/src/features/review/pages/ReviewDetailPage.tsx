@@ -12,6 +12,7 @@ import { REVIEW_JOB_STATUS } from "../types";
 import Breadcrumb from "../../../components/Breadcrumb";
 import TotalReviewCostSummary from "../components/TotalReviewCostSummary";
 import Button from "../../../components/Button";
+import ReviewJobDocuments from "../components/ReviewJobDocuments";
 
 export default function ReviewDetailPage() {
   const { t } = useTranslation();
@@ -100,15 +101,6 @@ export default function ReviewDetailPage() {
               />
             )}
           </div>
-          <p className="mt-3 text-aws-font-color-gray">
-            {t("review.documents")}:{" "}
-            {job.documents.length > 0
-              ? job.documents[0].filename
-              : t("review.noDocuments")}
-            {job.documents.length > 1
-              ? t("review.otherDocuments", { count: job.documents.length - 1 })
-              : ""}
-          </p>
           <p className="text-aws-font-color-gray">
             {t("review.checklist")}: {job.checkList.name}
           </p>
@@ -177,6 +169,12 @@ export default function ReviewDetailPage() {
           </Button>
         )}
       </div>
+
+      {/* 審査した文書（再審査では差し替え前と差し替え後） */}
+      <ReviewJobDocuments
+        documents={job.documents}
+        sourceJob={job.sourceReviewJob}
+      />
 
       {/* Error details */}
       {job.hasError && job.errorDetail && (

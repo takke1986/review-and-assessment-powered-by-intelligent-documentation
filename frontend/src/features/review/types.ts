@@ -249,20 +249,15 @@ export interface ReviewJobDetail {
       status: string;
     }[];
   };
-  documents: Array<{
-    id: string;
-    filename: string;
-    s3Path: string;
-    fileType: REVIEW_FILE_TYPE;
-  }>;
+  documents: ReviewJobDocument[];
   createdAt: Date;
   updatedAt: Date;
   completedAt?: Date;
   totalInputTokens?: number;
   totalOutputTokens?: number;
   totalCost?: number;
-  /** 再審査の元になったジョブ */
-  sourceReviewJob?: ReviewJobLink;
+  /** 再審査の元になったジョブと、その文書（差し替え前の文書） */
+  sourceReviewJob?: ReviewJobLink & { documents?: ReviewJobDocument[] };
   /** このジョブを元にした再審査ジョブ（新しい順） */
   rerunJobs?: ReviewJobLink[];
 }
@@ -275,6 +270,18 @@ export interface ReviewJobLink {
   name: string;
   status: REVIEW_JOB_STATUS;
   createdAt: Date;
+}
+
+/**
+ * 審査ジョブの文書
+ */
+export interface ReviewJobDocument {
+  id: string;
+  filename: string;
+  s3Path: string;
+  fileType: REVIEW_FILE_TYPE;
+  /** 修正版は同じ名前で上げることが多いので、区別に使う */
+  uploadDate?: Date;
 }
 
 /**
