@@ -801,12 +801,12 @@ def _get_document_review_prompt_legacy(
     """Improved PDF document review prompt with dynamic tool section"""
 
     json_schema = f"""{{
-  "result": "pass" | "fail",
-  "confidence": <number between 0 and 1>,
   "explanation": "<detailed reasoning in {language_name}>",
   "shortExplanation": "<max 80 chars in {language_name}>",
   "extractedText": "<relevant excerpt in {language_name}>",
-  "pageNumber": <integer starting from 1>
+  "pageNumber": <integer starting from 1>,
+  "result": "pass" | "fail",
+  "confidence": <number between 0 and 1>
 }}"""
 
     tool_section = _build_tool_usage_section(tool_config, language_name)
@@ -836,6 +836,19 @@ Generate your entire response in {language_name}. Output only the JSON below, en
 **CRITICAL**: Base your judgment ONLY on the provided documents and information obtained through tools.
 Do NOT use your pre-trained general knowledge or make assumptions.
 </BASE_JUDGMENT_ON_DOCUMENTS_ONLY>
+
+<RESULT_CONSISTENCY>
+Write "explanation" and "shortExplanation" first, and decide "result" only after the reasoning is complete.
+"result" must match the conclusion stated in "explanation". If your reasoning changes your conclusion, set "result" to the final conclusion.
+</RESULT_CONSISTENCY>
+
+<CONDITIONAL_CHECK_ITEMS>
+Some check items apply only when a condition is met (for example, "If X, then Y must be stated").
+- First determine from the documents whether the condition is met.
+- If the condition is not met, the requirement does not apply: set "result": "pass" and explain in "explanation" that the condition is not met.
+- Only if the condition is met, judge whether the requirement is satisfied.
+- Apply INSUFFICIENT_INFORMATION_HANDLING only when the information needed to decide the condition, or the requirement itself once the condition is met, cannot be found.
+</CONDITIONAL_CHECK_ITEMS>
 
 <INSUFFICIENT_INFORMATION_HANDLING>
 **If the required information is not found in the documents or through tool usage:**
@@ -869,12 +882,12 @@ def _get_document_review_prompt_with_citations(
     """PDF document review prompt with citations in JSON array"""
 
     json_schema = f"""{{
-  "result": "pass" | "fail",
-  "confidence": <number between 0 and 1>,
   "explanation": "<detailed reasoning in {language_name}>",
   "shortExplanation": "<max 80 chars in {language_name}>",
   "pageNumber": <integer starting from 1>,
-  "citations": ["<quoted text 1>", "<quoted text 2>", ...]
+  "citations": ["<quoted text 1>", "<quoted text 2>", ...],
+  "result": "pass" | "fail",
+  "confidence": <number between 0 and 1>
 }}"""
 
     tool_section = _build_tool_usage_section(tool_config, language_name)
@@ -917,6 +930,19 @@ Write the explanation field as clear, flowing prose in {language_name}. Include 
 **CRITICAL**: Base your judgment ONLY on the provided documents and information obtained through tools.
 Do NOT use your pre-trained general knowledge or make assumptions.
 </BASE_JUDGMENT_ON_DOCUMENTS_ONLY>
+
+<RESULT_CONSISTENCY>
+Write "explanation" and "shortExplanation" first, and decide "result" only after the reasoning is complete.
+"result" must match the conclusion stated in "explanation". If your reasoning changes your conclusion, set "result" to the final conclusion.
+</RESULT_CONSISTENCY>
+
+<CONDITIONAL_CHECK_ITEMS>
+Some check items apply only when a condition is met (for example, "If X, then Y must be stated").
+- First determine from the documents whether the condition is met.
+- If the condition is not met, the requirement does not apply: set "result": "pass" and explain in "explanation" that the condition is not met.
+- Only if the condition is met, judge whether the requirement is satisfied.
+- Apply INSUFFICIENT_INFORMATION_HANDLING only when the information needed to decide the condition, or the requirement itself once the condition is met, cannot be found.
+</CONDITIONAL_CHECK_ITEMS>
 
 <INSUFFICIENT_INFORMATION_HANDLING>
 **If the required information is not found in the documents or through tool usage:**
@@ -991,11 +1017,11 @@ def get_image_review_prompt(
     )
 
     json_schema = f"""{{
-  "result": "pass" | "fail",
-  "confidence": <number between 0 and 1>,
   "explanation": "<detailed reasoning in {language_name}>",
   "shortExplanation": "<max 80 chars in {language_name}>",
-  "usedImageIndexes": [<indexes of images actually referenced>]{bbox_field}
+  "usedImageIndexes": [<indexes of images actually referenced>]{bbox_field},
+  "result": "pass" | "fail",
+  "confidence": <number between 0 and 1>
 }}"""
 
     tool_section = _build_tool_usage_section(tool_config, language_name)
@@ -1053,6 +1079,19 @@ contain exactly that single index; an empty array means “none used”.
 Do NOT use your pre-trained general knowledge or make assumptions.
 </BASE_JUDGMENT_ON_IMAGES_ONLY>
 
+<RESULT_CONSISTENCY>
+Write "explanation" and "shortExplanation" first, and decide "result" only after the reasoning is complete.
+"result" must match the conclusion stated in "explanation". If your reasoning changes your conclusion, set "result" to the final conclusion.
+</RESULT_CONSISTENCY>
+
+<CONDITIONAL_CHECK_ITEMS>
+Some check items apply only when a condition is met (for example, "If X, then Y must be stated").
+- First determine from the documents whether the condition is met.
+- If the condition is not met, the requirement does not apply: set "result": "pass" and explain in "explanation" that the condition is not met.
+- Only if the condition is met, judge whether the requirement is satisfied.
+- Apply INSUFFICIENT_INFORMATION_HANDLING only when the information needed to decide the condition, or the requirement itself once the condition is met, cannot be found.
+</CONDITIONAL_CHECK_ITEMS>
+
 <INSUFFICIENT_INFORMATION_HANDLING>
 **If the required visual information is not found in the images or through tool usage:**
 - Set "result": "fail"
@@ -1066,11 +1105,11 @@ Do NOT use your pre-trained general knowledge or make assumptions.
 Respond **only** in the following JSON format (no Markdown code fences):
 
 {{
-  "result": "pass" | "fail",
-  "confidence": <number between 0 and 1>,
   "explanation": "<detailed reasoning> (IN {language_name})",
   "shortExplanation": "<≤80 characters summary> (IN {language_name})",
-  "usedImageIndexes": [<indexes actually referenced>]{bbox_field}
+  "usedImageIndexes": [<indexes actually referenced>]{bbox_field},
+  "result": "pass" | "fail",
+  "confidence": <number between 0 and 1>
 }}
 
 REMEMBER: YOUR ENTIRE RESPONSE, INCLUDING EVERY VALUE INSIDE THE JSON,
