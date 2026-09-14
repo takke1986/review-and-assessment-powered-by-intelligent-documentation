@@ -5,11 +5,13 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import {
+  ReviewJobDocument,
   ReviewResultDetail,
   REVIEW_RESULT,
   REVIEW_RESULT_STATUS,
   REVIEW_FILE_TYPE,
 } from "../types";
+import { useReviewJobDetail } from "../hooks/useReviewJobQueries";
 import ReviewResultOverrideModal from "./ReviewResultOverrideModal";
 import Button from "../../../components/Button";
 import {
@@ -35,12 +37,7 @@ interface ReviewResultItemProps {
   onToggleExpand: () => void;
   confidenceThreshold: number;
   isLoadingChildren?: boolean;
-  documents: Array<{
-    id: string;
-    filename: string;
-    s3Path: string;
-    fileType: REVIEW_FILE_TYPE;
-  }>;
+  documents: ReviewJobDocument[];
 }
 
 export default function ReviewResultItem({
@@ -58,11 +55,23 @@ export default function ReviewResultItem({
   const [showDetails, setShowDetails] = useState(false); // いかなる場合も詳細を最初は隠した状態に設定
   const costInfo = useReviewItemCost(result); // コスト情報を直接取得
 
+  // 引き継いだ結果は、判定を下したジョブの文書で判定している。
+  // そのジョブは詳細を開いたときにだけ読み込む
+  const { job: judgedInJob, isLoading: isLoadingJudgedInJob } =
+    useReviewJobDetail(
+      showDetails && result.judgedInReviewJobId
+        ? result.judgedInReviewJobId
+        : null
+    );
+  const judgedDocuments: ReviewJobDocument[] = result.judgedInReviewJobId
+    ? (judgedInJob?.documents ?? [])
+    : documents;
+
   // Get source references
-  // 引き継いだ結果の根拠は元のジョブの文書を指すので、このジョブにある文書だけを表示する
+  // 根拠は判定に使った文書を指すので、その中にある文書だけを表示する
   const allSourceReferences = result.sourceReferences || [];
   const sourceReferences = allSourceReferences.filter((reference) =>
-    documents.some((doc) => doc.id === reference.documentId)
+    judgedDocuments.some((doc) => doc.id === reference.documentId)
   );
 
   // Add style if confidence is below threshold
@@ -382,6 +391,55 @@ export default function ReviewResultItem({
                     </div>
                   )}
 
+                  {/* この判定に使った文書 */}
+                  {!hasChildren &&
+                    result.status === REVIEW_RESULT_STATUS.COMPLETED && (
+                      <div className="rounded border border-light-gray bg-aws-paper-light p-3 text-sm">
+                        <p className="mb-1 font-medium text-aws-squid-ink-light">
+                          {t("review.judgedWithDocuments")}:
+                        </p>
+                        {result.judgedInReviewJobId && judgedInJob && (
+                          <p className="mb-1 text-xs text-aws-font-color-gray">
+                            {t("review.judgedInJob")}:{" "}
+                            <Link
+                              to={`/review/${judgedInJob.id}`}
+                              className="text-aws-font-color-blue hover:underline">
+                              {judgedInJob.name}
+                            </Link>
+                          </p>
+                        )}
+                        {isLoadingJudgedInJob ? (
+                          <Spinner size="sm" />
+                        ) : judgedDocuments.length > 0 ? (
+                          <ul className="space-y-1">
+                            {judgedDocuments.map((doc) => (
+                              <li key={doc.id}>
+                                <DocumentPreview
+                                  s3Key={doc.s3Path}
+                                  filename={doc.filename}
+                                />
+                                {doc.uploadDate && (
+                                  <p className="text-xs text-aws-font-color-gray">
+                                    {t("review.uploadedAt", {
+                                      date: new Date(
+                                        doc.uploadDate
+                                      ).toLocaleString(),
+                                    })}
+                                  </p>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-aws-font-color-gray">
+                            {result.judgedInReviewJobId
+                              ? t("review.judgedInJobUnavailable")
+                              : t("review.noDocuments")}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                   {result.explanation && (
                     <div className="rounded border border-light-gray bg-aws-paper-light p-3 text-sm">
                       <p className="mb-1 font-medium text-aws-squid-ink-light">
@@ -428,7 +486,7 @@ export default function ReviewResultItem({
                         {sourceReferences
                           .slice(0, visibleReferencesCount)
                           .map((reference: any, index: number) => {
-                            const doc = documents.find(
+                            const doc = judgedDocuments.find(
                               (d) => d.id === reference.documentId
                             );
                             if (!doc) return null;

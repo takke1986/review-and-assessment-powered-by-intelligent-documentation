@@ -365,6 +365,11 @@ export interface ReviewResultDetail extends ReviewResultEntity {
   previousResultId?: string;
   /** 審査せずに元の結果を引き継いだか */
   carriedOver?: boolean;
+  /**
+   * この判定を下したジョブ。引き継いだ結果にだけ入り、判定に使った文書はそのジョブにある。
+   * 未設定なら、この結果のジョブで判定している
+   */
+  judgedInReviewJobId?: string;
   /** 元のジョブでの結果。元の結果が削除されていれば無い */
   previousResult?: PreviousReviewResult;
 }
