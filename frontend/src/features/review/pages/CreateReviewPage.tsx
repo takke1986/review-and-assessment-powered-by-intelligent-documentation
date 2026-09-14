@@ -8,6 +8,7 @@ import { FileUploader } from "../../../components/FileUploader";
 import ChecklistSelector from "../components/ChecklistSelector";
 import ComparisonIndicator from "../components/ComparisonIndicator";
 import DuplicateFileModal from "../components/DuplicateFileModal";
+import CheckItemPicker from "../components/CheckItemPicker";
 import { useCreateReviewJob } from "../hooks/useReviewJobMutations";
 import { useDocumentUpload } from "../../../hooks/useDocumentUpload";
 import { useChecklistSets } from "../../checklist/hooks/useCheckListSetQueries";
@@ -44,6 +45,12 @@ export const CreateReviewPage: React.FC = () => {
   } | null>(null);
   const [selectedChecklist, setSelectedChecklist] =
     useState<CheckListSet | null>(null);
+  // 審査するチェック項目（子を持たない項目のID）と、選べる項目の数。
+  // 項目の読み込みが終わるまでは null
+  const [checkSelection, setCheckSelection] = useState<{
+    ids: Set<string>;
+    total: number;
+  } | null>(null);
   const [jobName, setJobName] = useState("");
   const [fileType, setFileType] = useState<REVIEW_FILE_TYPE>(
     REVIEW_FILE_TYPE.PDF
@@ -95,6 +102,7 @@ export const CreateReviewPage: React.FC = () => {
   const isReady =
     uploadedDocuments?.length > 0 &&
     selectedChecklist !== null &&
+    (checkSelection?.ids.size ?? 0) > 0 &&
     jobName.trim() !== "";
 
   // ファイルタイプ選択ハンドラ
@@ -283,6 +291,9 @@ export const CreateReviewPage: React.FC = () => {
 
   // チェックリスト選択ハンドラ
   const handleChecklistSelect = (checklist: CheckListSet) => {
+    if (checklist.id !== selectedChecklist?.id) {
+      setCheckSelection(null);
+    }
     setSelectedChecklist(checklist);
   };
 
@@ -324,6 +335,11 @@ export const CreateReviewPage: React.FC = () => {
         name: jobName,
         checkListSetId: selectedChecklist.id,
         documents: documents,
+        // すべて選んでいるときは送らず、従来どおり全項目を審査する
+        checkIds:
+          checkSelection && checkSelection.ids.size < checkSelection.total
+            ? Array.from(checkSelection.ids)
+            : undefined,
       });
 
       clearUploadedDocuments();
@@ -456,6 +472,17 @@ export const CreateReviewPage: React.FC = () => {
               )}
             </div>
           </div>
+
+          {/* 審査するチェック項目 */}
+          {selectedChecklist && (
+            <div className="mt-6">
+              <CheckItemPicker
+                setId={selectedChecklist.id}
+                selectedIds={checkSelection?.ids ?? new Set()}
+                onChange={(ids, total) => setCheckSelection({ ids, total })}
+              />
+            </div>
+          )}
 
           <div className="mt-8 flex justify-end space-x-3">
             <Button outline to="/review">

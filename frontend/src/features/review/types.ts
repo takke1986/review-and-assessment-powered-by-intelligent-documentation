@@ -77,6 +77,8 @@ export interface CreateReviewJobRequest {
   }>;
   userId?: string;
   mcpServerName?: string;
+  /** 審査するチェック項目。省略するとすべての項目を審査する */
+  checkIds?: string[];
 }
 
 /**

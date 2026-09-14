@@ -166,6 +166,8 @@ export interface CreateReviewJobRequest {
     fileType: REVIEW_FILE_TYPE;
   }>;
   userId?: string;
+  /** 審査するチェック項目。省略するとすべての項目を審査する */
+  checkIds?: string[];
 }
 
 export const createReviewJobHandler = async (
