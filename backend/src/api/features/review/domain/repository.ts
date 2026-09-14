@@ -41,6 +41,20 @@ export interface ReviewJobRepository {
   }): Promise<void>;
 }
 
+const toReviewJobDocument = (doc: {
+  id: string;
+  filename: string;
+  s3Path: string;
+  fileType: string;
+  uploadDate: Date;
+}) => ({
+  id: doc.id,
+  filename: doc.filename,
+  s3Path: doc.s3Path,
+  fileType: doc.fileType as REVIEW_FILE_TYPE,
+  uploadDate: doc.uploadDate,
+});
+
 export const makePrismaReviewJobRepository = async (
   clientInput: PrismaClient | null = null
 ): Promise<ReviewJobRepository> => {
@@ -169,7 +183,13 @@ export const makePrismaReviewJobRepository = async (
       where: { id: reviewJobId },
       include: {
         sourceReviewJob: {
-          select: { id: true, name: true, status: true, createdAt: true },
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            createdAt: true,
+            documents: { orderBy: { id: "asc" } },
+          },
         },
         rerunJobs: {
           select: { id: true, name: true, status: true, createdAt: true },
@@ -216,12 +236,7 @@ export const makePrismaReviewJobRepository = async (
         })),
         createdAt: job.checkListSet.createdAt,
       },
-      documents: job.documents.map((doc) => ({
-        id: doc.id,
-        filename: doc.filename,
-        s3Path: doc.s3Path,
-        fileType: doc.fileType as REVIEW_FILE_TYPE,
-      })),
+      documents: job.documents.map(toReviewJobDocument),
       userId: job.userId || undefined,
       createdAt: job.createdAt,
       updatedAt: job.updatedAt,
@@ -233,6 +248,7 @@ export const makePrismaReviewJobRepository = async (
         ? {
             ...job.sourceReviewJob,
             status: job.sourceReviewJob.status as REVIEW_JOB_STATUS,
+            documents: job.sourceReviewJob.documents.map(toReviewJobDocument),
           }
         : undefined,
       rerunJobs: job.rerunJobs.map((rerun) => ({

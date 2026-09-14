@@ -98,12 +98,7 @@ export interface ReviewJobDetail {
   errorDetail?: string;
   hasError: boolean;
   checkList: CheckListSetEntity;
-  documents: Array<{
-    id: string;
-    filename: string;
-    s3Path: string;
-    fileType: REVIEW_FILE_TYPE;
-  }>;
+  documents: ReviewJobDocument[];
   // ジョブ作成者（所有者） - 存在しない場合もあるためオプショナル
   userId?: string;
   createdAt: Date;
@@ -112,8 +107,11 @@ export interface ReviewJobDetail {
   totalInputTokens?: number;
   totalOutputTokens?: number;
   totalCost?: number;
-  /** 再審査の元になったジョブ。元のジョブが削除されていれば無い */
-  sourceReviewJob?: ReviewJobLink;
+  /**
+   * 再審査の元になったジョブと、その文書（差し替え前の文書）。
+   * 元のジョブが削除されていれば無い
+   */
+  sourceReviewJob?: ReviewJobLink & { documents: ReviewJobDocument[] };
   /** このジョブを元にした再審査ジョブ（新しい順） */
   rerunJobs: ReviewJobLink[];
 }
@@ -126,6 +124,17 @@ export interface ReviewJobLink {
   name: string;
   status: REVIEW_JOB_STATUS;
   createdAt: Date;
+}
+
+/**
+ * 審査ジョブの文書
+ */
+export interface ReviewJobDocument {
+  id: string;
+  filename: string;
+  s3Path: string;
+  fileType: REVIEW_FILE_TYPE;
+  uploadDate: Date;
 }
 
 /**
