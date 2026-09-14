@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import Button from "../../../components/Button";
 import PageHeader from "../../../components/PageHeader";
 import FormTextField from "../../../components/FormTextField";
+import { FormTextArea } from "../../../components/FormTextArea";
 import { FileUploader } from "../../../components/FileUploader";
 import ChecklistSelector from "../components/ChecklistSelector";
 import ComparisonIndicator from "../components/ComparisonIndicator";
@@ -33,6 +34,7 @@ import {
 import {
   MAX_FILE_SIZE,
   MAX_REVIEW_DOCUMENTS,
+  MAX_REVISION_NOTE_LENGTH,
 } from "../../../constants/index";
 
 export const CreateReviewPage: React.FC = () => {
@@ -65,6 +67,10 @@ export const CreateReviewPage: React.FC = () => {
     total: number;
   } | null>(null);
   const [jobName, setJobName] = useState("");
+  // 再審査で何を直したかのメモ（任意）
+  const [revisionNote, setRevisionNote] = useState("");
+  const isRevisionNoteTooLong =
+    revisionNote.trim().length > MAX_REVISION_NOTE_LENGTH;
   const [fileType, setFileType] = useState<REVIEW_FILE_TYPE>(
     REVIEW_FILE_TYPE.PDF
   );
@@ -152,6 +158,7 @@ export const CreateReviewPage: React.FC = () => {
     uploadedDocuments?.length > 0 &&
     checkListSetId !== null &&
     (checkSelection?.ids.size ?? 0) > 0 &&
+    !isRevisionNoteTooLong &&
     jobName.trim() !== "";
 
   // ファイルタイプ選択ハンドラ
@@ -393,6 +400,8 @@ export const CreateReviewPage: React.FC = () => {
             ? Array.from(checkSelection.ids)
             : undefined,
         sourceReviewJobId: sourceJobId ?? undefined,
+        revisionNote:
+          sourceJobId && revisionNote.trim() ? revisionNote.trim() : undefined,
       });
 
       clearUploadedDocuments();
@@ -446,6 +455,26 @@ export const CreateReviewPage: React.FC = () => {
             required
             error={errors.name}
           />
+
+          {/* 再審査: 何を直したかを残しておくと、後から見返したときに分かる */}
+          {sourceJobId && (
+            <FormTextArea
+              id="revisionNote"
+              name="revisionNote"
+              label={t("review.revisionNote")}
+              value={revisionNote}
+              onChange={(e) => setRevisionNote(e.target.value)}
+              placeholder={t("review.revisionNotePlaceholder")}
+              rows={3}
+              error={
+                isRevisionNoteTooLong
+                  ? t("review.revisionNoteTooLong", {
+                      max: MAX_REVISION_NOTE_LENGTH,
+                    })
+                  : undefined
+              }
+            />
+          )}
 
           <div className="mb-6">
             <label className="mb-2 block font-medium text-aws-squid-ink-light dark:text-aws-font-color-white-dark">

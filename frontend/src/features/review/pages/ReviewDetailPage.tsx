@@ -115,6 +115,11 @@ export default function ReviewDetailPage() {
               </Link>
             </p>
           )}
+          {job.revisionNote && (
+            <p className="whitespace-pre-wrap text-aws-font-color-gray">
+              {t("review.revisionNote")}: {job.revisionNote}
+            </p>
+          )}
           {job.rerunJobs && job.rerunJobs.length > 0 && (
             <div className="text-aws-font-color-gray">
               {t("review.rerunJobs")}:
@@ -130,6 +135,11 @@ export default function ReviewDetailPage() {
                       ({t(`status.${rerun.status}`)},{" "}
                       {new Date(rerun.createdAt).toLocaleString()})
                     </span>
+                    {rerun.revisionNote && (
+                      <p className="whitespace-pre-wrap text-sm">
+                        {rerun.revisionNote}
+                      </p>
+                    )}
                   </li>
                 ))}
               </ul>

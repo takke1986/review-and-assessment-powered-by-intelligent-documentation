@@ -84,6 +84,8 @@ export interface CreateReviewJobRequest {
    * 不合格だった項目）だけを審査し、それ以外は元の結果を引き継ぐ
    */
   sourceReviewJobId?: string;
+  /** 再審査で何を直したかのメモ（任意） */
+  revisionNote?: string;
 }
 
 /**
@@ -258,6 +260,8 @@ export interface ReviewJobDetail {
   totalCost?: number;
   /** 再審査の元になったジョブと、その文書（差し替え前の文書） */
   sourceReviewJob?: ReviewJobLink & { documents?: ReviewJobDocument[] };
+  /** 再審査で何を直したかのメモ */
+  revisionNote?: string;
   /** このジョブを元にした再審査ジョブ（新しい順） */
   rerunJobs?: ReviewJobLink[];
 }
@@ -270,6 +274,7 @@ export interface ReviewJobLink {
   name: string;
   status: REVIEW_JOB_STATUS;
   createdAt: Date;
+  revisionNote?: string;
 }
 
 /**
