@@ -460,9 +460,10 @@ export const ReviewResultDomain = (() => {
       // レビュータイプによる分岐
       if (reviewType === "PDF") {
         // PDFのソース参照作成
+        // ページは PDF にだけある。Word・Excel・PowerPoint の文書には付けない
         sourceReferences = documents.map((doc) => ({
           documentId: doc.documentId,
-          pageNumber: doc.pageNumber || 1,
+          pageNumber: doc.pageNumber,
         }));
       } else {
         // IMAGE

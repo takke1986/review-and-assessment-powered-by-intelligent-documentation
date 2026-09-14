@@ -8,6 +8,7 @@ import {
 } from "../../api/features/review/domain/model/review";
 import { S3TempStorage } from "../../utils/s3-temp";
 import { getS3Client } from "../../api/core/s3";
+import { selectSourceDocuments } from "./source-documents";
 
 // TypeScript declaration for console
 declare const console: {
@@ -151,19 +152,15 @@ export async function postReviewItemProcessor(
         reviewJobId,
       });
 
-      // Find PDF documents in the job
-      const pdfDocuments = jobDetail.documents.filter(
-        (doc) => doc.fileType === REVIEW_FILE_TYPE.PDF
-      );
-
-      // Create document info array from PDF documents and document IDs
-      const documents = documentIds.map((docId) => {
-        const doc = pdfDocuments.find((d) => d.id === docId);
-        return {
-          documentId: docId,
-          filename: doc ? doc.filename : "",
-          pageNumber: resolvedReviewData.pageNumber || 1,
-        };
+      // 根拠にする文書。審査処理が返した sources（ファイルとページ）で絞る。
+      // 文書のファイルの種類（PDF）には、Word・Excel・PowerPoint も入る
+      const documents = selectSourceDocuments({
+        documents: jobDetail.documents.filter(
+          (doc) => doc.fileType === REVIEW_FILE_TYPE.PDF
+        ),
+        documentIds,
+        sources: resolvedReviewData.sources,
+        pageNumber: resolvedReviewData.pageNumber,
       });
 
       console.log(
