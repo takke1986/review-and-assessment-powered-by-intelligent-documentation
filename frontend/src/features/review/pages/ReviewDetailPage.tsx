@@ -112,6 +112,37 @@ export default function ReviewDetailPage() {
           <p className="text-aws-font-color-gray">
             {t("review.checklist")}: {job.checkList.name}
           </p>
+          {/* 再審査でつながったジョブ */}
+          {job.sourceReviewJob && (
+            <p className="text-aws-font-color-gray">
+              {t("review.rerunOf")}:{" "}
+              <Link
+                to={`/review/${job.sourceReviewJob.id}`}
+                className="text-aws-font-color-blue hover:underline">
+                {job.sourceReviewJob.name}
+              </Link>
+            </p>
+          )}
+          {job.rerunJobs && job.rerunJobs.length > 0 && (
+            <div className="text-aws-font-color-gray">
+              {t("review.rerunJobs")}:
+              <ul className="ml-5 list-disc">
+                {job.rerunJobs.map((rerun) => (
+                  <li key={rerun.id}>
+                    <Link
+                      to={`/review/${rerun.id}`}
+                      className="text-aws-font-color-blue hover:underline">
+                      {rerun.name}
+                    </Link>{" "}
+                    <span className="text-sm">
+                      ({t(`status.${rerun.status}`)},{" "}
+                      {new Date(rerun.createdAt).toLocaleString()})
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <p className="text-aws-font-color-gray">
             {t("review.status")}:&nbsp;
             <span

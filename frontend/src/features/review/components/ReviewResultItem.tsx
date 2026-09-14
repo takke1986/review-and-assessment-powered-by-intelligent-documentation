@@ -3,6 +3,7 @@
  */
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import {
   ReviewResultDetail,
   REVIEW_RESULT,
@@ -58,7 +59,11 @@ export default function ReviewResultItem({
   const costInfo = useReviewItemCost(result); // コスト情報を直接取得
 
   // Get source references
-  const sourceReferences = result.sourceReferences || [];
+  // 引き継いだ結果の根拠は元のジョブの文書を指すので、このジョブにある文書だけを表示する
+  const allSourceReferences = result.sourceReferences || [];
+  const sourceReferences = allSourceReferences.filter((reference) =>
+    documents.some((doc) => doc.id === reference.documentId)
+  );
 
   // Add style if confidence is below threshold
   const isBelowThreshold =
@@ -121,6 +126,32 @@ export default function ReviewResultItem({
       return (
         <span className="ml-2 rounded-full bg-aws-sea-blue-light bg-opacity-20 px-2 py-1 text-xs text-aws-sea-blue-light">
           {t("review.userOverride", "User Override")}
+        </span>
+      );
+    }
+    return null;
+  };
+
+  // 再審査: 引き継いだ結果か、前回の判定を示す
+  const renderHistoryBadge = () => {
+    if (result.carriedOver) {
+      return (
+        <span className="ml-2 rounded-full bg-light-gray px-2 py-1 text-xs text-aws-squid-ink-light">
+          {t("review.carriedOverBadge")}
+        </span>
+      );
+    }
+    if (result.previousResult?.result === REVIEW_RESULT.FAIL) {
+      return (
+        <span className="bg-red-100 text-red-800 ml-2 rounded-full px-2 py-1 text-xs">
+          {t("review.previousFail")}
+        </span>
+      );
+    }
+    if (result.previousResult?.result === REVIEW_RESULT.PASS) {
+      return (
+        <span className="ml-2 rounded-full bg-green-100 px-2 py-1 text-xs text-green-800">
+          {t("review.previousPass")}
         </span>
       );
     }
@@ -224,6 +255,7 @@ export default function ReviewResultItem({
                 <div className="ml-2">
                   {renderStatusBadge()}
                   {renderUserOverrideBadge()}
+                  {renderHistoryBadge()}
                 </div>
                 {/* 信頼度スコアと料金を上段に表示 */}
                 {!hasChildren && renderConfidenceScore() && (
@@ -285,6 +317,7 @@ export default function ReviewResultItem({
             {/* 説明文と抽出テキスト */}
             {showDetails &&
               (result.explanation ||
+                result.previousResult ||
                 result.extractedText ||
                 result.userComment ||
                 result.checkList.description) && (
@@ -298,6 +331,54 @@ export default function ReviewResultItem({
                       <p className="text-aws-font-color-gray">
                         {result.checkList.description}
                       </p>
+                    </div>
+                  )}
+
+                  {/* 再審査: 元のジョブでの判定 */}
+                  {result.previousResult && (
+                    <div className="rounded border border-light-gray bg-aws-paper-light p-3 text-sm">
+                      <p className="mb-1 font-medium text-aws-squid-ink-light">
+                        {result.carriedOver
+                          ? t("review.carriedOverFrom")
+                          : t("review.previousDecision")}
+                        {" · "}
+                        <Link
+                          to={`/review/${result.previousResult.reviewJobId}`}
+                          className="font-normal text-aws-font-color-blue hover:underline">
+                          {t("review.openSourceJob")}
+                        </Link>
+                      </p>
+                      {!result.carriedOver && (
+                        <>
+                          <p className="text-aws-font-color-gray">
+                            {result.previousResult.result === REVIEW_RESULT.FAIL
+                              ? t("review.previousFail")
+                              : result.previousResult.result ===
+                                  REVIEW_RESULT.PASS
+                                ? t("review.previousPass")
+                                : t(`status.${result.previousResult.status}`)}
+                            {result.previousResult.userOverride &&
+                              ` (${t("review.userOverride", "User Override")})`}
+                          </p>
+                          {result.previousResult.explanation && (
+                            <p className="mt-1 text-aws-font-color-gray">
+                              {result.previousResult.explanation}
+                            </p>
+                          )}
+                          {result.previousResult.userComment && (
+                            <p className="mt-1 text-aws-font-color-gray">
+                              {t("review.userComment", "User Comment")}:{" "}
+                              {result.previousResult.userComment}
+                            </p>
+                          )}
+                        </>
+                      )}
+                      {result.carriedOver &&
+                        allSourceReferences.length > sourceReferences.length && (
+                          <p className="text-aws-font-color-gray">
+                            {t("review.carriedOverSources")}
+                          </p>
+                        )}
                     </div>
                   )}
 
