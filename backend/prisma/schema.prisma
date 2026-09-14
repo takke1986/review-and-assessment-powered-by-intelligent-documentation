@@ -111,17 +111,27 @@ model CheckListDocument {
 }
 
 model ReviewDocument {
-  id          String    @id @map("review_document_id") @db.VarChar(26)
-  filename    String    @db.VarChar(255)
-  s3Path      String    @map("s3_path") @db.VarChar(512)
-  fileType    String    @map("file_type") @db.VarChar(50)
-  uploadDate  DateTime  @map("upload_date") @db.Timestamp(0)
-  userId      String?   @map("user_id") @db.VarChar(50)
-  status      String    @default("pending") @db.VarChar(20)
-  reviewJobId String    @map("review_job_id") @db.VarChar(26)
-  reviewJob   ReviewJob @relation(fields: [reviewJobId], references: [id])
+  id                    String           @id @map("review_document_id") @db.VarChar(26)
+  filename              String           @db.VarChar(255)
+  s3Path                String           @map("s3_path") @db.VarChar(512)
+  fileType              String           @map("file_type") @db.VarChar(50)
+  uploadDate            DateTime         @map("upload_date") @db.Timestamp(0)
+  userId                String?          @map("user_id") @db.VarChar(50)
+  status                String           @default("pending") @db.VarChar(20)
+  reviewJobId           String           @map("review_job_id") @db.VarChar(26)
+  /// 再審査で、元のジョブから引き継いだ文書（同じ S3 のファイルを指す）
+  carriedFromDocumentId String?          @map("carried_from_document_id") @db.VarChar(26)
+  /// 再審査で、この文書が差し替えた元のジョブの文書
+  replacesDocumentId    String?          @map("replaces_document_id") @db.VarChar(26)
+  reviewJob             ReviewJob        @relation(fields: [reviewJobId], references: [id])
+  carriedFromDocument   ReviewDocument?  @relation("ReviewDocumentCarriedFrom", fields: [carriedFromDocumentId], references: [id], onDelete: SetNull)
+  carriedToDocuments    ReviewDocument[] @relation("ReviewDocumentCarriedFrom")
+  replacesDocument      ReviewDocument?  @relation("ReviewDocumentReplaces", fields: [replacesDocumentId], references: [id], onDelete: SetNull)
+  replacedByDocuments   ReviewDocument[] @relation("ReviewDocumentReplaces")
 
   @@index([reviewJobId], map: "review_documents_review_job_id_fkey")
+  @@index([carriedFromDocumentId], map: "idx_review_documents_carried_from")
+  @@index([replacesDocumentId], map: "idx_review_documents_replaces")
   @@map("review_documents")
 }
 

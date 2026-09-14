@@ -47,12 +47,16 @@ const toReviewJobDocument = (doc: {
   s3Path: string;
   fileType: string;
   uploadDate: Date;
+  carriedFromDocumentId: string | null;
+  replacesDocumentId: string | null;
 }) => ({
   id: doc.id,
   filename: doc.filename,
   s3Path: doc.s3Path,
   fileType: doc.fileType as REVIEW_FILE_TYPE,
   uploadDate: doc.uploadDate,
+  carriedFromDocumentId: doc.carriedFromDocumentId ?? undefined,
+  replacesDocumentId: doc.replacesDocumentId ?? undefined,
 });
 
 export const makePrismaReviewJobRepository = async (
@@ -296,9 +300,11 @@ export const makePrismaReviewJobRepository = async (
             filename: doc.filename,
             s3Path: doc.s3Key,
             fileType: doc.fileType,
-            uploadDate: now,
+            uploadDate: doc.uploadDate ?? now,
             status: "processing",
             reviewJobId: params.id,
+            carriedFromDocumentId: doc.carriedFromDocumentId,
+            replacesDocumentId: doc.replacesDocumentId,
           },
         });
       }

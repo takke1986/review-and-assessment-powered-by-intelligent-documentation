@@ -2,6 +2,7 @@ import {
   REVIEW_JOB_STATUS,
   ReviewJobSummary,
   ReviewJobDetail,
+  ReviewJobDocument,
   ReviewResultDetail,
 } from "../domain/model/review";
 import { PaginatedResponse } from "../../../common/types";
@@ -203,14 +204,16 @@ export const createReviewJob = async (params: {
     params.deps?.reviewJobRepo || (await makePrismaReviewJobRepository());
 
   // バリデーション
-  if (
-    !params.requestBody.documents ||
-    params.requestBody.documents.length === 0
-  ) {
+  // 再審査では、元のジョブから引き継ぐ文書も審査する文書に数える
+  const uploadedDocuments = params.requestBody.documents ?? [];
+  const documentCount =
+    uploadedDocuments.length +
+    (params.requestBody.keptDocumentIds?.length ?? 0);
+  if (documentCount === 0) {
     throw new ApplicationError("At least one document is required");
   }
 
-  if (params.requestBody.documents.length > MAX_REVIEW_DOCUMENTS) {
+  if (documentCount > MAX_REVIEW_DOCUMENTS) {
     throw new ApplicationError(
       `Maximum ${MAX_REVIEW_DOCUMENTS} documents allowed`
     );
@@ -222,7 +225,7 @@ export const createReviewJob = async (params: {
     throw new ApplicationError("DOCUMENT_BUCKET is not defined");
   }
 
-  for (const doc of params.requestBody.documents) {
+  for (const doc of uploadedDocuments) {
     try {
       const fileSize = await getS3ObjectSize(bucketName, doc.s3Key);
       if (!validateFileSize(fileSize, MAX_FILE_SIZE)) {
@@ -308,7 +311,11 @@ export const loadRerunSource = async (params: {
     reviewJobRepo: ReviewJobRepository;
     reviewResultRepo?: ReviewResultRepository;
   };
-}): Promise<{ reviewJobId: string; results: ReviewResultDetail[] }> => {
+}): Promise<{
+  reviewJobId: string;
+  results: ReviewResultDetail[];
+  documents: ReviewJobDocument[];
+}> => {
   const { sourceReviewJobId, checkListSetId, user, deps } = params;
 
   const sourceJob = await deps.reviewJobRepo.findReviewJobById({
@@ -338,7 +345,11 @@ export const loadRerunSource = async (params: {
     includeAllChildren: true,
   });
 
-  return { reviewJobId: sourceReviewJobId, results };
+  return {
+    reviewJobId: sourceReviewJobId,
+    results,
+    documents: sourceJob.documents,
+  };
 };
 
 export const removeReviewJob = async (params: {

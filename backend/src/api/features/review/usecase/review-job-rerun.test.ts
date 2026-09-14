@@ -55,6 +55,7 @@ describe("loadRerunSource", () => {
     expect(source).toEqual({
       reviewJobId: "source-job",
       results: [{ id: "prev-A" }],
+      documents: [],
     });
     expect(d.reviewResultRepo.findReviewResultsById).toHaveBeenCalledWith({
       jobId: "source-job",

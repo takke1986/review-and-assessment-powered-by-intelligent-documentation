@@ -61,6 +61,12 @@ export interface ReviewJobEntity {
     filename: string;
     s3Key: string;
     fileType: REVIEW_FILE_TYPE;
+    /** 引き継いだ文書は元のアップロード日時を保つ。未設定なら作成時刻 */
+    uploadDate?: Date;
+    /** 再審査で、元のジョブから引き継いだ文書 */
+    carriedFromDocumentId?: string;
+    /** 再審査で、この文書が差し替えた元のジョブの文書 */
+    replacesDocumentId?: string;
   }>;
   results: ReviewResultEntity[];
 }
@@ -140,6 +146,10 @@ export interface ReviewJobDocument {
   s3Path: string;
   fileType: REVIEW_FILE_TYPE;
   uploadDate: Date;
+  /** 再審査で、元のジョブから引き継いだ文書 */
+  carriedFromDocumentId?: string;
+  /** 再審査で、この文書が差し替えた元のジョブの文書 */
+  replacesDocumentId?: string;
 }
 
 /**

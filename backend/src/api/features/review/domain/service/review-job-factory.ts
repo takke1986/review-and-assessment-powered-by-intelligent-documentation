@@ -7,6 +7,7 @@ import {
   REVIEW_RESULT,
   REVIEW_RESULT_STATUS,
   REVIEW_JOB_STATUS,
+  ReviewJobDocument,
   ReviewJobEntity,
   ReviewResultDetail,
   ReviewResultEntity,
@@ -21,6 +22,8 @@ export const createInitialReviewJobModel = async (params: {
   source?: {
     reviewJobId: string;
     results: ReviewResultDetail[];
+    /** 元のジョブの文書。引き継ぎと差し替えの対象になる */
+    documents?: ReviewJobDocument[];
   };
 }): Promise<ReviewJobEntity> => {
   const { req, deps, source } = params;
@@ -59,9 +62,89 @@ export const createInitialReviewJobModel = async (params: {
     userId: req.userId,
     sourceReviewJobId: source?.reviewJobId,
     revisionNote: normalizeRevisionNote(req.revisionNote),
-    documents: req.documents,
+    documents: source
+      ? buildRerunDocuments(req, source.documents ?? [])
+      : buildDocuments(req),
     results: initialResults,
   };
+};
+
+/**
+ * 通常の審査の文書。引き継ぎと差し替えは、再審査でしか指定できない。
+ */
+const buildDocuments = (
+  req: Pick<CreateReviewJobRequest, "documents" | "keptDocumentIds">
+): ReviewJobEntity["documents"] => {
+  const documents = req.documents ?? [];
+  if (
+    (req.keptDocumentIds?.length ?? 0) > 0 ||
+    documents.some((doc) => doc.replacesDocumentId)
+  ) {
+    throw new ValidationError(
+      "Documents can be kept or replaced only in a re-review"
+    );
+  }
+  return documents;
+};
+
+/**
+ * 再審査の文書を組み立てる。
+ *
+ * - keptDocumentIds の文書は、元のジョブの文書を引き継ぐ。同じ S3 のファイルを
+ *   指す新しい文書にし、元のアップロード日時を保つ
+ * - アップロードした文書は、replacesDocumentId があれば元の文書の差し替え、
+ *   なければ追加
+ * - どちらにも含まれない元の文書は、このジョブでは使わない
+ *
+ * 引き継がれずに外れた文書があると、複数の文書を見比べる項目が片方の文書だけで
+ * 審査されてしまうため、画面では引き継ぎを既定にしている。
+ */
+export const buildRerunDocuments = (
+  req: Pick<CreateReviewJobRequest, "documents" | "keptDocumentIds">,
+  sourceDocuments: ReviewJobDocument[]
+): ReviewJobEntity["documents"] => {
+  const sourceIds = new Set(sourceDocuments.map((doc) => doc.id));
+  const keptIds = req.keptDocumentIds ?? [];
+  const uploaded = req.documents ?? [];
+  const replacedIds = uploaded
+    .map((doc) => doc.replacesDocumentId)
+    .filter((id): id is string => !!id);
+
+  const unknownIds = [...keptIds, ...replacedIds].filter(
+    (id) => !sourceIds.has(id)
+  );
+  if (unknownIds.length > 0) {
+    throw new ValidationError(
+      `Documents not found in the source review job: ${unknownIds.join(", ")}`
+    );
+  }
+  if (
+    new Set(keptIds).size !== keptIds.length ||
+    new Set(replacedIds).size !== replacedIds.length
+  ) {
+    throw new ValidationError(
+      "A source document can be kept or replaced only once"
+    );
+  }
+  const keptAndReplaced = keptIds.filter((id) => replacedIds.includes(id));
+  if (keptAndReplaced.length > 0) {
+    throw new ValidationError(
+      `A source document cannot be both kept and replaced: ${keptAndReplaced.join(", ")}`
+    );
+  }
+
+  const kept = sourceDocuments
+    .filter((doc) => keptIds.includes(doc.id))
+    .map((doc) => ({
+      id: ulid(),
+      filename: doc.filename,
+      s3Key: doc.s3Path,
+      fileType: doc.fileType,
+      uploadDate: doc.uploadDate,
+      carriedFromDocumentId: doc.id,
+    }));
+
+  return [...kept, ...uploaded];
 };
 
 /**

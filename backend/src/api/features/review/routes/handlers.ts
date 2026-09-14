@@ -164,6 +164,8 @@ export interface CreateReviewJobRequest {
     filename: string;
     s3Key: string;
     fileType: REVIEW_FILE_TYPE;
+    /** 再審査で、この文書が差し替える元のジョブの文書 */
+    replacesDocumentId?: string;
   }>;
   userId?: string;
   /** 審査するチェック項目。省略するとすべての項目を審査する */
@@ -175,6 +177,8 @@ export interface CreateReviewJobRequest {
   sourceReviewJobId?: string;
   /** 再審査で何を直したかのメモ（任意） */
   revisionNote?: string;
+  /** 再審査で、元のジョブから引き継ぐ文書。アップロードし直さずに審査に使う */
+  keptDocumentIds?: string[];
 }
 
 export const createReviewJobHandler = async (
