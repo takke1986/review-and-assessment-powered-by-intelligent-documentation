@@ -16,6 +16,11 @@ from strands_tools import file_read, image_reader
 
 from logger import logger
 from model_config import ModelConfig
+from review_documents import (
+    ReviewFile,
+    build_document_blocks,
+    write_office_files_as_markdown,
+)
 from tool_history_collector import ToolHistoryCollector
 from tools.factory import create_custom_tools
 
@@ -208,6 +213,31 @@ def _detect_image_file(file_paths: list[str]) -> bool:
     return False
 
 
+def _as_markdown_files(files: list[ReviewFile], directory: str) -> list[ReviewFile]:
+    """file_read ツールは Office ファイルを読めないので、Markdown に変換したファイルに置き換える"""
+    paths = write_office_files_as_markdown(files, directory)
+    return [ReviewFile(path=path, name=file.name) for path, file in zip(paths, files)]
+
+
+def _normalize_sources(sources: Any) -> list[dict[str, Any]]:
+    """
+    モデルが返した、判定の根拠にしたファイルとページ。形の崩れたものは捨てる。
+    ページは 1 以上の整数だけを残す（Office ファイルなどページの無いものは None）。
+    """
+    normalized = []
+    for source in sources if isinstance(sources, list) else []:
+        if not isinstance(source, dict) or not isinstance(source.get("file"), str):
+            continue
+        page = source.get("page")
+        normalized.append(
+            {
+                "file": source["file"].strip(),
+                "page": page if type(page) is int and page >= 1 else None,
+            }
+        )
+    return [source for source in normalized if source["file"]]
+
+
 def _select_model_for_files(
     has_images: bool, model_id_override: str | None = None
 ) -> str:
@@ -257,12 +287,13 @@ def _validate_and_complete_result(
             result["extractedText"] = ""
         if "pageNumber" not in result:
             result["pageNumber"] = 1
+        result["sources"] = _normalize_sources(result.get("sources"))
 
     return result
 
 
 def _execute_review_core(
-    file_paths: list[str],
+    files: list[ReviewFile],
     has_images: bool,
     check_name: str,
     check_description: str,
@@ -275,7 +306,7 @@ def _execute_review_core(
     Execute review from local files (common logic).
 
     Args:
-        file_paths: List of absolute paths to local files
+        files: Local files, with the names they were uploaded as
         has_images: Whether image files are present
         check_name: Check item name
         check_description: Check item description
@@ -288,7 +319,9 @@ def _execute_review_core(
         Review result dict
     """
     # Determine processing method
-    use_document_block = _should_use_document_block(file_paths, model_id, has_images)
+    use_document_block = _should_use_document_block(
+        [file.path for file in files], model_id, has_images
+    )
 
     logger.debug(
         f"Processing method: "
@@ -315,7 +348,7 @@ def _execute_review_core(
 
         result = _run_agent_with_document_block(
             prompt=prompt,
-            file_paths=file_paths,
+            files=files,
             model_id=model_id,
             system_prompt=system_prompt,
             toolConfiguration=toolConfiguration,
@@ -354,14 +387,19 @@ def _execute_review_core(
             f"All responses must be in {language_name}."
         )
 
-        result = _run_agent_with_file_read_tool(
-            prompt=prompt,
-            file_paths=file_paths,
-            model_id=model_id,
-            system_prompt=system_prompt,
-            base_tools=tools,
-            toolConfiguration=toolConfiguration,
-        )
+        with tempfile.TemporaryDirectory() as converted_directory:
+            result = _run_agent_with_file_read_tool(
+                prompt=prompt,
+                files=(
+                    files
+                    if has_images
+                    else _as_markdown_files(files, converted_directory)
+                ),
+                model_id=model_id,
+                system_prompt=system_prompt,
+                base_tools=tools,
+                toolConfiguration=toolConfiguration,
+            )
         result["reviewType"] = review_type
         logger.debug("Used file_read tool processing")
 
@@ -397,7 +435,7 @@ def list_tools_sync(client: MCPClient) -> List[Dict[str, Any]]:
 # Agent execution functions
 def _run_agent_with_file_read_tool(
     prompt: str,
-    file_paths: List[str],
+    files: List[ReviewFile],
     model_id: str = DOCUMENT_MODEL_ID,
     system_prompt: str = "You are an expert document reviewer.",
     temperature: float = 0.0,
@@ -405,7 +443,7 @@ def _run_agent_with_file_read_tool(
     toolConfiguration: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Run Strands agent with traditional file_read approach"""
-    logger.debug(f"Running Strands agent with {len(file_paths)} files")
+    logger.debug(f"Running Strands agent with {len(files)} files")
     logger.debug(f"Tool configuration: {toolConfiguration}")
 
     meta_tracker = ReviewMetaTracker(model_id)
@@ -452,7 +490,9 @@ def _run_agent_with_file_read_tool(
     )
 
     # Add file references to the prompt
-    files_prompt = "\n".join([f"- '{file_path}'" for file_path in file_paths])
+    files_prompt = "\n".join(
+        f"- '{file.path}' (uploaded as {file.name})" for file in files
+    )
     full_prompt = f"{prompt}\n\nPlease analyze the following files:\n{files_prompt}"
 
     logger.debug(f"Running agent with prompt: {full_prompt[:100]}...")
@@ -486,7 +526,7 @@ def _run_agent_with_file_read_tool(
 
 def _run_agent_with_document_block(
     prompt: str,
-    file_paths: List[str],
+    files: List[ReviewFile],
     model_id: str = DOCUMENT_MODEL_ID,
     system_prompt: str = "You are an expert document reviewer.",
     temperature: float = 0.0,
@@ -495,14 +535,15 @@ def _run_agent_with_document_block(
     """
     Run Strands agent with document block.
 
-    Document block embeds PDF directly in the request.
+    Document block embeds the files directly in the request: PDFs as they are,
+    Word, Excel and PowerPoint files as Markdown converted from their XML.
     Citations will be enabled only if model supports it.
     """
 
     model = ModelConfig.create(model_id)
 
     logger.debug(
-        f"Running agent with document block: {len(file_paths)} files, "
+        f"Running agent with document block: {len(files)} files, "
         f"citations.enabled={model.supports_citation}, model={model_id}"
     )
 
@@ -517,32 +558,9 @@ def _run_agent_with_document_block(
 
     custom_tools = create_custom_tools(toolConfiguration)
 
-    # Prepare document blocks
-    content = []
-    for file_path in file_paths:
-        try:
-            with open(file_path, "rb") as f:
-                file_bytes = f.read()
-        except Exception as e:
-            logger.error(f"Failed to read file {file_path}: {e}")
-            continue
-
-        # The whole path, not the file name: Bedrock rejects a request with
-        # two documents of the same name, and files in different folders can
-        # share one.
-        sanitized_name = sanitize_file_name(file_path)
-
-        doc_block = {
-            "document": {
-                "name": sanitized_name,
-                "source": {"bytes": file_bytes},
-                "format": "pdf",
-                "citations": {"enabled": model.supports_citation},
-            }
-        }
-
-        content.append(doc_block)
-
+    # 各文書の前に、元のファイル名を書いたテキストを置く。Converse の上限
+    # （文書5つ・画像20枚）に収まらなければ、Markdown や PDF をまとめる
+    content = build_document_blocks(files, citations=model.supports_citation)
     content.append({"text": prompt})
 
     # Configure model
@@ -792,6 +810,18 @@ This feedback represents real-world review experience and should significantly i
 """
 
 
+# どのファイルの何ページを根拠にしたか。結果画面の「根拠の文書」をそのファイルに絞るのに使う
+_SOURCES_INSTRUCTION = """
+<sources_instruction>
+Each file is introduced by its original file name. In "sources", list every file your judgment relies on, using the file name exactly as given, with the page number within that file when the file is a PDF and null otherwise. When several files are joined into one document, name the original file, not the joined document.
+</sources_instruction>
+"""
+
+_SOURCES_SCHEMA = (
+    '"sources": [{"file": "<file name>", "page": <page within that file, or null>}]'
+)
+
+
 # Prompt generation functions
 def _get_document_review_prompt_legacy(
     language_name: str,
@@ -808,7 +838,8 @@ def _get_document_review_prompt_legacy(
   "explanation": "<detailed reasoning in {language_name}>",
   "shortExplanation": "<max 80 chars in {language_name}>",
   "extractedText": "<relevant excerpt in {language_name}>",
-  "pageNumber": <integer starting from 1>
+  "pageNumber": <integer starting from 1>,
+  {_SOURCES_SCHEMA}
 }}"""
 
     tool_section = _build_tool_usage_section(tool_config, language_name)
@@ -824,7 +855,7 @@ def _get_document_review_prompt_legacy(
 <document_access>
 Use the file_read tool to open and inspect each attached file.
 </document_access>
-{tool_section}
+{_SOURCES_INSTRUCTION}{tool_section}
 <output_requirements>
 Generate your entire response in {language_name}. Output only the JSON below, enclosed in markers:
 
@@ -846,6 +877,7 @@ Do NOT use your pre-trained general knowledge or make assumptions.
 - In "explanation", clearly state in {language_name} that the required information was not found and describe what specific information is missing
 - In "shortExplanation", write the phrase for "insufficient evidence" in {language_name}
 - Set "extractedText": "" (empty string)
+- Set "sources": [] (empty array)
 </INSUFFICIENT_INFORMATION_HANDLING>
 </CRITICAL_RULES>
 
@@ -876,7 +908,8 @@ def _get_document_review_prompt_with_citations(
   "explanation": "<detailed reasoning in {language_name}>",
   "shortExplanation": "<max 80 chars in {language_name}>",
   "pageNumber": <integer starting from 1>,
-  "citations": ["<quoted text 1>", "<quoted text 2>", ...]
+  "citations": ["<quoted text 1>", "<quoted text 2>", ...],
+  {_SOURCES_SCHEMA}
 }}"""
 
     tool_section = _build_tool_usage_section(tool_config, language_name)
@@ -892,7 +925,7 @@ def _get_document_review_prompt_with_citations(
 <document_access>
 Documents are provided with citation support enabled. When you reference specific information from the documents, write your explanation in natural prose.
 </document_access>
-
+{_SOURCES_INSTRUCTION}
 <citation_instruction>
 When you reference specific content from the documents, include the exact quoted text in the "citations" array.
 Each citation should be a direct quote from the source document that supports your explanation.
@@ -927,6 +960,7 @@ Do NOT use your pre-trained general knowledge or make assumptions.
 - In "explanation", clearly state in {language_name} that the required information was not found and describe what specific information is missing
 - In "shortExplanation", write the phrase for "insufficient evidence" in {language_name}
 - Set "citations": [] (empty array)
+- Set "sources": [] (empty array)
 </INSUFFICIENT_INFORMATION_HANDLING>
 </CRITICAL_RULES>
 
@@ -1114,6 +1148,7 @@ def process_review_from_s3(
     temp_dir = tempfile.mkdtemp()
     logger.debug(f"Created temporary directory: {temp_dir}")
     local_file_paths = []
+    files: list[ReviewFile] = []
 
     try:
         # Download files from S3
@@ -1132,6 +1167,7 @@ def process_review_from_s3(
             logger.debug(f"Downloading {path} to {sanitized_path}")
             s3_client.download_file(document_bucket, path, sanitized_path)
             local_file_paths.append(sanitized_path)
+            files.append(ReviewFile(path=sanitized_path, name=original_basename))
 
         # Detect file types
         has_images = _detect_image_file(local_file_paths)
@@ -1142,7 +1178,7 @@ def process_review_from_s3(
 
         # Call common execution logic
         result = _execute_review_core(
-            file_paths=local_file_paths,
+            files=files,
             has_images=has_images,
             check_name=check_name,
             check_description=check_description,
@@ -1211,7 +1247,10 @@ def process_review_from_local(
 
     # Call common execution logic
     result = _execute_review_core(
-        file_paths=document_paths,
+        files=[
+            ReviewFile(path=path, name=os.path.basename(path))
+            for path in document_paths
+        ],
         has_images=has_images,
         check_name=check_name,
         check_description=check_description,

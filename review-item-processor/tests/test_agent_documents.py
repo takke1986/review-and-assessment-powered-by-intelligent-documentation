@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+"""
+agent.py が、審査するファイルをモデルにどう渡し、根拠のファイルをどう受け取るかのテスト。
+"""
+
+import os
+import sys
+
+import pytest
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import agent
+from review_documents import ReviewFile
+from tests.test_office_documents import document_parts, write_package
+
+MODEL_ID = "global.anthropic.claude-sonnet-4-6"
+
+
+class Sent(Exception):
+    """Stops the agent once the request content has been captured."""
+
+
+def test_document_block_sends_office_files_as_markdown_after_their_names(
+    tmp_path, monkeypatch
+):
+    sent = {}
+
+    class FakeAgent:
+        def __init__(self, **kwargs):
+            pass
+
+        def __call__(self, content):
+            sent["content"] = content
+            raise Sent
+
+    monkeypatch.setattr(agent, "Agent", FakeAgent)
+    pdf = tmp_path / "a.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+    docx = write_package(tmp_path, "b.docx", document_parts())
+
+    with pytest.raises(Sent):
+        agent._run_agent_with_document_block(
+            "prompt",
+            [ReviewFile(str(pdf), "稟議書.pdf"), ReviewFile(docx, "申請書.docx")],
+            MODEL_ID,
+        )
+
+    content = sent["content"]
+    assert content[0] == {"text": "Document 1 is the file 稟議書.pdf."}
+    assert [
+        block["document"]["format"] for block in content if "document" in block
+    ] == ["pdf", "md"]
+    assert any("image" in block for block in content)
+    assert content[-1] == {"text": "prompt"}
+
+
+def test_file_read_tool_reads_office_files_as_markdown(tmp_path, monkeypatch):
+    seen = {}
+
+    def fake_file_read_agent(prompt, files, **kwargs):
+        # 変換したファイルは審査が終わると消えるので、ここで読む
+        seen["files"] = [
+            (file.path, file.name, open(file.path, encoding="utf-8").read())
+            for file in files
+        ]
+        return {"result": "pass"}
+
+    monkeypatch.setattr(agent, "_run_agent_with_file_read_tool", fake_file_read_agent)
+    monkeypatch.setattr(agent, "_should_use_document_block", lambda *args: False)
+    docx = write_package(tmp_path, "b.docx", document_parts())
+
+    result = agent._execute_review_core(
+        files=[ReviewFile(docx, "申請書.docx")],
+        has_images=False,
+        check_name="check",
+        check_description="description",
+        language_name="日本語",
+        model_id=MODEL_ID,
+        toolConfiguration=None,
+        feedback_summary=None,
+    )
+
+    [(path, name, text)] = seen["files"]
+    assert path.endswith("office-1.md")
+    assert name == "申請書.docx"
+    assert text.startswith("# 申請書.docx\n")
+    assert not os.path.exists(path)
+    assert result["sources"] == []
+
+
+def test_sources_keep_only_well_formed_entries():
+    assert agent._normalize_sources(
+        [
+            {"file": " 見積書.xlsx ", "page": None},
+            {"file": "稟議書.pdf", "page": 3},
+            {"file": "zero.pdf", "page": 0},
+            {"file": "flag.pdf", "page": True},
+            {"file": "   "},
+            {"page": 2},
+            "not a source",
+        ]
+    ) == [
+        {"file": "見積書.xlsx", "page": None},
+        {"file": "稟議書.pdf", "page": 3},
+        {"file": "zero.pdf", "page": None},
+        {"file": "flag.pdf", "page": None},
+    ]
+    assert agent._normalize_sources("not a list") == []
+
+
+@pytest.mark.parametrize("use_citations", [False, True])
+def test_document_prompts_ask_which_files_the_judgment_relies_on(use_citations):
+    prompt = agent.get_document_review_prompt(
+        "日本語", "check", "description", use_citations=use_citations
+    )
+
+    assert (
+        '"sources": [{"file": "<file name>", "page": <page within that file, or null>}]'
+        in prompt
+    )
+    assert "<sources_instruction>" in prompt
+    assert 'Set "sources": [] (empty array)' in prompt

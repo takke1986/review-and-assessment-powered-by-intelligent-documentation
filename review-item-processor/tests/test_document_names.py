@@ -9,6 +9,7 @@ and give each a distinct Bedrock document name.
 """
 
 import os
+import re
 import sys
 
 import pytest
@@ -36,10 +37,11 @@ class Sent(Exception):
 def _review_from_s3(monkeypatch, document_paths):
     seen = {}
 
-    def fake_core(file_paths, **kwargs):
+    def fake_core(files, **kwargs):
         # Read now: process_review_from_s3 removes the files once this returns.
-        seen["paths"] = list(file_paths)
-        seen["contents"] = [open(p).read() for p in file_paths]
+        seen["paths"] = [file.path for file in files]
+        seen["names"] = [file.name for file in files]
+        seen["contents"] = [open(file.path).read() for file in files]
         return {}
 
     monkeypatch.setattr(agent.boto3, "client", lambda service: FakeS3())
@@ -69,7 +71,11 @@ def _document_names(monkeypatch, file_paths):
 
     monkeypatch.setattr(agent, "Agent", FakeAgent)
     with pytest.raises(Sent):
-        agent._run_agent_with_document_block("prompt", file_paths, MODEL_ID)
+        agent._run_agent_with_document_block(
+            "prompt",
+            [agent.ReviewFile(path=p, name=os.path.basename(p)) for p in file_paths],
+            MODEL_ID,
+        )
     return [b["document"]["name"] for b in sent["content"] if "document" in b]
 
 
@@ -82,6 +88,8 @@ def test_same_name_files_are_downloaded_separately(monkeypatch):
 
     assert len(set(seen["paths"])) == 2
     assert seen["contents"] == paths  # neither download overwrote the other
+    # the model is told the name each file was uploaded as
+    assert seen["names"] == ["report.pdf", "report.pdf"]
 
 
 def test_local_file_keeps_its_extension(monkeypatch):
@@ -117,5 +125,4 @@ def test_document_names_meet_bedrock_rules(tmp_path, monkeypatch):
 
     [name] = _document_names(monkeypatch, [str(path)])
 
-    assert name.startswith("doc_")
-    assert name[len("doc_") :].isalnum()
+    assert re.fullmatch(r"[A-Za-z0-9\-()\[\] ]+", name)
