@@ -53,7 +53,7 @@ export default function RerunDocumentPicker({
       <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <h4 className="mb-2 font-medium text-aws-squid-ink-light dark:text-aws-font-color-white-dark">
-            {t("review.sourceDocuments")}
+            {t("review.rerunSourceDocuments")}
           </h4>
           <ul className="space-y-2">
             {sourceDocuments.map((doc) => {

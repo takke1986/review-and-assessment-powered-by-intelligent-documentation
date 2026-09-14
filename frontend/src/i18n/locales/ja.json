@@ -255,7 +255,7 @@
     "revisionNoteTooLong": "{{max}}文字以内で入力してください",
     "rerunDocuments": "審査する文書",
     "rerunDocumentsHelp": "元のジョブの文書は、最初はすべて引き継ぎます。修正した文書をアップロードし、どの文書の差し替えかを選んでください。変更していない文書を外すと、複数の文書を見比べる項目が正しく審査できません。",
-    "sourceDocuments": "元のジョブの文書",
+    "rerunSourceDocuments": "元のジョブの文書",
     "uploadedDocumentsForRerun": "アップロードした文書",
     "noUploadsYet": "修正した文書は、上のエリアからアップロードしてください",
     "keepDocument": "引き継ぐ",
