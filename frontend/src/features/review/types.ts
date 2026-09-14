@@ -74,6 +74,8 @@ export interface CreateReviewJobRequest {
     filename: string;
     s3Key: string;
     fileType: REVIEW_FILE_TYPE;
+    /** 再審査で、この文書が差し替える元のジョブの文書 */
+    replacesDocumentId?: string;
   }>;
   userId?: string;
   mcpServerName?: string;
@@ -86,6 +88,8 @@ export interface CreateReviewJobRequest {
   sourceReviewJobId?: string;
   /** 再審査で何を直したかのメモ（任意） */
   revisionNote?: string;
+  /** 再審査で、元のジョブから引き継ぐ文書 */
+  keptDocumentIds?: string[];
 }
 
 /**
@@ -287,6 +291,10 @@ export interface ReviewJobDocument {
   fileType: REVIEW_FILE_TYPE;
   /** 修正版は同じ名前で上げることが多いので、区別に使う */
   uploadDate?: Date;
+  /** 再審査で、元のジョブから引き継いだ文書 */
+  carriedFromDocumentId?: string;
+  /** 再審査で、この文書が差し替えた元のジョブの文書 */
+  replacesDocumentId?: string;
 }
 
 /**

@@ -10,6 +10,7 @@ import ChecklistSelector from "../components/ChecklistSelector";
 import ComparisonIndicator from "../components/ComparisonIndicator";
 import DuplicateFileModal from "../components/DuplicateFileModal";
 import CheckItemPicker from "../components/CheckItemPicker";
+import RerunDocumentPicker from "../components/RerunDocumentPicker";
 import { useCreateReviewJob } from "../hooks/useReviewJobMutations";
 import { useReviewJobDetail } from "../hooks/useReviewJobQueries";
 import { useAllReviewResults } from "../hooks/useReviewResultQueries";
@@ -71,6 +72,13 @@ export const CreateReviewPage: React.FC = () => {
   const [revisionNote, setRevisionNote] = useState("");
   const isRevisionNoteTooLong =
     revisionNote.trim().length > MAX_REVISION_NOTE_LENGTH;
+  // 再審査: 元のジョブの文書のうち引き継ぐもの（読み込むまでは null）と、
+  // アップロードした文書（ドキュメントID）ごとの差し替え対象（空文字は追加）
+  const [keptSourceDocumentIds, setKeptSourceDocumentIds] =
+    useState<Set<string> | null>(null);
+  const [replacements, setReplacements] = useState<Record<string, string>>(
+    {}
+  );
   const [fileType, setFileType] = useState<REVIEW_FILE_TYPE>(
     REVIEW_FILE_TYPE.PDF
   );
@@ -153,9 +161,55 @@ export const CreateReviewPage: React.FC = () => {
     );
   }, [sourceJob, t]);
 
+  // 再審査では、元のジョブの文書を最初はすべて引き継ぐ。変更していない文書が
+  // 外れると、複数の文書を見比べる項目が片方の文書だけで審査されてしまう
+  useEffect(() => {
+    if (!sourceJob || keptSourceDocumentIds !== null) return;
+    setKeptSourceDocumentIds(
+      new Set(sourceJob.documents.map((doc) => doc.id))
+    );
+    const sourceFileType = sourceJob.documents[0]?.fileType;
+    if (sourceFileType) setFileType(sourceFileType);
+  }, [sourceJob, keptSourceDocumentIds]);
+
+  // アップロードした文書と同じ名前の元の文書が1つだけあれば、差し替え対象にしておく
+  useEffect(() => {
+    if (!sourceJob) return;
+    setReplacements((current) => {
+      const next = { ...current };
+      let changed = false;
+      for (const doc of uploadedDocuments) {
+        if (doc.documentId in next) continue;
+        const taken = new Set(Object.values(next));
+        const sameName = sourceJob.documents.filter(
+          (source) => source.filename === doc.filename && !taken.has(source.id)
+        );
+        next[doc.documentId] = sameName.length === 1 ? sameName[0].id : "";
+        changed = true;
+      }
+      return changed ? next : current;
+    });
+  }, [sourceJob, uploadedDocuments]);
+
+  const replacedSourceDocumentIds = new Set(
+    uploadedDocuments
+      .map((doc) => replacements[doc.documentId])
+      .filter((id): id is string => !!id)
+  );
+  // 引き継ぐ文書: 引き継ぐと選ばれていて、差し替えられていないもの
+  const keptDocumentIds = sourceJob
+    ? sourceJob.documents
+        .map((doc) => doc.id)
+        .filter(
+          (id) =>
+            keptSourceDocumentIds?.has(id) && !replacedSourceDocumentIds.has(id)
+        )
+    : [];
+  const documentCount = uploadedDocuments.length + keptDocumentIds.length;
+
   // ファイルが選択されチェックリストも選択されているかチェック
   const isReady =
-    uploadedDocuments?.length > 0 &&
+    documentCount > 0 &&
     checkListSetId !== null &&
     (checkSelection?.ids.size ?? 0) > 0 &&
     !isRevisionNoteTooLong &&
@@ -364,7 +418,7 @@ export const CreateReviewPage: React.FC = () => {
       newErrors.name = t("review.nameRequired");
     }
 
-    if (!uploadedDocuments?.length) {
+    if (documentCount === 0) {
       newErrors.files = t("review.fileRequired");
     }
 
@@ -385,6 +439,9 @@ export const CreateReviewPage: React.FC = () => {
         filename: doc.filename,
         s3Key: doc.s3Key,
         fileType: fileType,
+        replacesDocumentId: sourceJobId
+          ? replacements[doc.documentId] || undefined
+          : undefined,
       }));
 
       await createReviewJob({
@@ -402,6 +459,7 @@ export const CreateReviewPage: React.FC = () => {
         sourceReviewJobId: sourceJobId ?? undefined,
         revisionNote:
           sourceJobId && revisionNote.trim() ? revisionNote.trim() : undefined,
+        keptDocumentIds: sourceJobId ? keptDocumentIds : undefined,
       });
 
       clearUploadedDocuments();
@@ -476,6 +534,8 @@ export const CreateReviewPage: React.FC = () => {
             />
           )}
 
+          {/* 再審査では元のジョブと同じファイルの種類にする */}
+          {!sourceJobId && (
           <div className="mb-6">
             <label className="mb-2 block font-medium text-aws-squid-ink-light dark:text-aws-font-color-white-dark">
               {t("review.fileType")} <span className="text-red">*</span>
@@ -498,6 +558,7 @@ export const CreateReviewPage: React.FC = () => {
               onChange={handleFileTypeChange}
             />
           </div>
+          )}
 
           <div className="mb-2">
             <label className="block font-medium text-aws-squid-ink-light dark:text-aws-font-color-white-dark">
@@ -582,6 +643,32 @@ export const CreateReviewPage: React.FC = () => {
               )}
             </div>
           </div>
+
+          {/* 再審査: 元のジョブの文書を引き継ぐか、差し替えるか */}
+          {sourceJob && keptSourceDocumentIds && (
+            <div className="mt-6">
+              <RerunDocumentPicker
+                sourceDocuments={sourceJob.documents}
+                keptIds={keptSourceDocumentIds}
+                onToggleKeep={(id) =>
+                  setKeptSourceDocumentIds((current) => {
+                    const next = new Set(current ?? []);
+                    if (next.has(id)) next.delete(id);
+                    else next.add(id);
+                    return next;
+                  })
+                }
+                uploadedDocuments={uploadedDocuments}
+                replacements={replacements}
+                onChangeReplacement={(uploadedId, sourceId) =>
+                  setReplacements((current) => ({
+                    ...current,
+                    [uploadedId]: sourceId,
+                  }))
+                }
+              />
+            </div>
+          )}
 
           {/* 審査するチェック項目 */}
           {checkListSetId && (!sourceJobId || failedCheckIds) && (
