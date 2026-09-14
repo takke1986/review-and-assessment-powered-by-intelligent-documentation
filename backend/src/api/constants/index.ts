@@ -7,3 +7,6 @@ export const MAX_FILE_SIZE = 4.5 * 1024 * 1024; // 4.5MB (Bedrock Converse API�
  * 片方だけ変更されると、アップロードは通るのにジョブ作成で弾かれる。
  */
 export const MAX_REVIEW_DOCUMENTS = 20;
+
+/** 再審査の変更メモの最大文字数 */
+export const MAX_REVISION_NOTE_LENGTH = 1000;

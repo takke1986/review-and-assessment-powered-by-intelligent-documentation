@@ -173,6 +173,8 @@ export interface CreateReviewJobRequest {
    * 元のジョブで不合格だった項目）以外は元の結果を引き継ぐ
    */
   sourceReviewJobId?: string;
+  /** 再審査で何を直したかのメモ（任意） */
+  revisionNote?: string;
 }
 
 export const createReviewJobHandler = async (

@@ -192,7 +192,13 @@ export const makePrismaReviewJobRepository = async (
           },
         },
         rerunJobs: {
-          select: { id: true, name: true, status: true, createdAt: true },
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            createdAt: true,
+            revisionNote: true,
+          },
           orderBy: { createdAt: "desc" },
         },
         documents: {
@@ -254,7 +260,9 @@ export const makePrismaReviewJobRepository = async (
       rerunJobs: job.rerunJobs.map((rerun) => ({
         ...rerun,
         status: rerun.status as REVIEW_JOB_STATUS,
+        revisionNote: rerun.revisionNote ?? undefined,
       })),
+      revisionNote: job.revisionNote ?? undefined,
     };
   };
 
@@ -272,6 +280,7 @@ export const makePrismaReviewJobRepository = async (
           updatedAt: now,
           userId: params.userId,
           sourceReviewJobId: params.sourceReviewJobId,
+          revisionNote: params.revisionNote,
         },
         include: {
           documents: true,

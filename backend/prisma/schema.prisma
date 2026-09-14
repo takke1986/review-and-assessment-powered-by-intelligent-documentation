@@ -140,6 +140,8 @@ model ReviewJob {
   totalCost         Decimal?         @map("total_cost") @db.Decimal(10, 4)
   /// 再審査の元になったジョブ。元のジョブが削除されたら NULL になる
   sourceReviewJobId String?          @map("source_review_job_id") @db.VarChar(26)
+  /// 再審査で何を直したかのメモ（任意）
+  revisionNote      String?          @map("revision_note") @db.Text
   documents         ReviewDocument[]
   checkListSet      CheckListSet     @relation(fields: [checkListSetId], references: [id])
   reviewResults     ReviewResult[]   @relation("ReviewJobResults")

@@ -54,6 +54,8 @@ export interface ReviewJobEntity {
   userId?: string;
   /** 再審査の元になったジョブ */
   sourceReviewJobId?: string;
+  /** 再審査で何を直したかのメモ */
+  revisionNote?: string;
   documents: Array<{
     id: string;
     filename: string;
@@ -112,6 +114,8 @@ export interface ReviewJobDetail {
    * 元のジョブが削除されていれば無い
    */
   sourceReviewJob?: ReviewJobLink & { documents: ReviewJobDocument[] };
+  /** 再審査で何を直したかのメモ */
+  revisionNote?: string;
   /** このジョブを元にした再審査ジョブ（新しい順） */
   rerunJobs: ReviewJobLink[];
 }
@@ -124,6 +128,7 @@ export interface ReviewJobLink {
   name: string;
   status: REVIEW_JOB_STATUS;
   createdAt: Date;
+  revisionNote?: string;
 }
 
 /**

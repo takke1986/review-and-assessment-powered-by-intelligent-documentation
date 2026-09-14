@@ -2,6 +2,7 @@ import { ulid } from "ulid";
 import { NotFoundError, ValidationError } from "../../../../core/errors";
 import { CheckRepository } from "../../../checklist/domain/repository";
 import { CreateReviewJobRequest } from "../../routes/handlers";
+import { MAX_REVISION_NOTE_LENGTH } from "../../../../constants";
 import {
   REVIEW_RESULT,
   REVIEW_RESULT_STATUS,
@@ -57,9 +58,26 @@ export const createInitialReviewJobModel = async (params: {
     checkListSetId: req.checkListSetId,
     userId: req.userId,
     sourceReviewJobId: source?.reviewJobId,
+    revisionNote: normalizeRevisionNote(req.revisionNote),
     documents: req.documents,
     results: initialResults,
   };
+};
+
+/**
+ * 再審査の変更メモを整える。前後の空白を除き、空ならメモなしとして扱う。
+ */
+export const normalizeRevisionNote = (note?: string): string | undefined => {
+  const trimmed = note?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  if (trimmed.length > MAX_REVISION_NOTE_LENGTH) {
+    throw new ValidationError(
+      `A revision note can be at most ${MAX_REVISION_NOTE_LENGTH} characters`
+    );
+  }
+  return trimmed;
 };
 
 /**
