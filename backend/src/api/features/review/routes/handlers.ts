@@ -231,6 +231,7 @@ export const getReviewResultItemsHandler = async (
       parentId?: string;
       filter?: string;
       includeAllChildren?: string;
+      importance?: string;
     };
   }>,
   reply: FastifyReply
@@ -242,6 +243,7 @@ export const getReviewResultItemsHandler = async (
       ? (request.query.filter as REVIEW_RESULT)
       : undefined,
     includeAllChildren: request.query.includeAllChildren === "true",
+    importance: request.query.importance,
     user: request.user,
   });
   reply.code(200).send({
