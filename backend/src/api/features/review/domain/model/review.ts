@@ -52,6 +52,8 @@ export interface ReviewJobEntity {
   status: REVIEW_JOB_STATUS;
   checkListSetId: string;
   userId?: string;
+  /** 再審査の元になったジョブ */
+  sourceReviewJobId?: string;
   documents: Array<{
     id: string;
     filename: string;
@@ -156,6 +158,10 @@ export interface ReviewResultEntity {
   inputTokens?: number;
   outputTokens?: number;
   totalCost?: number;
+  /** 元のジョブにおける、同じチェック項目の結果 */
+  previousResultId?: string;
+  /** 審査せずに元の結果を引き継いだか */
+  carriedOver?: boolean;
 }
 
 export interface ReviewResultDetail extends ReviewResultEntity {
@@ -237,6 +243,8 @@ export const ReviewResultDomain = (() => {
           : undefined,
         sourceReferences: _parseJsonField(prismaResult.sourceReferences),
         externalSources: _parseJsonField(prismaResult.externalSources),
+        previousResultId: prismaResult.previousResultId ?? undefined,
+        carriedOver: prismaResult.carriedOver ?? false,
       };
     },
 

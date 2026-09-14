@@ -238,6 +238,7 @@ export const makePrismaReviewJobRepository = async (
           createdAt: now,
           updatedAt: now,
           userId: params.userId,
+          sourceReviewJobId: params.sourceReviewJobId,
         },
         include: {
           documents: true,
