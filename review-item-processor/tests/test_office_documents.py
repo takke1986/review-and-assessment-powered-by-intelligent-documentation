@@ -17,6 +17,7 @@ from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import office_documents as od
+from office_documents import excel, limits
 
 RELATIONSHIP = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 WORD = (
@@ -197,7 +198,7 @@ def test_workbook_reads_charts_and_images_placed_on_a_sheet(tmp_path):
 
 
 def test_workbook_says_when_rows_are_left_out(tmp_path, monkeypatch):
-    monkeypatch.setattr(od, "MAX_SHEET_ROWS", 2)
+    monkeypatch.setattr(limits, "MAX_SHEET_ROWS", 2)
     path = write_package(tmp_path, "book.xlsx", workbook_parts())
 
     markdown = od.convert_office_file(path).markdown
@@ -221,18 +222,18 @@ def test_workbook_says_when_rows_are_left_out(tmp_path, monkeypatch):
     ],
 )
 def test_number_formats(raw, code, expected):
-    assert od._format_number(raw, code, date1904=False) == expected
+    assert excel._format_number(raw, code, date1904=False) == expected
 
 
 def test_shift_formula_moves_only_relative_references():
     assert (
-        od._shift_formula("SUM(A1:$B$2)+'Q1'!C3+\"A1\"+LOG10(A1)", 2, 1)
+        excel._shift_formula("SUM(A1:$B$2)+'Q1'!C3+\"A1\"+LOG10(A1)", 2, 1)
         == "SUM(B3:$B$2)+'Q1'!D5+\"A1\"+LOG10(B3)"
     )
 
 
 def test_relative_shape_describes_rows_from_the_cell():
-    assert od._relative_shape("SUM(B2:B4)+$H$2", 5) == "SUM(B{r-3}:B{r-1})+$H$2"
+    assert excel._relative_shape("SUM(B2:B4)+$H$2", 5) == "SUM(B{r-3}:B{r-1})+$H$2"
 
 
 # ---------------------------------------------------------------------------
@@ -446,7 +447,7 @@ def test_presentation_follows_slide_list_and_reading_order(tmp_path):
 
 
 def test_presentation_says_when_slides_are_left_out(tmp_path, monkeypatch):
-    monkeypatch.setattr(od, "MAX_SLIDES", 1)
+    monkeypatch.setattr(limits, "MAX_SLIDES", 1)
     path = write_package(tmp_path, "deck.pptx", presentation_parts())
 
     markdown = od.convert_office_file(path).markdown
@@ -458,7 +459,7 @@ def test_presentation_says_when_slides_are_left_out(tmp_path, monkeypatch):
 def test_only_the_largest_images_are_attached_and_the_rest_are_named(
     tmp_path, monkeypatch
 ):
-    monkeypatch.setattr(od, "MAX_IMAGES_PER_FILE", 1)
+    monkeypatch.setattr(limits, "MAX_IMAGES_PER_FILE", 1)
     path = write_package(tmp_path, "deck.pptx", presentation_parts())
 
     document = od.convert_office_file(path)

@@ -1147,7 +1147,6 @@ def process_review_from_s3(
     # Create temporary directory for downloaded files
     temp_dir = tempfile.mkdtemp()
     logger.debug(f"Created temporary directory: {temp_dir}")
-    local_file_paths = []
     files: list[ReviewFile] = []
 
     try:
@@ -1166,11 +1165,10 @@ def process_review_from_s3(
 
             logger.debug(f"Downloading {path} to {sanitized_path}")
             s3_client.download_file(document_bucket, path, sanitized_path)
-            local_file_paths.append(sanitized_path)
             files.append(ReviewFile(path=sanitized_path, name=original_basename))
 
         # Detect file types
-        has_images = _detect_image_file(local_file_paths)
+        has_images = _detect_image_file([file.path for file in files])
 
         # Select model
         selected_model_id = _select_model_for_files(has_images, model_id)
@@ -1194,10 +1192,10 @@ def process_review_from_s3(
     finally:
         # Clean up temporary files
         logger.debug("Cleaning up temporary files")
-        for file_path in local_file_paths:
-            if os.path.exists(file_path):
-                logger.debug(f"Removing temporary file: {file_path}")
-                os.remove(file_path)
+        for file in files:
+            if os.path.exists(file.path):
+                logger.debug(f"Removing temporary file: {file.path}")
+                os.remove(file.path)
         if os.path.exists(temp_dir):
             logger.debug(f"Removing temporary directory: {temp_dir}")
             os.rmdir(temp_dir)
