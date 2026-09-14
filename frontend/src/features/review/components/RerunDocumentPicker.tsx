@@ -33,7 +33,9 @@ export default function RerunDocumentPicker({
   const replacedBy = new Map<string, string>();
   for (const doc of uploadedDocuments) {
     const sourceId = replacements[doc.documentId];
-    if (sourceId) replacedBy.set(sourceId, doc.filename);
+    if (sourceId) {
+      replacedBy.set(sourceId, doc.filename);
+    }
   }
 
   const formatDate = (date?: Date) =>

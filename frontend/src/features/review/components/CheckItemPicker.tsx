@@ -69,8 +69,12 @@ export default function CheckItemPicker({
   // 再取得のたびに戻すと、利用者が外した項目がまた選ばれてしまう
   const initializedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (isLoading || error || items.length === 0) return;
-    if (initializedFor.current === setId) return;
+    if (isLoading || error || items.length === 0) {
+      return;
+    }
+    if (initializedFor.current === setId) {
+      return;
+    }
     initializedFor.current = setId;
     const leaves = new Set(leafIds);
     const initial = initialSelectedIds
@@ -109,7 +113,9 @@ export default function CheckItemPicker({
             className="mt-1"
             checked={allSelected}
             ref={(el) => {
-              if (el) el.indeterminate = selectedCount > 0 && !allSelected;
+              if (el) {
+                el.indeterminate = selectedCount > 0 && !allSelected;
+              }
             }}
             onChange={() => setLeaves(leaves, !allSelected)}
           />

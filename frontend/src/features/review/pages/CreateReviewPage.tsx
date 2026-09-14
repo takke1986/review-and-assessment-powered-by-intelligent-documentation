@@ -130,7 +130,9 @@ export const CreateReviewPage: React.FC = () => {
   // 再審査のジョブ名の初期値（利用者が入力していれば変えない）
   const jobNameInitialized = useRef(false);
   useEffect(() => {
-    if (!sourceJob || jobNameInitialized.current) return;
+    if (!sourceJob || jobNameInitialized.current) {
+      return;
+    }
     jobNameInitialized.current = true;
     setJobName(
       (name) => name || `${sourceJob.name}${t("review.rerunJobNameSuffix")}`
@@ -140,7 +142,9 @@ export const CreateReviewPage: React.FC = () => {
   // 再審査では元のジョブと同じファイルの種類にする
   const sourceFileType = sourceJob?.documents[0]?.fileType;
   useEffect(() => {
-    if (sourceFileType) setFileType(sourceFileType);
+    if (sourceFileType) {
+      setFileType(sourceFileType);
+    }
   }, [sourceFileType]);
 
   const documentCount =
@@ -207,7 +211,9 @@ export const CreateReviewPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validate() || !checkListSetId) return;
+    if (!validate() || !checkListSetId) {
+      return;
+    }
 
     try {
       // すべてのドキュメントを同じ構造で扱う

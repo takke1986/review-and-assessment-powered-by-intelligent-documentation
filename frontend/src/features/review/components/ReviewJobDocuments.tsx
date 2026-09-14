@@ -81,7 +81,9 @@ export default function ReviewJobDocuments({
   const sourceById = new Map(sourceJob.documents.map((doc) => [doc.id, doc]));
 
   const afterLabel = (doc: ReviewJobDocument) => {
-    if (doc.carriedFromDocumentId) return t("review.documentKept");
+    if (doc.carriedFromDocumentId) {
+      return t("review.documentKept");
+    }
     if (doc.replacesDocumentId) {
       const replaced = sourceById.get(doc.replacesDocumentId);
       return replaced
