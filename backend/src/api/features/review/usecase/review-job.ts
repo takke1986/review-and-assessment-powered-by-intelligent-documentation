@@ -2,11 +2,14 @@ import {
   REVIEW_JOB_STATUS,
   ReviewJobSummary,
   ReviewJobDetail,
+  ReviewResultDetail,
 } from "../domain/model/review";
 import { PaginatedResponse } from "../../../common/types";
 import {
   ReviewJobRepository,
+  ReviewResultRepository,
   makePrismaReviewJobRepository,
+  makePrismaReviewResultRepository,
 } from "../domain/repository";
 import { ulid } from "ulid";
 import { getPresignedUrl, getS3ObjectSize } from "../../../core/s3";
@@ -25,6 +28,7 @@ import {
 import {
   ApplicationError,
   FileSizeExceededError,
+  ValidationError,
 } from "../../../core/errors/application-errors";
 import { validateFileSize } from "../../../core/file-validation";
 import { MAX_FILE_SIZE } from "../../../constants/index";
@@ -186,9 +190,11 @@ export const getReviewImagesPresignedUrl = async (params: {
 
 export const createReviewJob = async (params: {
   requestBody: CreateReviewJobRequest & { userId: string; userName?: string };
+  user?: RequestUser;
   deps?: {
     checkRepo?: CheckRepository;
     reviewJobRepo?: ReviewJobRepository;
+    reviewResultRepo?: ReviewResultRepository;
   };
 }): Promise<void> => {
   const checkRepo =
@@ -231,11 +237,24 @@ export const createReviewJob = async (params: {
     }
   }
 
+  const source = params.requestBody.sourceReviewJobId
+    ? await loadRerunSource({
+        sourceReviewJobId: params.requestBody.sourceReviewJobId,
+        checkListSetId: params.requestBody.checkListSetId,
+        user: params.user,
+        deps: {
+          reviewJobRepo,
+          reviewResultRepo: params.deps?.reviewResultRepo,
+        },
+      })
+    : undefined;
+
   const reviewJob = await createInitialReviewJobModel({
     req: params.requestBody,
     deps: {
       checkRepo,
     },
+    source,
   });
 
   // レビュー処理キューへメッセージ送信
@@ -255,6 +274,52 @@ export const createReviewJob = async (params: {
   );
 
   await reviewJobRepo.createReviewJob(reviewJob);
+};
+
+/**
+ * 再審査の元になる審査ジョブと、その結果を読み込む。
+ * 本人（または管理者）のジョブで、審査が終わっていて、
+ * 同じチェックリストを使っていることを確認する。
+ */
+export const loadRerunSource = async (params: {
+  sourceReviewJobId: string;
+  checkListSetId: string;
+  user?: RequestUser;
+  deps: {
+    reviewJobRepo: ReviewJobRepository;
+    reviewResultRepo?: ReviewResultRepository;
+  };
+}): Promise<{ reviewJobId: string; results: ReviewResultDetail[] }> => {
+  const { sourceReviewJobId, checkListSetId, user, deps } = params;
+
+  const sourceJob = await deps.reviewJobRepo.findReviewJobById({
+    reviewJobId: sourceReviewJobId,
+  });
+  assertHasOwnerAccessOrThrow(user, sourceJob.userId, {
+    api: "createReviewJob",
+    resourceId: sourceReviewJobId,
+    logger: console,
+  });
+
+  if (sourceJob.status !== REVIEW_JOB_STATUS.COMPLETED) {
+    throw new ValidationError(
+      "Only a completed review job can be reviewed again"
+    );
+  }
+  if (sourceJob.checkList.id !== checkListSetId) {
+    throw new ValidationError(
+      "A rerun must use the same checklist set as the source review job"
+    );
+  }
+
+  const reviewResultRepo =
+    deps.reviewResultRepo || (await makePrismaReviewResultRepository());
+  const results = await reviewResultRepo.findReviewResultsById({
+    jobId: sourceReviewJobId,
+    includeAllChildren: true,
+  });
+
+  return { reviewJobId: sourceReviewJobId, results };
 };
 
 export const removeReviewJob = async (params: {

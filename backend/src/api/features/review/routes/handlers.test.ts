@@ -72,6 +72,7 @@ describe("createReviewJobHandler", () => {
         ...requestBody,
         userId: "user-123",
       },
+      user: { userId: "user-123", isAdmin: false },
     });
     expect(reply.code).toHaveBeenCalledWith(201);
   });

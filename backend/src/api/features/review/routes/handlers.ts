@@ -168,6 +168,11 @@ export interface CreateReviewJobRequest {
   userId?: string;
   /** 審査するチェック項目。省略するとすべての項目を審査する */
   checkIds?: string[];
+  /**
+   * 再審査の元になる審査ジョブ。指定すると、審査し直す項目（checkIds、省略時は
+   * 元のジョブで不合格だった項目）以外は元の結果を引き継ぐ
+   */
+  sourceReviewJobId?: string;
 }
 
 export const createReviewJobHandler = async (
@@ -190,6 +195,7 @@ export const createReviewJobHandler = async (
       ...request.body,
       userId: request.user?.userId,
     },
+    user: request.user,
   });
   reply.code(201).send({
     success: true,

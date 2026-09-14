@@ -272,6 +272,23 @@ export const makePrismaReviewJobRepository = async (
             userOverride: result.userOverride,
             createdAt: now,
             updatedAt: now,
+            // 再審査で引き継ぐ結果の中身。新しい結果では未設定
+            result: result.result,
+            confidenceScore: result.confidenceScore,
+            explanation: result.explanation,
+            shortExplanation: result.shortExplanation,
+            extractedText: result.extractedText
+              ? (JSON.stringify(result.extractedText) as any)
+              : undefined,
+            userComment: result.userComment,
+            sourceReferences: result.sourceReferences
+              ? JSON.stringify(result.sourceReferences)
+              : undefined,
+            externalSources: result.externalSources
+              ? JSON.stringify(result.externalSources)
+              : undefined,
+            previousResultId: result.previousResultId,
+            carriedOver: result.carriedOver ?? false,
           },
         });
       }
