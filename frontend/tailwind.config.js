@@ -1,3 +1,5 @@
+import colors from "tailwindcss/colors";
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
@@ -13,6 +15,11 @@ export default {
       },
       animation: {
         fastPulse: "pulse 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+      },
+      // 枠線の既定色は、これまでどおり文字色にする。gray の濃淡を足すと、Tailwind の
+      // preflight が既定色に gray-200 を使うようになり、色を指定していない枠線が変わるため
+      borderColor: {
+        DEFAULT: "currentColor",
       },
       colors: {
         "aws-squid-ink": {
@@ -47,12 +54,15 @@ export default {
           light: "#f1f3f3",
           dark: "#212121",
         },
-        red: "#dc2626",
+        // red・yellow・gray は、これまでの1色を DEFAULT に残したまま既定の濃淡も
+        // 使えるようにする。1色で上書きすると bg-red-100 などの濃淡のクラスが
+        // 作られず、それを使うバッジや文字に色が付かない
+        red: { ...colors.red, DEFAULT: "#dc2626" },
         "light-red": "#fee2e2",
-        yellow: "#f59e0b",
+        yellow: { ...colors.yellow, DEFAULT: "#f59e0b" },
         "light-yellow": "#fef9c3",
         "dark-gray": "#6b7280",
-        gray: "#9ca3af",
+        gray: { ...colors.gray, DEFAULT: "#9ca3af" },
         "light-gray": "#e5e7eb",
       },
     },
