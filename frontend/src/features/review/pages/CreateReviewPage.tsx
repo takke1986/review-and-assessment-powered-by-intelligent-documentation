@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { OFFICE_FILE_TYPES } from "../../../utils/officeFiles";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Button from "../../../components/Button";
@@ -368,7 +369,7 @@ export const CreateReviewPage: React.FC = () => {
                 fillHeight
                 acceptedFileTypes={
                   fileType === REVIEW_FILE_TYPE.PDF
-                    ? { "application/pdf": [".pdf"] }
+                    ? { "application/pdf": [".pdf"], ...OFFICE_FILE_TYPES }
                     : { "image/png": [".png"], "image/jpeg": [".jpg", ".jpeg"] }
                 }
               />

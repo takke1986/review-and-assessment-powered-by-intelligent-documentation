@@ -24,6 +24,7 @@ import {
 } from "react-icons/hi";
 import Spinner from "../../../components/Spinner";
 import DocumentPreview from "../../../components/DocumentPreview";
+import { isPdfFileName } from "../../../utils/officeFiles";
 import ImagePreview from "../../../components/ImagePreview";
 import ReviewItemCostBadge from "./ReviewItemCostBadge";
 import { useReviewItemCost } from "../hooks/useReviewItemCost";
@@ -509,7 +510,12 @@ export default function ReviewResultItem({
                                   <DocumentPreview
                                     s3Key={doc.s3Path}
                                     filename={doc.filename}
-                                    pageNumber={reference.pageNumber}
+                                    // ページがあるのは PDF だけ
+                                    pageNumber={
+                                      isPdfFileName(doc.filename)
+                                        ? reference.pageNumber
+                                        : undefined
+                                    }
                                   />
                                 ) : doc.fileType === REVIEW_FILE_TYPE.IMAGE ? (
                                   <ImagePreview

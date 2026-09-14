@@ -13,6 +13,7 @@ vi.mock("../../../core/s3", () => ({
 }));
 
 import { createReviewJob } from "./review-job";
+import { getS3ObjectSize } from "../../../core/s3";
 import { REVIEW_FILE_TYPE, REVIEW_JOB_STATUS } from "../domain/model/review";
 import type { ReviewJobRepository } from "../domain/repository";
 import type { CheckRepository } from "../../checklist/domain/repository";
@@ -113,5 +114,43 @@ describe("createReviewJob", () => {
       "database unavailable"
     );
     expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  describe("file size", () => {
+    const tenMegabytes = 10 * 1024 * 1024;
+    const withDocument = (filename: string) => ({
+      ...requestBody,
+      documents: [
+        {
+          id: "doc-1",
+          filename,
+          s3Key: `review/original/doc-1/${filename}`,
+          fileType: REVIEW_FILE_TYPE.PDF,
+        },
+      ],
+    });
+
+    it("refuses a PDF over the Bedrock document limit", async () => {
+      vi.mocked(getS3ObjectSize).mockResolvedValueOnce(tenMegabytes);
+      const d = deps();
+
+      await expect(
+        createReviewJob({ requestBody: withDocument("spec.pdf"), deps: d })
+      ).rejects.toThrow();
+      expect(d.reviewJobRepo.createReviewJob).not.toHaveBeenCalled();
+    });
+
+    it("accepts a larger Office file, since it is converted before review", async () => {
+      vi.mocked(getS3ObjectSize).mockResolvedValueOnce(tenMegabytes);
+      sendMessage.mockResolvedValue(undefined);
+      const d = deps();
+
+      await createReviewJob({
+        requestBody: withDocument("見積書.xlsx"),
+        deps: d,
+      });
+
+      expect(d.reviewJobRepo.createReviewJob).toHaveBeenCalledTimes(1);
+    });
   });
 });

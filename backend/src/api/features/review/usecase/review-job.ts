@@ -32,7 +32,7 @@ import {
   ValidationError,
 } from "../../../core/errors/application-errors";
 import { validateFileSize } from "../../../core/file-validation";
-import { MAX_FILE_SIZE } from "../../../constants/index";
+import { maxFileSizeFor } from "../../../constants/index";
 import type { RequestUser } from "../../../core/middleware/authorization";
 import { assertHasOwnerAccessOrThrow } from "../../../core/middleware/authorization";
 
@@ -218,8 +218,9 @@ const validateJobDocuments = async (
   for (const doc of uploadedDocuments) {
     try {
       const fileSize = await getS3ObjectSize(bucketName, doc.s3Key);
-      if (!validateFileSize(fileSize, MAX_FILE_SIZE)) {
-        throw new FileSizeExceededError(doc.filename, fileSize, MAX_FILE_SIZE);
+      const limit = maxFileSizeFor(doc.filename);
+      if (!validateFileSize(fileSize, limit)) {
+        throw new FileSizeExceededError(doc.filename, fileSize, limit);
       }
     } catch (error) {
       if (error instanceof FileSizeExceededError) {

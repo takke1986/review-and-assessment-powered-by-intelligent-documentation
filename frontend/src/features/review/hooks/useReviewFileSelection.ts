@@ -5,8 +5,12 @@ import {
   validateFileSize,
   formatFileSize,
 } from "../../../utils/fileValidation";
-import { MAX_FILE_SIZE, MAX_REVIEW_DOCUMENTS } from "../../../constants/index";
+import { MAX_REVIEW_DOCUMENTS } from "../../../constants/index";
 import { REVIEW_FILE_TYPE } from "../types";
+import {
+  isProtectedOfficeFile,
+  maxFileSizeFor,
+} from "../../../utils/officeFiles";
 
 /**
  * 審査するファイルの選択。サイズと件数の確認、アップロード、同じ名前の
@@ -111,13 +115,32 @@ export function useReviewFileSelection(params: {
   const handleFilesChange = async (newFiles: File[]) => {
     // ファイルサイズ検証
     const oversizedFiles = newFiles.filter(
-      (file) => !validateFileSize(file, MAX_FILE_SIZE)
+      (file) => !validateFileSize(file, maxFileSizeFor(file.name))
     );
     if (oversizedFiles.length > 0) {
       const oversizedFileNames = oversizedFiles
         .map((file) => `${file.name} (${formatFileSize(file.size)})`)
         .join(", ");
-      setFilesError(`${t("review.fileSizeError")}: ${oversizedFileNames}`);
+      setFilesError(
+        `${t("review.documentFileSizeError")}: ${oversizedFileNames}`
+      );
+      return;
+    }
+
+    // 保護された Office ファイルは中身を読めないので、審査を始める前に断る
+    const protectedFileNames: string[] = [];
+    for (const file of newFiles) {
+      if (
+        !selectedFiles.includes(file) &&
+        (await isProtectedOfficeFile(file))
+      ) {
+        protectedFileNames.push(file.name);
+      }
+    }
+    if (protectedFileNames.length > 0) {
+      setFilesError(
+        `${t("review.protectedOfficeFileError")}: ${protectedFileNames.join(", ")}`
+      );
       return;
     }
 
