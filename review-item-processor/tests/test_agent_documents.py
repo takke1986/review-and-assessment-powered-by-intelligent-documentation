@@ -121,3 +121,68 @@ def test_document_prompts_ask_which_files_the_judgment_relies_on(use_citations):
     )
     assert "<sources_instruction>" in prompt
     assert 'Set "sources": [] (empty array)' in prompt
+
+
+def test_files_too_large_for_one_request_are_read_through_document_tools(
+    tmp_path, monkeypatch
+):
+    sent = {}
+
+    class FakeAgent:
+        def __init__(self, **kwargs):
+            sent["tools"] = [tool.tool_name for tool in kwargs["tools"]]
+
+        def __call__(self, prompt):
+            sent["prompt"] = prompt
+            raise Sent
+
+    monkeypatch.setattr(agent, "Agent", FakeAgent)
+    monkeypatch.setattr(agent, "_should_use_document_block", lambda *args: True)
+    monkeypatch.setattr("review_documents.MAX_DOCUMENT_BYTES", 1)
+    pdf = tmp_path / "a.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+
+    with pytest.raises(Sent):
+        agent._execute_review_core(
+            files=[ReviewFile(str(pdf), "図面.pdf")],
+            has_images=False,
+            check_name="check",
+            check_description="description",
+            language_name="日本語",
+            model_id=MODEL_ID,
+            toolConfiguration=None,
+            feedback_summary=None,
+        )
+
+    assert sent["tools"][:2] == ["list_documents", "search_documents"]
+    assert isinstance(sent["prompt"], str)
+    assert "Call list_documents" in sent["prompt"]
+    assert "file_read" not in sent["prompt"]
+
+
+def test_images_are_shrunk_before_the_image_reader_reads_them(tmp_path, monkeypatch):
+    from PIL import Image
+
+    seen = {}
+
+    def fake_file_read_agent(prompt, files, **kwargs):
+        seen["formats"] = [Image.open(file.path).format for file in files]
+        seen["names"] = [file.name for file in files]
+        return {"result": "pass"}
+
+    monkeypatch.setattr(agent, "_run_agent_with_file_read_tool", fake_file_read_agent)
+    image = tmp_path / "doc_1.bmp"
+    Image.new("RGB", (10, 10)).save(image)
+
+    agent._execute_review_core(
+        files=[ReviewFile(str(image), "現場写真.bmp")],
+        has_images=True,
+        check_name="check",
+        check_description="description",
+        language_name="日本語",
+        model_id=MODEL_ID,
+        toolConfiguration=None,
+        feedback_summary=None,
+    )
+
+    assert seen == {"formats": ["JPEG"], "names": ["現場写真.bmp"]}

@@ -14,13 +14,20 @@ from strands.models.model import CacheConfig
 from strands.tools.mcp import MCPClient
 from strands_tools import file_read, image_reader
 
+from document_library import (
+    MAX_IMAGES_PER_REVIEW,
+    DocumentLibrary,
+    create_document_tools,
+)
 from logger import logger
 from model_config import ModelConfig
 from review_documents import (
+    RequestTooLargeError,
     ReviewFile,
     build_document_blocks,
     write_office_files_as_markdown,
 )
+from review_images import prepare_image_file
 from tool_history_collector import ToolHistoryCollector
 from tools.factory import create_custom_tools
 
@@ -219,6 +226,14 @@ def _as_markdown_files(files: list[ReviewFile], directory: str) -> list[ReviewFi
     return [ReviewFile(path=path, name=file.name) for path, file in zip(paths, files)]
 
 
+def _as_sendable_images(files: list[ReviewFile], directory: str) -> list[ReviewFile]:
+    """Converse が受け付けない大きさや形式（BMP・TIFF）の画像を、縮小や変換をしたコピーに置き換える"""
+    return [
+        ReviewFile(path=prepare_image_file(file.path, directory), name=file.name)
+        for file in files
+    ]
+
+
 def _normalize_sources(sources: Any) -> list[dict[str, Any]]:
     """
     モデルが返した、判定の根拠にしたファイルとページ。形の崩れたものは捨てる。
@@ -346,15 +361,35 @@ def _execute_review_core(
             f"All responses must be in {language_name}."
         )
 
-        result = _run_agent_with_document_block(
-            prompt=prompt,
-            files=files,
-            model_id=model_id,
-            system_prompt=system_prompt,
-            toolConfiguration=toolConfiguration,
-        )
+        try:
+            result = _run_agent_with_document_block(
+                prompt=prompt,
+                files=files,
+                model_id=model_id,
+                system_prompt=system_prompt,
+                toolConfiguration=toolConfiguration,
+            )
+            logger.debug("Used document block processing")
+        except RequestTooLargeError as error:
+            # 1回の呼び出しに収まらないジョブだけ、ツールで必要な箇所を読ませる
+            logger.info(f"Reading the files through document tools: {error}")
+            result = _run_agent_with_document_tools(
+                prompt=get_document_review_prompt(
+                    language_name,
+                    check_name,
+                    check_description,
+                    use_citations=False,
+                    tool_config=toolConfiguration,
+                    feedback_summary=feedback_summary,
+                    document_access=_DOCUMENT_TOOLS_ACCESS,
+                ),
+                files=files,
+                converted=error.converted,
+                model_id=model_id,
+                system_prompt=system_prompt,
+                toolConfiguration=toolConfiguration,
+            )
         result["reviewType"] = "PDF"
-        logger.debug("Used document block processing")
 
     else:
         # File read tool path (images or non-citation support)
@@ -391,7 +426,7 @@ def _execute_review_core(
             result = _run_agent_with_file_read_tool(
                 prompt=prompt,
                 files=(
-                    files
+                    _as_sendable_images(files, converted_directory)
                     if has_images
                     else _as_markdown_files(files, converted_directory)
                 ),
@@ -595,6 +630,64 @@ def _run_agent_with_document_block(
     result["outputTokens"] = review_meta["output_tokens"]
     result["totalCost"] = review_meta["total_cost"]
 
+    return result
+
+
+def _run_agent_with_document_tools(
+    prompt: str,
+    files: List[ReviewFile],
+    model_id: str = DOCUMENT_MODEL_ID,
+    system_prompt: str = "You are an expert document reviewer.",
+    temperature: float = 0.0,
+    toolConfiguration: Optional[Dict[str, Any]] = None,
+    converted: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    Run Strands agent that reads the files through document tools.
+
+    Used only when the files do not fit in one Converse request (see
+    review_documents.RequestTooLargeError): the model lists, searches and reads
+    pages and sections instead of receiving the whole files.
+    """
+    model = ModelConfig.create(model_id)
+    meta_tracker = ReviewMetaTracker(model_id)
+    history_collector = ToolHistoryCollector(truncate_length=TOOL_TEXT_TRUNCATE_LENGTH)
+
+    library = DocumentLibrary(files, converted=converted)
+    tools = create_document_tools(library) + create_custom_tools(toolConfiguration)
+
+    bedrock_config = {
+        "model_id": model_id,
+        "region_name": BEDROCK_REGION,
+        "temperature": temperature,
+        "streaming": False,
+    }
+    if model.supports_caching:
+        _apply_cache_config(bedrock_config)
+
+    agent = Agent(
+        model=BedrockModel(**bedrock_config),
+        tools=tools,
+        system_prompt=system_prompt,
+        hooks=[history_collector],
+    )
+
+    logger.debug(f"Executing agent with document tools: {len(files)} files")
+    response = agent(prompt)
+
+    result = _agent_message_to_dict_legacy(response.message, response)
+    result["verificationDetails"] = {"sourcesDetails": history_collector.executions}
+    review_meta = meta_tracker.get_review_meta(response)
+    result["reviewMeta"] = review_meta
+    result["inputTokens"] = review_meta["input_tokens"]
+    result["outputTokens"] = review_meta["output_tokens"]
+    result["totalCost"] = review_meta["total_cost"]
+
+    logger.info(
+        f"Document tools returned {library.chars_returned} characters and "
+        f"{library.images_returned} images; token usage: input={review_meta['input_tokens']}, "
+        f"output={review_meta['output_tokens']}, cost=${review_meta['total_cost']:.6f}"
+    )
     return result
 
 
@@ -823,12 +916,24 @@ _SOURCES_SCHEMA = (
 
 
 # Prompt generation functions
+_FILE_READ_ACCESS = "Use the file_read tool to open and inspect each attached file."
+
+# ファイルが1回の呼び出しに収まらず、ツールで読ませるときの読み方
+_DOCUMENT_TOOLS_ACCESS = f"""The files are too large to attach to this request, so read them through the document tools:
+1. Call list_documents to see every file, its pages or sections, and its embedded images.
+2. Use search_documents to find where the check item is addressed. Search results are only pointers: read the places they point to before relying on them.
+3. Read PDFs with read_pdf_pages and Word, Excel and PowerPoint files with read_office_section. Use view_pdf_page when the layout, a figure, a table's shape, a stamp or a scanned page matters, and view_embedded_image for images in Office files. You can see at most {MAX_IMAGES_PER_REVIEW} images in total.
+4. Before judging that something is missing, look in every file and section where it could reasonably be.
+Page numbers in "pageNumber" and "sources" are page numbers within each PDF file."""
+
+
 def _get_document_review_prompt_legacy(
     language_name: str,
     check_name: str,
     check_description: str,
     tool_config: Optional[Dict[str, Any]] = None,
     feedback_summary: Optional[str] = None,
+    document_access: Optional[str] = None,
 ) -> str:
     """Improved PDF document review prompt with dynamic tool section"""
 
@@ -853,7 +958,7 @@ def _get_document_review_prompt_legacy(
 </check_item>
 
 <document_access>
-Use the file_read tool to open and inspect each attached file.
+{document_access or _FILE_READ_ACCESS}
 </document_access>
 {_SOURCES_INSTRUCTION}{tool_section}
 <output_requirements>
@@ -984,15 +1089,26 @@ def get_document_review_prompt(
     use_citations: bool = False,
     tool_config: Optional[Dict[str, Any]] = None,
     feedback_summary: Optional[str] = None,
+    document_access: Optional[str] = None,
 ) -> str:
-    """PDF document review prompt with optional citation support"""
+    """
+    PDF document review prompt with optional citation support.
+
+    document_access replaces how the prompt tells the model to read the files
+    (without citations only).
+    """
     if use_citations:
         return _get_document_review_prompt_with_citations(
             language_name, check_name, check_description, tool_config, feedback_summary
         )
     else:
         return _get_document_review_prompt_legacy(
-            language_name, check_name, check_description, tool_config, feedback_summary
+            language_name,
+            check_name,
+            check_description,
+            tool_config,
+            feedback_summary,
+            document_access,
         )
 
 

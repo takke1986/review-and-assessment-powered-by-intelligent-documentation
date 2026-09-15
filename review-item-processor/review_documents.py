@@ -14,6 +14,10 @@ RAPID は1ジョブに20ファイルまでアップロードでき、ファイ�
 
 Bedrock に渡す文書名はファイル名にできない（使える文字が限られ、同じ名前も
 許されない）ので、各文書の前に、元のファイル名を書いたテキストを置く。
+
+それでも収まらないジョブ（4.5MB を超える PDF、合計100ページを超える PDF など）では
+RequestTooLargeError を出す。呼び出し側は、ファイルをツールで少しずつ読む方式
+（document_library）に切り替える。
 """
 
 from __future__ import annotations
@@ -35,6 +39,8 @@ MAX_IMAGES_PER_REQUEST = 20
 MAX_IMAGE_BYTES_PER_REQUEST = 10_000_000
 # 結合した PDF は元のファイルの合計より少し大きくなることがあるので、余裕を見て詰める
 PDF_JOIN_TARGET_BYTES = 4_000_000
+# Bedrock の Claude は、1回の呼び出しに PDF を合計100ページまでしか読まない
+MAX_PDF_PAGES_PER_REQUEST = 100
 
 _MARKDOWN_GUIDE = (
     "In spreadsheets, row numbers are on the left and column letters on top, so a "
@@ -48,6 +54,15 @@ T = TypeVar("T")
 
 class ReviewDocumentError(ValueError):
     """ファイルを Converse API に渡せるかたちにできない"""
+
+
+class RequestTooLargeError(ReviewDocumentError):
+    """ファイルが1回の呼び出しの上限に収まらない。ツールで読む方式なら審査できる"""
+
+    def __init__(self, message: str, converted: dict[str, OfficeDocument]):
+        super().__init__(message)
+        # 変換済みの Office ファイル（パス → 変換結果）。ツールで読む方式が変換し直さずに使う
+        self.converted = converted
 
 
 @dataclass(frozen=True)
@@ -81,6 +96,22 @@ def build_document_blocks(
         for file in files
         if is_office_file(file.path)
     ]
+    converted = {file.path: document for file, document in offices}
+
+    oversized = [file.name for file in pdfs if _file_size(file) > MAX_DOCUMENT_BYTES]
+    if oversized:
+        raise RequestTooLargeError(
+            f"These PDFs are over the {MAX_DOCUMENT_BYTES} bytes a document can be: "
+            f"{', '.join(oversized)}",
+            converted,
+        )
+    pages = sum(_page_count(file) for file in pdfs)
+    if pages > MAX_PDF_PAGES_PER_REQUEST:
+        raise RequestTooLargeError(
+            f"The PDFs have {pages} pages in total, over the "
+            f"{MAX_PDF_PAGES_PER_REQUEST} pages a request can take",
+            converted,
+        )
 
     if len(pdfs) + len(offices) <= MAX_DOCUMENTS_PER_REQUEST:
         markdown_groups = [[office] for office in offices]
@@ -104,11 +135,19 @@ def build_document_blocks(
             )
         )
         if len(pdf_groups) > slots:
-            raise ReviewDocumentError(
+            raise RequestTooLargeError(
                 f"These files cannot be sent in one request: a request takes at most "
                 f"{MAX_DOCUMENTS_PER_REQUEST} documents of {MAX_DOCUMENT_BYTES} bytes each, "
-                f"and the PDFs alone need {len(pdf_groups)} after joining. "
-                "Split the review into jobs with fewer or smaller PDFs."
+                f"and the PDFs alone need {len(pdf_groups)} after joining.",
+                converted,
+            )
+    for group in markdown_groups:
+        size = sum(len(document.markdown.encode("utf-8")) for _, document in group)
+        if size > MAX_DOCUMENT_BYTES:
+            raise RequestTooLargeError(
+                f"{', '.join(file.name for file, _ in group)} come to {size} bytes as "
+                f"Markdown, over the {MAX_DOCUMENT_BYTES} bytes a document can be",
+                converted,
             )
 
     documents: list[tuple[int, Callable[[int], list[dict[str, Any]]]]] = []
@@ -125,7 +164,9 @@ def build_document_blocks(
         documents.append(
             (
                 order[group[0]],
-                lambda number, group=group: _pdf_document(number, group, citations),
+                lambda number, group=group: _pdf_document(
+                    number, group, citations, converted
+                ),
             )
         )
     documents.sort(key=lambda document: document[0])
@@ -184,6 +225,14 @@ def _file_size(file: ReviewFile) -> int:
     return os.path.getsize(file.path)
 
 
+def _page_count(file: ReviewFile) -> int:
+    """読めない PDF は 0 ページとして扱い、読めるかどうかの判断は Bedrock に任せる"""
+    try:
+        return len(PdfReader(file.path).pages)
+    except Exception:
+        return 0
+
+
 def _document_block(
     number: int, document_format: str, data: bytes, citations: bool
 ) -> dict[str, Any]:
@@ -217,7 +266,10 @@ def _markdown_document(
 
 
 def _pdf_document(
-    number: int, group: list[ReviewFile], citations: bool
+    number: int,
+    group: list[ReviewFile],
+    citations: bool,
+    converted: dict[str, OfficeDocument],
 ) -> list[dict[str, Any]]:
     if len(group) == 1:
         with open(group[0].path, "rb") as handle:
@@ -229,9 +281,10 @@ def _pdf_document(
 
     data, ranges = _join_pdfs(group)
     if len(data) > MAX_DOCUMENT_BYTES:
-        raise ReviewDocumentError(
+        raise RequestTooLargeError(
             f"The joined PDFs {', '.join(file.name for file in group)} come to {len(data)} bytes, "
-            f"over the {MAX_DOCUMENT_BYTES} bytes a document can be."
+            f"over the {MAX_DOCUMENT_BYTES} bytes a document can be.",
+            converted,
         )
     parts = ", ".join(
         f"{name} is pages {start}-{end} (its own pages 1-{end - start + 1})"

@@ -201,3 +201,24 @@ def test_office_files_become_markdown_files_for_the_file_read_tool(tmp_path):
         .read_text(encoding="utf-8")
         .startswith("# 稟議書.docx\n")
     )
+
+
+def test_a_pdf_over_the_document_size_is_too_large_for_one_request(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(rd, "MAX_DOCUMENT_BYTES", 10)
+    xlsx = ReviewFile(write_package(tmp_path, "b.xlsx", workbook_parts()), "b.xlsx")
+
+    with pytest.raises(rd.RequestTooLargeError, match="a.pdf") as raised:
+        rd.build_document_blocks([pdf(tmp_path, "a.pdf"), xlsx], citations=True)
+
+    # ツールで読む方式が、変換し直さずに使う
+    assert raised.value.converted[xlsx.path].markdown.startswith("# b.xlsx")
+
+
+def test_pdfs_over_the_page_limit_are_too_large_for_one_request(tmp_path, monkeypatch):
+    monkeypatch.setattr(rd, "MAX_PDF_PAGES_PER_REQUEST", 2)
+    files = [pdf(tmp_path, "a.pdf", pages=2), pdf(tmp_path, "b.pdf")]
+
+    with pytest.raises(rd.RequestTooLargeError, match="3 pages in total"):
+        rd.build_document_blocks(files, citations=True)
