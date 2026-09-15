@@ -212,7 +212,9 @@
     "protectedOfficeFileError": "These files are protected by a password or an encryption label and cannot be read. Remove the protection and upload them again",
     "imageLimitError": "Up to 20 images can be uploaded in Image mode",
     "fileSizeError": "File size exceeds 4.5MB limit",
-    "documentFileSizeError": "File size exceeds the limit (4.5MB for PDF and images, 30MB for Word, Excel and PowerPoint)",
+    "documentFileSizeError": "File size exceeds the limit (100MB for PDF, 20MB for images, 30MB for Word, Excel and PowerPoint)",
+    "documentSizeLimit": "PDF up to 100MB, Word, Excel and PowerPoint up to 30MB",
+    "imageSizeLimit": "up to 20MB",
     "fileUploadError": "File upload error",
     "fileRequired": "At least one file must be selected",
     "duplicateFileTitle": "Files with the same name",
@@ -369,6 +371,7 @@
     "uploading": "Uploading files...",
     "dragAndDrop": "Drag and drop files here or click to select",
     "supportedFormats": "Supported formats: {{formats}} (max 4.5MB)",
+    "supportedFormatsWithLimit": "Supported formats: {{formats}} ({{limit}})",
     "files": "Files ({{count}})",
     "fileSize": "{{size}} KB"
   },

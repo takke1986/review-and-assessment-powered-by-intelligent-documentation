@@ -212,7 +212,9 @@
     "protectedOfficeFileError": "パスワードや暗号化ラベルで保護されていて読めないファイルがあります。保護を外してからアップロードしてください",
     "imageLimitError": "画像モードでは最大20枚までアップロードできます",
     "fileSizeError": "ファイルサイズが4.5MBの制限を超えています",
-    "documentFileSizeError": "ファイルサイズが上限を超えています（PDF・画像は4.5MB、Word・Excel・PowerPointは30MB）",
+    "documentFileSizeError": "ファイルサイズが上限を超えています（PDFは100MB、画像は20MB、Word・Excel・PowerPointは30MB）",
+    "documentSizeLimit": "PDFは最大100MB、Word・Excel・PowerPointは最大30MB",
+    "imageSizeLimit": "最大20MB",
     "fileUploadError": "ファイルアップロードエラー",
     "fileRequired": "少なくとも1つのファイルを選択してください",
     "duplicateFileTitle": "同じ名前のファイルがあります",
@@ -369,6 +371,7 @@
     "uploading": "ファイルをアップロード中...",
     "dragAndDrop": "ファイルをドラッグ＆ドロップするか、クリックして選択してください",
     "supportedFormats": "対応形式: {{formats}}（最大4.5MB）",
+    "supportedFormatsWithLimit": "対応形式: {{formats}}（{{limit}}）",
     "files": "ファイル ({{count}})",
     "fileSize": "{{size}} KB"
   },

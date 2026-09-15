@@ -372,6 +372,11 @@ export const CreateReviewPage: React.FC = () => {
                     ? { "application/pdf": [".pdf"], ...OFFICE_FILE_TYPES }
                     : { "image/png": [".png"], "image/jpeg": [".jpg", ".jpeg"] }
                 }
+                sizeLimitLabel={
+                  fileType === REVIEW_FILE_TYPE.PDF
+                    ? t("review.documentSizeLimit")
+                    : t("review.imageSizeLimit")
+                }
               />
             </div>
 

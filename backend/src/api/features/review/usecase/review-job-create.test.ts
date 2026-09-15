@@ -130,12 +130,32 @@ describe("createReviewJob", () => {
       ],
     });
 
-    it("refuses a PDF over the Bedrock document limit", async () => {
-      vi.mocked(getS3ObjectSize).mockResolvedValueOnce(tenMegabytes);
+    it("refuses a PDF over the PDF limit", async () => {
+      vi.mocked(getS3ObjectSize).mockResolvedValueOnce(101 * 1024 * 1024);
       const d = deps();
 
       await expect(
         createReviewJob({ requestBody: withDocument("spec.pdf"), deps: d })
+      ).rejects.toThrow();
+      expect(d.reviewJobRepo.createReviewJob).not.toHaveBeenCalled();
+    });
+
+    it("accepts a PDF over the Bedrock document limit, since it is read through tools", async () => {
+      vi.mocked(getS3ObjectSize).mockResolvedValueOnce(tenMegabytes);
+      sendMessage.mockResolvedValue(undefined);
+      const d = deps();
+
+      await createReviewJob({ requestBody: withDocument("spec.pdf"), deps: d });
+
+      expect(d.reviewJobRepo.createReviewJob).toHaveBeenCalledTimes(1);
+    });
+
+    it("refuses an image over the image limit", async () => {
+      vi.mocked(getS3ObjectSize).mockResolvedValueOnce(21 * 1024 * 1024);
+      const d = deps();
+
+      await expect(
+        createReviewJob({ requestBody: withDocument("photo.jpg"), deps: d })
       ).rejects.toThrow();
       expect(d.reviewJobRepo.createReviewJob).not.toHaveBeenCalled();
     });

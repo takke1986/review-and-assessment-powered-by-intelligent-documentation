@@ -28,6 +28,11 @@ export interface FileUploaderProps {
    * 省略時はファイル名で uploadedDocuments と照合する（同名ファイルは区別できない）
    */
   isFileUploaded?: (file: File) => boolean;
+  /**
+   * 対応形式の横に出す、ファイルサイズの上限の説明。
+   * 省略時は既定の上限（4.5MB）を出す
+   */
+  sizeLimitLabel?: string;
 }
 
 /**
@@ -47,6 +52,7 @@ export function FileUploader({
   onDeleteFile,
   fillHeight = false,
   isFileUploaded,
+  sizeLimitLabel,
 }: FileUploaderProps) {
   const { t } = useTranslation();
   const supportedFormats = Object.values(acceptedFileTypes)
@@ -119,7 +125,12 @@ export function FileUploader({
           className={`mt-1 text-sm ${
             isUploading ? "invisible" : "text-aws-font-color-gray"
           }`}>
-          {t("fileUploader.supportedFormats", { formats: supportedFormats })}
+          {sizeLimitLabel
+            ? t("fileUploader.supportedFormatsWithLimit", {
+                formats: supportedFormats,
+                limit: sizeLimitLabel,
+              })
+            : t("fileUploader.supportedFormats", { formats: supportedFormats })}
         </p>
       </div>
 

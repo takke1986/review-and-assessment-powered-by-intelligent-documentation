@@ -9,15 +9,48 @@ export const MAX_FILE_SIZE = 4.5 * 1024 * 1024; // 4.5MB (Bedrock Converse API�
  */
 export const MAX_OFFICE_FILE_SIZE = 30 * 1024 * 1024; // 30MB
 
-const OFFICE_FILE_EXTENSIONS = [".docx", ".xlsx", ".pptx"];
+/**
+ * 審査する PDF の1ファイルの上限。
+ *
+ * 1回の呼び出しに収まらない PDF（4.5MB 超・合計100ページ超）は、審査処理がツールで
+ * ページを少しずつ読むので、Bedrock の文書の上限には縛られない。フロントエンドと同じ値にする。
+ */
+export const MAX_REVIEW_PDF_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
-/** ファイルの種類ごとの、1ファイルの上限 */
-export const maxFileSizeFor = (filename: string): number =>
-  OFFICE_FILE_EXTENSIONS.some((extension) =>
-    filename.toLowerCase().endsWith(extension)
-  )
-    ? MAX_OFFICE_FILE_SIZE
-    : MAX_FILE_SIZE;
+/**
+ * 審査する画像の1ファイルの上限。審査処理が Bedrock の上限（3.75MB・一辺8000px）に
+ * 収まるよう縮小してから読む。フロントエンドと同じ値にする。
+ */
+export const MAX_REVIEW_IMAGE_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+
+const OFFICE_FILE_EXTENSIONS = [".docx", ".xlsx", ".pptx"];
+const IMAGE_FILE_EXTENSIONS = [
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".gif",
+  ".bmp",
+  ".tif",
+  ".tiff",
+  ".webp",
+];
+
+const hasExtension = (filename: string, extensions: string[]): boolean =>
+  extensions.some((extension) => filename.toLowerCase().endsWith(extension));
+
+/** 審査するファイルの種類ごとの、1ファイルの上限 */
+export const maxFileSizeFor = (filename: string): number => {
+  if (hasExtension(filename, OFFICE_FILE_EXTENSIONS)) {
+    return MAX_OFFICE_FILE_SIZE;
+  }
+  if (hasExtension(filename, [".pdf"])) {
+    return MAX_REVIEW_PDF_FILE_SIZE;
+  }
+  if (hasExtension(filename, IMAGE_FILE_EXTENSIONS)) {
+    return MAX_REVIEW_IMAGE_FILE_SIZE;
+  }
+  return MAX_FILE_SIZE;
+};
 
 /**
  * 1つの審査ジョブに指定できるドキュメントの最大数。

@@ -1,4 +1,9 @@
-import { MAX_FILE_SIZE, MAX_OFFICE_FILE_SIZE } from "../constants/index";
+import {
+  MAX_FILE_SIZE,
+  MAX_OFFICE_FILE_SIZE,
+  MAX_REVIEW_IMAGE_FILE_SIZE,
+  MAX_REVIEW_PDF_FILE_SIZE,
+} from "../constants/index";
 
 /**
  * Word・Excel・PowerPoint のファイル。
@@ -26,12 +31,35 @@ const CFB_SIGNATURE = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
 export const isOfficeFileName = (name: string): boolean =>
   OFFICE_EXTENSIONS.some((extension) => name.toLowerCase().endsWith(extension));
 
-/** ファイルの種類ごとの、1ファイルの上限 */
-export const maxFileSizeFor = (name: string): number =>
-  isOfficeFileName(name) ? MAX_OFFICE_FILE_SIZE : MAX_FILE_SIZE;
-
 export const isPdfFileName = (name: string): boolean =>
   name.toLowerCase().endsWith(".pdf");
+
+const IMAGE_EXTENSIONS = [
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".gif",
+  ".bmp",
+  ".tif",
+  ".tiff",
+  ".webp",
+];
+
+/** 審査するファイルの種類ごとの、1ファイルの上限（バックエンドの maxFileSizeFor と揃える） */
+export const maxFileSizeFor = (name: string): number => {
+  if (isOfficeFileName(name)) {
+    return MAX_OFFICE_FILE_SIZE;
+  }
+  if (isPdfFileName(name)) {
+    return MAX_REVIEW_PDF_FILE_SIZE;
+  }
+  if (
+    IMAGE_EXTENSIONS.some((extension) => name.toLowerCase().endsWith(extension))
+  ) {
+    return MAX_REVIEW_IMAGE_FILE_SIZE;
+  }
+  return MAX_FILE_SIZE;
+};
 
 /**
  * 保護されていて中身を読めない Office ファイルか。
