@@ -11,6 +11,10 @@ import {
 import {
   CachePolicy,
   Distribution,
+  Function as CloudFrontFunction,
+  FunctionCode,
+  FunctionEventType,
+  FunctionRuntime,
   SecurityPolicyProtocol,
   ViewerProtocolPolicy,
 } from "aws-cdk-lib/aws-cloudfront";
@@ -47,6 +51,21 @@ export interface FrontendProps {
    * Required if alternateDomainName is provided
    */
   readonly hostedZoneId?: string;
+  /**
+   * 環境を止めている時間帯に、画面の代わりに案内ページを出す設定。
+   * フロントエンドは S3 の静的ファイルなので、止めている間も画面自体は開けてしまい、
+   * API だけが失敗して分かりにくい。CloudFront で時刻を見て案内ページを返す。
+   */
+  readonly closedHours?: ClosedHoursProps;
+}
+
+export interface ClosedHoursProps {
+  /** 使える時間帯（HH:MM）。これ以外の時間は案内ページを出す */
+  readonly windows: { readonly start: string; readonly stop: string }[];
+  /** 上の時刻の時差（分）。Asia/Tokyo は +9 時間で夏時間なし */
+  readonly utcOffsetMinutes: number;
+  /** 案内ページに出す、使える時間帯の説明 */
+  readonly openHoursLabel: string;
 }
 
 export class Frontend extends Construct {
@@ -67,6 +86,84 @@ export class Frontend extends Construct {
    * Base path used when building the SPA (e.g. "/app/") in S3+APIGW mode.
    */
   private buildBasePath = "/";
+
+  /**
+   * 止めている時間帯に案内ページ（503）を返す CloudFront Function。
+   * 確認したいときは ?open=1 を付けると素通しする（目隠しであって、閉じる仕組みではない）。
+   */
+  private createClosedHoursFunction(
+    closedHours: ClosedHoursProps,
+  ): CloudFrontFunction {
+    const minutesOf = (time: string) => {
+      const [hour, minute] = time.split(":").map(Number);
+      return hour * 60 + minute;
+    };
+    const windows = closedHours.windows.map((window) => [
+      minutesOf(window.start),
+      minutesOf(window.stop),
+    ]);
+    const page = `<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<meta http-equiv="refresh" content="300">
+<title>ただいま停止中 - RAPID</title>
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f2f3f3;color:#16191f;font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif}
+main{max-width:34rem;padding:2.5rem;background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.15);line-height:1.8}
+h1{margin:0 0 1rem;font-size:1.25rem}p{margin:.5rem 0}strong{font-size:1.1rem}</style></head>
+<body><main>
+<h1>ただいま停止中です</h1>
+<p>費用を抑えるため、この検証環境は決まった時間だけ動かしています。</p>
+<p>使える時間帯: <strong>${closedHours.openHoursLabel}</strong></p>
+<p>この画面は5分ごとに自動で読み込み直します。時間になったら、そのまま使えるようになります。</p>
+</main></body></html>`;
+    return new CloudFrontFunction(this, "ClosedHoursFunction", {
+      runtime: FunctionRuntime.JS_2_0,
+      comment: "Show a notice while the environment is stopped",
+      code: FunctionCode.fromInline(`function handler(event) {
+  var request = event.request;
+  // 確認用の素通し。?open=1 でクッキーを付け、以後は画面が読み込むファイルも通す
+  if (request.cookies && request.cookies['rapid-open']) {
+    return request;
+  }
+  if (request.querystring && request.querystring.open) {
+    return {
+      statusCode: 302,
+      statusDescription: 'Found',
+      headers: {
+        'location': { value: request.uri },
+        'cache-control': { value: 'no-store' }
+      },
+      cookies: {
+        'rapid-open': { value: '1', attributes: 'Path=/; Max-Age=43200; Secure; SameSite=Lax' }
+      }
+    };
+  }
+  var now = new Date();
+  var minutes = (now.getUTCHours() * 60 + now.getUTCMinutes() + ${closedHours.utcOffsetMinutes}) % 1440;
+  var windows = ${JSON.stringify(windows)};
+  for (var i = 0; i < windows.length; i++) {
+    var start = windows[i][0];
+    var stop = windows[i][1];
+    var open = start < stop
+      ? (minutes >= start && minutes < stop)
+      : (minutes >= start || minutes < stop);
+    if (open) {
+      return request;
+    }
+  }
+  return {
+    statusCode: 503,
+    statusDescription: 'Service Unavailable',
+    headers: {
+      'content-type': { value: 'text/html; charset=utf-8' },
+      'cache-control': { value: 'no-store' }
+    },
+    body: { encoding: 'text', data: ${JSON.stringify(page)} }
+  };
+}`),
+    });
+  }
 
   constructor(scope: Construct, id: string, props: FrontendProps) {
     super(scope, id);
@@ -115,6 +212,16 @@ export class Frontend extends Construct {
         origin: S3BucketOrigin.withOriginAccessControl(assetBucket),
         viewerProtocolPolicy: ViewerProtocolPolicy.HTTPS_ONLY,
         cachePolicy: CachePolicy.CACHING_OPTIMIZED,
+        ...(props.closedHours
+          ? {
+              functionAssociations: [
+                {
+                  eventType: FunctionEventType.VIEWER_REQUEST,
+                  function: this.createClosedHoursFunction(props.closedHours),
+                },
+              ],
+            }
+          : {}),
       },
       // Required to pass AwsSolutions-CFR4 check
       minimumProtocolVersion: SecurityPolicyProtocol.TLS_V1_2_2021,
