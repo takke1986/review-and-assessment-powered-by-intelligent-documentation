@@ -148,4 +148,11 @@ export const parameters = {
   //    isolation). stdio/public-HTTP MCP and uv runtime fetches will NOT work;
   //    only in-VPC HTTP MCP or AgentCore Gateway MCP tools work.
   // agentCoreNetworkMode: "VPC",
+
+  // 検証環境は昼の1時間と夜だけ使うので、それ以外の時間は NAT を止め、Aurora を自動停止にする
+  costSchedule: true,
+  costScheduleWindows: [
+    { start: "12:00", stop: "13:00" },
+    { start: "17:30", stop: "02:00" },
+  ],
 };
