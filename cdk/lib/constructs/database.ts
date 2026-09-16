@@ -17,6 +17,8 @@ export interface DatabaseProps {
   maxCapacity?: number;
   autoPause?: boolean;
   autoPauseSeconds?: number;
+  /** Backtrack（24時間）を有効にするか。既定は有効 */
+  backtrack?: boolean;
   /**
    * Subnet selection for the database cluster. Defaults to PRIVATE_WITH_EGRESS.
    * In closed mode this is PRIVATE_ISOLATED.
@@ -67,8 +69,13 @@ export class Database extends Construct {
       },
       securityGroups: [this.securityGroup],
       defaultDatabaseName: databaseName,
-      serverlessV2MinCapacity: props.minCapacity || 0.5, // 最小容量 (ACU)
+      // 最小容量 (ACU)。0 にすると接続が無いときに自動停止する（0 を既定値で上書きしないよう ?? を使う）
+      serverlessV2MinCapacity: props.minCapacity ?? 0.5,
       serverlessV2MaxCapacity: props.maxCapacity || 1, // 最大容量 (ACU)
+      serverlessV2AutoPauseDuration:
+        props.minCapacity === 0 && props.autoPause
+          ? Duration.seconds(props.autoPauseSeconds ?? 300)
+          : undefined,
       writer: rds.ClusterInstance.serverlessV2("writer", {
         autoMinorVersionUpgrade: true,
         publiclyAccessible: false,
@@ -78,7 +85,9 @@ export class Database extends Construct {
       enableDataApi: true, // Allow access from Management Console
       port: 3307, // Custom port instead of default 3306 (AwsSolutions-RDS11)
       iamAuthentication: true, // Enable IAM database authentication (AwsSolutions-RDS6)
-      backtrackWindow: Duration.hours(24), // Enable backtrack for MySQL Aurora (AwsSolutions-RDS14)
+      // Enable backtrack for MySQL Aurora (AwsSolutions-RDS14)。時間単位で課金されるので、止められるようにする
+      backtrackWindow:
+        props.backtrack === false ? Duration.seconds(0) : Duration.hours(24),
     });
 
     // シークレットローテーションの設定
@@ -128,6 +137,20 @@ export class Database extends Construct {
       ],
       true,
     );
+
+    if (props.backtrack === false) {
+      NagSuppressions.addResourceSuppressions(
+        this.cluster,
+        [
+          {
+            id: "AwsSolutions-RDS14",
+            reason:
+              "Backtrack is billed per hour; it is turned off for a cost-saving development environment",
+          },
+        ],
+        true,
+      );
+    }
   }
 
   /**

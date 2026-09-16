@@ -91,6 +91,36 @@ const parameterSchema = z.object({
   // 例: isEnabled: z.boolean().default(false),
   // 例: count: z.number().int().min(0).max(100).default(10),
 
+  // 使う時間帯だけ動かす設定（検証環境の費用削減）
+  costSchedule: z
+    .boolean()
+    .default(false)
+    .describe(
+      "true にすると、NAT Gateway の代わりに NAT インスタンスを使い、使う時間帯だけ起動する。Aurora は使わない時間帯に 0 ACU で自動停止し、Backtrack は無効にする。closedNetwork では使えない",
+    ),
+  costScheduleWindows: z
+    .array(
+      z.object({
+        start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+        stop: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+      }),
+    )
+    .min(1)
+    .default([{ start: "17:30", stop: "02:00" }])
+    .describe(
+      "使える時間帯（HH:MM、costScheduleTimeZone の時刻）。日をまたぐ指定もできる。複数指定すると、それぞれの時間帯で起動・停止する",
+    ),
+  costSchedulePrestartMinutes: z
+    .number()
+    .int()
+    .min(0)
+    .max(60)
+    .default(5)
+    .describe(
+      "使える時間帯の何分前に NAT と Aurora を起動するか。起動が終わるまでの余裕",
+    ),
+  costScheduleTimeZone: z.string().default("Asia/Tokyo"),
+
   // Cognito認証関連のパラメータ
   cognitoUserPoolId: z.string().optional(),
 

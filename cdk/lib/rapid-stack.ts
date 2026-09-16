@@ -19,6 +19,8 @@ import { VpcEndpoints } from "./constructs/vpc-endpoints";
 import { Parameters } from "./parameter-schema";
 import { execSync } from "child_process";
 import { ReviewQueueProcessor } from "./constructs/review-queue";
+import { CostSchedule } from "./constructs/cost-schedule";
+import { NagSuppressions } from "cdk-nag";
 
 export interface RapidStackProps extends cdk.StackProps {
   readonly webAclId?: string;
@@ -98,9 +100,63 @@ export class RapidStack extends cdk.Stack {
     // Closed mode: isolated subnets only, no NAT, no public subnets so there is
     // no internet egress at runtime. All AWS access goes through VPC endpoints.
     // Standard / intermediate: public + private-with-egress + isolated, 1 NAT GW.
+    // costSchedule: NAT Gateway は止められないので、使う時間帯だけ起動する NAT インスタンスにする
+    const costSchedule = props.parameters.costSchedule && !closedNetwork;
+    // NAT インスタンスの設定。CDK の既定のスクリプトは t4g.nano（512MB）だと yum が
+    // メモリ不足で止まり、iptables が入らない。スワップを作ってから入れる。
+    // 起動のたびに動かす（何度動いても同じ結果になるように書く）ので、スクリプトを
+    // 直したときは、CloudFormation がインスタンスを止めて起動し直すだけで反映される。
+    const natUserData = ec2.UserData.custom(
+      [
+        'Content-Type: multipart/mixed; boundary="//"',
+        "MIME-Version: 1.0",
+        "",
+        "--//",
+        'Content-Type: text/cloud-config; charset="us-ascii"',
+        "",
+        "#cloud-config",
+        "cloud_final_modules:",
+        "- [scripts-user, always]",
+        "",
+        "--//",
+        'Content-Type: text/x-shellscript; charset="us-ascii"',
+        "",
+        "#!/bin/bash",
+        "set -eux",
+        "if [ ! -f /swapfile ]; then",
+        "  dd if=/dev/zero of=/swapfile bs=1M count=1024",
+        "  chmod 600 /swapfile",
+        "  mkswap /swapfile",
+        "fi",
+        "swapon --show=NAME | grep -q /swapfile || swapon /swapfile",
+        "rpm -q iptables-services || dnf install -y iptables-services",
+        "systemctl enable --now iptables",
+        'echo "net.ipv4.ip_forward=1" > /etc/sysctl.d/custom-ip-forwarding.conf',
+        "sysctl -p /etc/sysctl.d/custom-ip-forwarding.conf",
+        "iface=$(ip route show default | awk '{print $5; exit}')",
+        'iptables -t nat -C POSTROUTING -o "$iface" -j MASQUERADE || iptables -t nat -A POSTROUTING -o "$iface" -j MASQUERADE',
+        "iptables -F FORWARD",
+        "service iptables save",
+        "--//--",
+        "",
+      ].join("\n"),
+    );
+    const natInstanceProvider = costSchedule
+      ? ec2.NatProvider.instanceV2({
+          instanceType: new ec2.InstanceType("t4g.nano"),
+          machineImage: ec2.MachineImage.latestAmazonLinux2023({
+            cpuType: ec2.AmazonLinuxCpuType.ARM_64,
+          }),
+          userData: natUserData,
+          associatePublicIpAddress: true,
+          // 受け付けるのは VPC 内からの通信だけ（下で許可する）
+          defaultAllowedTraffic: ec2.NatTrafficDirection.OUTBOUND_ONLY,
+        })
+      : undefined;
     const vpc = new ec2.Vpc(this, "RapidVpc", {
       maxAzs: 2,
       natGateways: closedNetwork ? 0 : 1,
+      natGatewayProvider: natInstanceProvider,
       subnetConfiguration: closedNetwork
         ? [
             {
@@ -129,6 +185,35 @@ export class RapidStack extends cdk.Stack {
           ],
     });
 
+    if (natInstanceProvider) {
+      natInstanceProvider.connections.allowFrom(
+        ec2.Peer.ipv4(vpc.vpcCidrBlock),
+        ec2.Port.allTraffic(),
+        "Traffic from the VPC to the internet through the NAT instance",
+      );
+      NagSuppressions.addResourceSuppressions(
+        vpc,
+        [
+          {
+            id: "AwsSolutions-EC26",
+            reason:
+              "The NAT instance only forwards traffic and keeps no data on its volume",
+          },
+          {
+            id: "AwsSolutions-EC28",
+            reason:
+              "Detailed monitoring is not needed for the NAT instance of a development environment",
+          },
+          {
+            id: "AwsSolutions-EC29",
+            reason:
+              "The NAT instance is stopped and started on a schedule and recreated by CDK when needed",
+          },
+        ],
+        true,
+      );
+    }
+
     // Add VPC Flow Logs (AwsSolutions-VPC7)
     new ec2.FlowLog(this, "VpcFlowLog", {
       resourceType: ec2.FlowLogResourceType.fromVpc(vpc),
@@ -150,12 +235,29 @@ export class RapidStack extends cdk.Stack {
     const database = new Database(this, "Database", {
       vpc,
       databaseName: "rapid",
-      minCapacity: 0.5,
+      // costSchedule: 使わない時間帯は 0 ACU で自動停止。使う時間帯はスケジュールで 0.5 にする
+      minCapacity: costSchedule ? 0 : 0.5,
       maxCapacity: 1,
       autoPause: true,
       autoPauseSeconds: 300,
+      backtrack: !costSchedule,
       subnetSelection: lambdaSubnetSelection,
     });
+
+    if (natInstanceProvider) {
+      new CostSchedule(this, "CostSchedule", {
+        natInstanceIds: natInstanceProvider.configuredGateways.map(
+          (gateway) => gateway.gatewayId,
+        ),
+        cluster: database.cluster,
+        windows: props.parameters.costScheduleWindows,
+        prestartMinutes: props.parameters.costSchedulePrestartMinutes,
+        timeZone: props.parameters.costScheduleTimeZone,
+        activeMinCapacity: 0.5,
+        maxCapacity: 1,
+        autoPauseSeconds: 300,
+      });
+    }
 
     // Prisma マイグレーション Lambda の作成
     const prismaMigration = new PrismaMigration(this, "PrismaMigration", {
@@ -325,6 +427,18 @@ export class RapidStack extends cdk.Stack {
       webAclId: props.webAclId,
       enableIpV6: props.enableIpV6 ?? false,
       deliveryMode: useS3ApiGatewayFrontend ? "s3ApiGateway" : "cloudfront",
+      // 止めている時間帯は、画面の代わりに案内を出す（再開は NAT と Aurora の起動を待つ）
+      ...(costSchedule
+        ? {
+            closedHours: {
+              windows: props.parameters.costScheduleWindows,
+              utcOffsetMinutes: 540, // Asia/Tokyo
+              openHoursLabel: `${props.parameters.costScheduleWindows
+                .map((window) => `${window.start} 〜 ${window.stop}`)
+                .join("、")}（日本時間）`,
+            },
+          }
+        : {}),
       // alternateDomainName: props.alternateDomainName,
       // hostedZoneId: props.hostedZoneId,
     });
