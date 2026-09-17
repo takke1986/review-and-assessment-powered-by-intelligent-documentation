@@ -1,15 +1,50 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useChecklistSets } from "../../checklist/hooks/useCheckListSetQueries";
 import { useCheckFailureTrends } from "../hooks/useCheckFailureTrends";
+import { CHECK_TREND_STATUS, CheckFailureTrendItem } from "../types";
 
-/** 審査した回数がこれより少ない項目は、傾向として弱いので印を付ける */
-const FEW_REVIEWS = 3;
+/** 状態ごとの見た目とラベル。判定そのものはバックエンドが返す */
+const STATUS_STYLE: Record<CHECK_TREND_STATUS, string> = {
+  [CHECK_TREND_STATUS.NEEDS_GUIDANCE]: "bg-yellow-100 text-yellow-800",
+  [CHECK_TREND_STATUS.OPERATIONAL_ISSUE]: "bg-red/10 text-red",
+  [CHECK_TREND_STATUS.INSUFFICIENT_DATA]:
+    "bg-light-gray text-aws-font-color-gray",
+  [CHECK_TREND_STATUS.NOT_REVIEWED_RECENTLY]:
+    "bg-light-gray text-aws-font-color-gray",
+  [CHECK_TREND_STATUS.STABLE]: "bg-light-gray text-aws-font-color-gray",
+};
+
+const STATUS_LABEL: Record<CHECK_TREND_STATUS, string> = {
+  [CHECK_TREND_STATUS.NEEDS_GUIDANCE]: "trends.statusNeedsGuidance",
+  [CHECK_TREND_STATUS.OPERATIONAL_ISSUE]: "trends.statusOperationalIssue",
+  [CHECK_TREND_STATUS.INSUFFICIENT_DATA]: "trends.statusInsufficientData",
+  [CHECK_TREND_STATUS.NOT_REVIEWED_RECENTLY]:
+    "trends.statusNotReviewedRecently",
+  [CHECK_TREND_STATUS.STABLE]: "trends.statusStable",
+};
+
+const ACTION_LABEL: Record<CHECK_TREND_STATUS, string> = {
+  [CHECK_TREND_STATUS.NEEDS_GUIDANCE]: "trends.actionNeedsGuidance",
+  [CHECK_TREND_STATUS.OPERATIONAL_ISSUE]: "trends.actionOperationalIssue",
+  [CHECK_TREND_STATUS.INSUFFICIENT_DATA]: "trends.actionInsufficientData",
+  [CHECK_TREND_STATUS.NOT_REVIEWED_RECENTLY]:
+    "trends.actionNotReviewedRecently",
+  [CHECK_TREND_STATUS.STABLE]: "trends.actionStable",
+};
+
+/** 手を付ける価値がある状態。上部の「まず手を付ける」に出す */
+const ACTIONABLE: CHECK_TREND_STATUS[] = [
+  CHECK_TREND_STATUS.NEEDS_GUIDANCE,
+  CHECK_TREND_STATUS.OPERATIONAL_ISSUE,
+];
 
 export default function CheckFailureTrendsPage() {
   const { t } = useTranslation();
   const { items: sets, isLoading: isLoadingSets } = useChecklistSets(1, 100);
   const [setId, setSetId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const { items, reviewJobCount, isLoading } = useCheckFailureTrends(setId);
 
   useEffect(() => {
@@ -18,7 +53,37 @@ export default function CheckFailureTrendsPage() {
     }
   }, [sets, setId]);
 
+  // 数が増えるとドロップダウンでは探せないので、名前で絞り込む
+  const matchedSets = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return sets;
+    return sets.filter((set) => set.name.toLowerCase().includes(needle));
+  }, [sets, query]);
+
+  const todo = useMemo(
+    () =>
+      items
+        .filter((item) => ACTIONABLE.includes(item.status))
+        .sort((a, b) => b.failedCount - a.failedCount)
+        .slice(0, 3),
+    [items]
+  );
+
   const percent = (rate: number) => `${Math.round(rate * 100)}%`;
+  const selectedSet = sets.find((set) => set.id === setId);
+
+  const action = (item: CheckFailureTrendItem) => (
+    <div className="text-sm">
+      <span>{t(ACTION_LABEL[item.status])}</span>
+      {ACTIONABLE.includes(item.status) && setId && (
+        <Link
+          to={`/checklist/${setId}`}
+          className="ml-2 text-aws-font-color-blue underline">
+          {t("trends.openChecklist")}
+        </Link>
+      )}
+    </div>
+  );
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -26,26 +91,65 @@ export default function CheckFailureTrendsPage() {
 
       <div className="mb-6">
         <label
-          htmlFor="checklist-set"
+          htmlFor="checklist-search"
           className="mb-1 block text-sm font-medium text-aws-squid-ink-light">
-          {t("trends.checklistSet")}
+          {t("trends.search")}
         </label>
-        <select
-          id="checklist-set"
-          className="w-full max-w-md rounded-md border border-light-gray px-3 py-2"
-          value={setId ?? ""}
+        <input
+          id="checklist-search"
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
           disabled={isLoadingSets || sets.length === 0}
-          onChange={(event) => setSetId(event.target.value)}>
-          {sets.map((set) => (
-            <option key={set.id} value={set.id}>
-              {set.name}
-            </option>
-          ))}
-        </select>
+          placeholder={t("trends.searchPlaceholder")}
+          className="w-full max-w-md rounded-md border border-light-gray px-3 py-2"
+        />
+
+        {matchedSets.length === 0 ? (
+          <p className="mt-2 text-sm text-aws-font-color-gray">
+            {t("trends.noMatch")}
+          </p>
+        ) : (
+          <div className="mt-2 flex max-h-40 flex-wrap gap-2 overflow-y-auto">
+            {matchedSets.map((set) => (
+              <button
+                key={set.id}
+                type="button"
+                onClick={() => setSetId(set.id)}
+                className={`rounded-full border px-3 py-1 text-sm transition-colors ${
+                  set.id === setId
+                    ? "border-aws-sea-blue-light bg-aws-sea-blue-light text-aws-font-color-white-light"
+                    : "border-light-gray bg-white text-aws-squid-ink-light hover:bg-aws-paper-light"
+                }`}>
+                {set.name}
+              </button>
+            ))}
+          </div>
+        )}
+
         <p className="mt-2 text-sm text-aws-font-color-gray">
+          {selectedSet ? `${selectedSet.name} — ` : ""}
           {t("trends.jobCount", { count: reviewJobCount })}
         </p>
       </div>
+
+      {todo.length > 0 && (
+        <div className="mb-6 rounded-lg border border-light-gray bg-aws-paper-light p-4">
+          <h2 className="mb-2 font-medium text-aws-squid-ink-light">
+            {t("trends.action")}
+          </h2>
+          <ol className="list-inside list-decimal space-y-1 text-sm">
+            {todo.map((item) => (
+              <li key={item.checkId}>
+                <span className="font-medium">{item.name}</span>
+                <span className="ml-2 text-aws-font-color-gray">
+                  {t(STATUS_LABEL[item.status])} / {t(ACTION_LABEL[item.status])}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
 
       {isLoading ? (
         <p className="text-aws-font-color-gray">{t("common.loading")}</p>
@@ -57,6 +161,8 @@ export default function CheckFailureTrendsPage() {
             <thead className="bg-aws-paper-light text-left">
               <tr>
                 <th className="px-4 py-3">{t("trends.item")}</th>
+                <th className="px-4 py-3">{t("trends.status")}</th>
+                <th className="px-4 py-3">{t("trends.action")}</th>
                 <th className="px-4 py-3 text-right">{t("trends.failRate")}</th>
                 <th className="px-4 py-3 text-right">{t("trends.failed")}</th>
                 <th className="px-4 py-3 text-right">{t("trends.reviewed")}</th>
@@ -71,14 +177,23 @@ export default function CheckFailureTrendsPage() {
                 <tr key={item.checkId} className="border-t border-light-gray">
                   <td className="px-4 py-3">
                     {item.name}
-                    {item.reviewedCount < FEW_REVIEWS && (
+                    {item.carriedOverCount > 0 && (
                       <span className="ml-2 rounded-full bg-light-gray px-2 py-1 text-xs text-aws-font-color-gray">
-                        {t("trends.few")}
+                        {t("trends.carriedOver")} {item.carriedOverCount}
                       </span>
                     )}
                   </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`whitespace-nowrap rounded-full px-2 py-1 text-xs ${
+                        STATUS_STYLE[item.status]
+                      }`}>
+                      {t(STATUS_LABEL[item.status])}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">{action(item)}</td>
                   <td className="px-4 py-3 text-right font-bold">
-                    {percent(item.failRate)}
+                    {item.reviewedCount === 0 ? "-" : percent(item.failRate)}
                   </td>
                   <td className="px-4 py-3 text-right">{item.failedCount}</td>
                   <td className="px-4 py-3 text-right">{item.reviewedCount}</td>

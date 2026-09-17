@@ -1,4 +1,8 @@
 import { PrismaClient, getPrismaClient } from "../../../core/db";
+import {
+  CHECK_TREND_STATUS,
+  decideCheckTrendStatus,
+} from "../service/check-trend-status";
 
 /** 審査結果の合否。DB には小文字で入る */
 const RESULT_FAIL = "fail";
@@ -16,6 +20,10 @@ export interface CheckFailureTrendRow {
   averageConfidence: number | null;
   /** 直近で不合格になった日時。無ければ null */
   lastFailedAt: Date | null;
+  /** 再審査で引き継いだ回数。審査し直していないことを示すのに使う */
+  carriedOverCount: number;
+  /** 次に何をすべきかを示す状態 */
+  status: CHECK_TREND_STATUS;
 }
 
 export interface StatisticsRepository {
@@ -47,7 +55,7 @@ export const makePrismaStatisticsRepository = async (
         checkList: { children: { none: {} } },
       };
 
-      const [totals, failures] = await Promise.all([
+      const [totals, failures, carriedOvers] = await Promise.all([
         client.reviewResult.groupBy({
           by: ["checkId"],
           where: judged,
@@ -60,34 +68,64 @@ export const makePrismaStatisticsRepository = async (
           _count: { _all: true },
           _max: { updatedAt: true },
         }),
+        // 引き継ぎは判定の重複なので数には入れないが、「審査し直していない」
+        // 項目を一覧から消さないために、別に数えておく
+        client.reviewResult.groupBy({
+          by: ["checkId"],
+          where: { ...judged, carriedOver: true },
+          _count: { _all: true },
+        }),
       ]);
 
-      if (totals.length === 0) {
+      const checkIds = [
+        ...new Set([
+          ...totals.map((total) => total.checkId),
+          ...carriedOvers.map((carried) => carried.checkId),
+        ]),
+      ];
+      if (checkIds.length === 0) {
         return [];
       }
 
       const names = await client.checkList.findMany({
-        where: { id: { in: totals.map((total) => total.checkId) } },
+        where: { id: { in: checkIds } },
         select: { id: true, name: true },
       });
       const nameById = new Map(names.map((item) => [item.id, item.name]));
       const failureByCheckId = new Map(
         failures.map((failure) => [failure.checkId, failure])
       );
+      const totalByCheckId = new Map(
+        totals.map((total) => [total.checkId, total])
+      );
+      const carriedByCheckId = new Map(
+        carriedOvers.map((carried) => [carried.checkId, carried])
+      );
 
-      return totals
-        .map((total) => {
-          const failure = failureByCheckId.get(total.checkId);
-          const reviewedCount = total._count._all;
+      return checkIds
+        .map((checkId) => {
+          const total = totalByCheckId.get(checkId);
+          const failure = failureByCheckId.get(checkId);
+          const reviewedCount = total?._count._all ?? 0;
           const failedCount = failure?._count._all ?? 0;
+          const failRate = reviewedCount === 0 ? 0 : failedCount / reviewedCount;
+          const averageConfidence = total?._avg.confidenceScore ?? null;
+          const carriedOverCount = carriedByCheckId.get(checkId)?._count._all ?? 0;
           return {
-            checkId: total.checkId,
-            name: nameById.get(total.checkId) ?? "",
+            checkId,
+            name: nameById.get(checkId) ?? "",
             reviewedCount,
             failedCount,
-            failRate: reviewedCount === 0 ? 0 : failedCount / reviewedCount,
-            averageConfidence: total._avg.confidenceScore ?? null,
+            failRate,
+            averageConfidence,
             lastFailedAt: failure?._max.updatedAt ?? null,
+            carriedOverCount,
+            status: decideCheckTrendStatus({
+              reviewedCount,
+              carriedOverCount,
+              failRate,
+              averageConfidence,
+            }),
           };
         })
         .sort(
