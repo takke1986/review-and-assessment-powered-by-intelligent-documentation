@@ -98,21 +98,22 @@ export function Table<T>({
       <div className="overflow-x-auto p-2">
         <table className="min-w-full divide-y divide-light-gray">
           {/* 列の意味が分かるように見出しを出す。列定義の header は元からある */}
-          <thead>
+          {/* 見出しは傾向ページと同じ書式。日本語なので大文字変換と字間調整はかけない */}
+          <thead className="bg-aws-paper-light text-left">
             <tr>
               {columns.map((column) => (
                 <th
                   key={`header-${column.key}`}
                   scope="col"
                   style={column.width ? { width: column.width } : undefined}
-                  className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-aws-font-color-gray">
+                  className="whitespace-nowrap px-6 py-3 text-sm font-medium text-aws-squid-ink-light">
                   {column.header}
                 </th>
               ))}
               {actions && actions.length > 0 && (
                 <th
                   scope="col"
-                  className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-aws-font-color-gray">
+                  className="whitespace-nowrap px-6 py-3 text-right text-sm font-medium text-aws-squid-ink-light">
                   {t("table.actions")}
                 </th>
               )}

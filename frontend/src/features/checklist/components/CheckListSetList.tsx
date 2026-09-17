@@ -134,7 +134,7 @@ export default function CheckListSetList({
     },
     {
       key: "description",
-      header: t("checklist.description"),
+      header: t("common.description"),
       render: (item) => (
         <div
           className="max-w-xs truncate text-sm text-aws-font-color-gray"
