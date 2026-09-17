@@ -147,8 +147,8 @@ export default function CheckListItemTreeNode({
         <div style={indentStyle}>
           <ResultCard
             variant={item.ambiguityReview && isEditable ? "error" : "default"}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center">
                 {/* チェックボックス - リーフノードのみ */}
                 {!item.hasChildren && onToggleSelect && (
                   <input
@@ -197,7 +197,7 @@ export default function CheckListItemTreeNode({
                   )}
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex shrink-0 items-center space-x-2">
                 {/* 重要度 - リーフノードのみ。判定に使わないので、編集できないチェックリストでも変えられる */}
                 {!item.hasChildren && (
                   <ImportanceSelector
