@@ -49,6 +49,9 @@ export class ReviewQueueProcessor extends Construct {
       fifo: true,
       enforceSSL: true,
       retentionPeriod: cdk.Duration.days(14),
+      // 読み取る Lambda のタイムアウト（1分）より長くする。短いと SQS が
+      // イベントソースの作成を拒む
+      visibilityTimeout: cdk.Duration.minutes(2),
     });
 
     this.queue = new sqs.Queue(this, "MainQueue", {
