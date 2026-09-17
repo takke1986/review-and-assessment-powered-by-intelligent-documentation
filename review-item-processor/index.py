@@ -114,12 +114,19 @@ def handler(event, context):
             "inputTokens": review_data.get("inputTokens"),
             "outputTokens": review_data.get("outputTokens"),
             "totalCost": review_data.get("totalCost"),
+            # 文書の審査か画像の審査か。落とすと後処理が既定の "PDF" として扱う
+            "reviewType": review_data.get("reviewType", "PDF"),
         }
 
         # Handle PDF-specific fields
         if "extractedText" in review_data:
             result["extractedText"] = review_data["extractedText"]
             result["pageNumber"] = review_data.get("pageNumber", 1)
+
+        # 判定の根拠にしたファイルとページ。これを落とすと、後処理が
+        # 「すべての文書に同じページ番号」を付けるフォールバックに落ちる
+        if "sources" in review_data:
+            result["sources"] = review_data["sources"]
 
         # Handle image-specific fields
         if "usedImageIndexes" in review_data:
