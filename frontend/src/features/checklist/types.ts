@@ -238,6 +238,20 @@ export interface UpdateChecklistItemImportanceRequest {
 }
 
 /**
+ * Request type for updating a checklist item's review guidance
+ * PATCH /checklist-sets/:setId/items/:itemId/review-guidance
+ */
+export interface UpdateChecklistItemReviewGuidanceRequest {
+  reviewGuidance: string;
+}
+
+/**
+ * Response type for updating a checklist item's review guidance
+ * PATCH /checklist-sets/:setId/items/:itemId/review-guidance
+ */
+export type UpdateChecklistItemReviewGuidanceResponse = Record<string, never>;
+
+/**
  * Response type for updating a checklist item's importance
  * PATCH /checklist-sets/:setId/items/:itemId/importance
  */
@@ -258,6 +272,8 @@ export interface CheckListItemEntity {
   description?: string;
   /** 重要度を返さない API（この変更より前のバックエンド）では無い */
   importance?: CHECK_ITEM_IMPORTANCE;
+  /** 審査のときに見てほしい観点。人が書く補助情報で、判定を上書きしない */
+  reviewGuidance?: string;
   ambiguityReview?: AmbiguityDetectionResult;
 }
 

@@ -68,6 +68,7 @@ const makeCheckListItem = (overrides?: Record<string, unknown>) => ({
   toolConfigurationId: null,
   modelId: undefined,
   feedbackSummary: null,
+  reviewGuidance: null,
   ...overrides,
 });
 
@@ -149,12 +150,43 @@ describe("preReviewItemProcessor", () => {
       checkName: "Check Item",
       checkDescription: "Check description",
       feedbackSummary: null,
+      reviewGuidance: null,
       languageName: "English",
       documentPaths: ["s3://bucket/test.pdf"],
       documentIds: ["doc-1"],
       toolConfiguration: null,
       modelId: "anthropic.claude-sonnet-4",
     });
+  });
+
+  it("carries the check item's review guidance into the payload", async () => {
+    mockReviewJobRepo.findReviewJobById.mockResolvedValue(makeJobDetail());
+    mockCheckRepo.findCheckListItemById.mockResolvedValue(
+      makeCheckListItem({ reviewGuidance: "別紙の但し書きも本文とみなす" })
+    );
+
+    const result = await preReviewItemProcessor({
+      reviewJobId: "job-1",
+      checkId: "check-1",
+      reviewResultId: "result-1",
+    });
+
+    expect(result.reviewGuidance).toBe("別紙の但し書きも本文とみなす");
+  });
+
+  it("sends null when the check item has no review guidance", async () => {
+    mockReviewJobRepo.findReviewJobById.mockResolvedValue(makeJobDetail());
+    mockCheckRepo.findCheckListItemById.mockResolvedValue(
+      makeCheckListItem({ reviewGuidance: "" })
+    );
+
+    const result = await preReviewItemProcessor({
+      reviewJobId: "job-1",
+      checkId: "check-1",
+      reviewResultId: "result-1",
+    });
+
+    expect(result.reviewGuidance).toBeNull();
   });
 
   it("throws when checkList item is not found", async () => {

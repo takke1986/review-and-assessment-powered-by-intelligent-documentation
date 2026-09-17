@@ -20,6 +20,7 @@ import {
   getAvailableModelsHandler,
   updateChecklistItemModelHandler,
   updateChecklistItemImportanceHandler,
+  updateChecklistItemReviewGuidanceHandler,
 } from "./handlers";
 
 /**
@@ -108,5 +109,12 @@ export function registerChecklistRoutes(fastify: FastifyInstance): void {
   // 重要度は判定に使わないので、審査ジョブのあるチェックリストでも変更できる
   fastify.patch("/checklist-sets/:setId/items/:itemId/importance", {
     handler: updateChecklistItemImportanceHandler,
+  });
+
+  // チェックリスト項目の着眼点更新エンドポイント。
+  // 着眼点は次の審査から効く補助情報で過去の結果は変わらないため、
+  // 審査ジョブのあるチェックリストでも書ける
+  fastify.patch("/checklist-sets/:setId/items/:itemId/review-guidance", {
+    handler: updateChecklistItemReviewGuidanceHandler,
   });
 }

@@ -19,6 +19,7 @@ import {
   getAvailableModels,
   updateCheckListItemModel,
   updateCheckListItemImportance,
+  updateCheckListItemReviewGuidance,
 } from "../usecase/checklist-item";
 import { CHECK_LIST_STATUS, AmbiguityFilter } from "../domain/model/checklist";
 
@@ -486,6 +487,26 @@ export const updateChecklistItemImportanceHandler = async (
     setId,
     itemId,
     importance: request.body?.importance,
+    user: request.user!,
+  });
+  reply.code(200).send({
+    success: true,
+    data: {},
+  });
+};
+
+export const updateChecklistItemReviewGuidanceHandler = async (
+  request: FastifyRequest<{
+    Params: { setId: string; itemId: string };
+    Body: { reviewGuidance: string };
+  }>,
+  reply: FastifyReply
+): Promise<void> => {
+  const { setId, itemId } = request.params;
+  await updateCheckListItemReviewGuidance({
+    setId,
+    itemId,
+    reviewGuidance: request.body?.reviewGuidance ?? "",
     user: request.user!,
   });
   reply.code(200).send({

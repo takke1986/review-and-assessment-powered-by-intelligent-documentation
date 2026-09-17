@@ -11,6 +11,8 @@ import type {
   UpdateChecklistItemModelResponse,
   UpdateChecklistItemImportanceRequest,
   UpdateChecklistItemImportanceResponse,
+  UpdateChecklistItemReviewGuidanceRequest,
+  UpdateChecklistItemReviewGuidanceResponse,
   CHECK_ITEM_IMPORTANCE,
 } from "../types";
 
@@ -175,4 +177,33 @@ export function useUpdateCheckListItemImportance(setId: string) {
   };
 
   return { updateCheckListItemImportance, status, error };
+}
+
+/**
+ * チェックリスト項目の着眼点の更新。
+ * 着眼点は次の審査から効く補助情報なので、審査ジョブのあるチェックリストでも書ける
+ */
+export function useUpdateCheckListItemReviewGuidance(setId: string) {
+  const { mutateAsync, status, error } = useApiClient().useMutation<
+    UpdateChecklistItemReviewGuidanceResponse,
+    UpdateChecklistItemReviewGuidanceRequest
+  >("patch", `/checklist-sets/${setId}/items`);
+
+  const updateCheckListItemReviewGuidance = async (
+    itemId: string,
+    reviewGuidance: string
+  ) => {
+    const res = await mutateAsync(
+      { reviewGuidance },
+      `/checklist-sets/${setId}/items/${itemId}/review-guidance`
+    );
+    mutate(
+      (key) =>
+        typeof key === "string" &&
+        key.startsWith(`/checklist-sets/${setId}/items`)
+    );
+    return res;
+  };
+
+  return { updateCheckListItemReviewGuidance, status, error };
 }

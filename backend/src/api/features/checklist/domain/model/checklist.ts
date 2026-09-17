@@ -20,6 +20,7 @@ export type PrismaCheckList = {
   ambiguityReview?: any | null;
   documentId?: string | null;
   importance?: string | null;
+  reviewGuidance?: string | null;
 };
 
 export enum CHECK_LIST_STATUS {
@@ -114,6 +115,8 @@ export interface CheckListItemEntity {
   modelId?: string;
   feedbackSummary?: string;
   feedbackSummaryUpdatedAt?: Date;
+  /** 審査のときに見てほしい観点。人が書く補助情報で、判定を上書きしない */
+  reviewGuidance?: string;
 }
 
 export interface CheckListItemDetail extends CheckListItemEntity {
@@ -236,6 +239,7 @@ export const CheckListItemDomain = {
       feedbackSummary: prismaItem.feedbackSummary ?? undefined,
       feedbackSummaryUpdatedAt:
         prismaItem.feedbackSummaryUpdatedAt ?? undefined,
+      reviewGuidance: prismaItem.reviewGuidance ?? undefined,
       ambiguityReview: (() => {
         const ar = prismaItem.ambiguityReview as unknown;
         if (!ar) return undefined;
@@ -262,6 +266,7 @@ export const CheckListItemDomain = {
       modelId: item.modelId ?? null,
       feedbackSummary: item.feedbackSummary ?? null,
       feedbackSummaryUpdatedAt: item.feedbackSummaryUpdatedAt ?? null,
+      reviewGuidance: item.reviewGuidance ?? null,
       ambiguityReview: item.ambiguityReview
         ? {
             suggestions: item.ambiguityReview.suggestions,
@@ -290,6 +295,7 @@ export const CheckListItemDomain = {
       feedbackSummary: prismaItem.feedbackSummary ?? undefined,
       feedbackSummaryUpdatedAt:
         prismaItem.feedbackSummaryUpdatedAt ?? undefined,
+      reviewGuidance: prismaItem.reviewGuidance ?? undefined,
       ambiguityReview: (() => {
         const ar = prismaItem.ambiguityReview as unknown;
         if (!ar) return undefined;

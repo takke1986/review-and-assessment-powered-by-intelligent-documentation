@@ -71,6 +71,10 @@ export interface CheckRepository {
     itemId: string;
     importance: CHECK_ITEM_IMPORTANCE;
   }): Promise<void>;
+  updateCheckListItemReviewGuidance(params: {
+    itemId: string;
+    reviewGuidance: string | null;
+  }): Promise<void>;
 }
 
 export const makePrismaCheckRepository = async (
@@ -421,6 +425,7 @@ export const makePrismaCheckRepository = async (
         feedbackSummary: true,
         feedbackSummaryUpdatedAt: true,
         importance: true,
+        reviewGuidance: true,
         toolConfiguration: {
           select: {
             id: true,
@@ -643,6 +648,7 @@ export const makePrismaCheckRepository = async (
         feedbackSummary: true,
         feedbackSummaryUpdatedAt: true,
         importance: true,
+        reviewGuidance: true,
       },
     });
 
@@ -778,6 +784,18 @@ export const makePrismaCheckRepository = async (
     });
   };
 
+  const updateCheckListItemReviewGuidance = async (params: {
+    itemId: string;
+    reviewGuidance: string | null;
+  }): Promise<void> => {
+    await client.checkList.update({
+      where: { id: params.itemId },
+      data: {
+        reviewGuidance: params.reviewGuidance,
+      },
+    });
+  };
+
   return {
     storeCheckListSet,
     deleteCheckListSetById,
@@ -796,5 +814,6 @@ export const makePrismaCheckRepository = async (
     bulkUpdateToolConfiguration,
     updateCheckListItemModelId,
     updateCheckListItemImportance,
+    updateCheckListItemReviewGuidance,
   };
 };

@@ -83,6 +83,7 @@ def handler(event, context):
         # Extract tool configuration if available
         tool_configuration = event.get("toolConfiguration")
         feedback_summary = event.get("feedbackSummary")
+        review_guidance = event.get("reviewGuidance")
         model_id_override = event.get("modelId")
         logger.debug(
             f"[DEBUG LAMBDA] Tool configuration: {json.dumps(tool_configuration)}"
@@ -101,6 +102,7 @@ def handler(event, context):
             model_id=model_id_override,
             toolConfiguration=tool_configuration,
             feedback_summary=feedback_summary,
+            review_guidance=review_guidance,
         )
 
         # Return results to Step Functions - handle both PDF and image results

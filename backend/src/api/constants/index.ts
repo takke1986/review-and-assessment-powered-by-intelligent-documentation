@@ -62,3 +62,6 @@ export const MAX_REVIEW_DOCUMENTS = 20;
 
 /** 再審査の変更メモの最大文字数 */
 export const MAX_REVISION_NOTE_LENGTH = 1000;
+
+// 着眼点の上限。長すぎると費用が読めなくなり、本来の指示も薄まる
+export const MAX_REVIEW_GUIDANCE_LENGTH = 2000;

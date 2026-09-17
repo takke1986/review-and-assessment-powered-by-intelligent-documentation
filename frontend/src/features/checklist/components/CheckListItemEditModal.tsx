@@ -4,7 +4,10 @@ import Modal from "../../../components/Modal";
 import Button from "../../../components/Button";
 import InfoAlert from "../../../components/InfoAlert";
 import { CheckListItemEntity } from "../types";
-import { useUpdateCheckListItem } from "../hooks/useCheckListItemMutations";
+import {
+  useUpdateCheckListItem,
+  useUpdateCheckListItemReviewGuidance,
+} from "../hooks/useCheckListItemMutations";
 import { useToast } from "../../../contexts/ToastContext";
 
 type CheckListItemEditModalProps = {
@@ -29,6 +32,7 @@ export default function CheckListItemEditModal({
   const [formData, setFormData] = useState({
     name: item.name,
     description: item.description || "",
+    reviewGuidance: item.reviewGuidance || "",
   });
   const [resolveAmbiguity, setResolveAmbiguity] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,6 +45,8 @@ export default function CheckListItemEditModal({
     status: updateStatus,
     error: updateError,
   } = useUpdateCheckListItem(checkListSetId);
+  const { updateCheckListItemReviewGuidance } =
+    useUpdateCheckListItemReviewGuidance(checkListSetId);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -69,6 +75,13 @@ export default function CheckListItemEditModal({
         resolveAmbiguity: resolveAmbiguity,
       };
       await updateCheckListItem(item.id, requestData);
+      // 着眼点は別のエンドポイント。鍵つきのチェックリストでも書けるようにするため
+      if (formData.reviewGuidance !== (item.reviewGuidance || "")) {
+        await updateCheckListItemReviewGuidance(
+          item.id,
+          formData.reviewGuidance
+        );
+      }
       addToast(t("checklist.editItemUpdateSuccess"), "success");
       onSuccess();
       onClose();
@@ -156,6 +169,27 @@ export default function CheckListItemEditModal({
             className="w-full rounded-md border border-light-gray px-4 py-2 focus:outline-none focus:ring-2 focus:ring-aws-sea-blue-light"
             placeholder={t("checklist.itemDescriptionPlaceholder")}
           />
+        </div>
+
+        <div className="mb-6">
+          <label
+            htmlFor="reviewGuidance"
+            className="mb-2 block font-medium text-aws-squid-ink-light">
+            {t("checklist.reviewGuidance")}
+          </label>
+          <textarea
+            id="reviewGuidance"
+            name="reviewGuidance"
+            value={formData.reviewGuidance}
+            onChange={handleChange}
+            rows={3}
+            maxLength={2000}
+            className="w-full rounded-md border border-light-gray px-4 py-2 focus:outline-none focus:ring-2 focus:ring-aws-sea-blue-light"
+            placeholder={t("checklist.reviewGuidancePlaceholder")}
+          />
+          <p className="mt-1 text-sm text-aws-font-color-gray">
+            {t("checklist.reviewGuidanceHelp")}
+          </p>
         </div>
 
         {/* 指摘解消チェックボックス */}

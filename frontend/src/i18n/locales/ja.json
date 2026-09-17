@@ -199,7 +199,10 @@
     "resolveAmbiguityAfterUpdate": "更新後に指摘を解消",
     "itemDeleteError": "「{{name}}」の削除に失敗しました。",
     "addChildItem": "子項目を追加",
-    "childItemsLoadError": "子項目の読み込みに失敗しました。"
+    "childItemsLoadError": "子項目の読み込みに失敗しました。",
+    "reviewGuidance": "着眼点",
+    "reviewGuidancePlaceholder": "この項目を審査するときに見てほしい観点を書きます（任意）",
+    "reviewGuidanceHelp": "次の審査から効きます。文書の記載より優先されることはありません"
   },
   "review": {
     "title": "審査ジョブ一覧",

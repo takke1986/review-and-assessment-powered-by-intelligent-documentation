@@ -199,7 +199,10 @@
     "resolveAmbiguityAfterUpdate": "Resolve suggestion after update",
     "itemDeleteError": "Failed to delete \"{{name}}\".",
     "addChildItem": "Add child item",
-    "childItemsLoadError": "Failed to load child items."
+    "childItemsLoadError": "Failed to load child items.",
+    "reviewGuidance": "What to look at",
+    "reviewGuidancePlaceholder": "Optional: what the reviewer should look at for this item",
+    "reviewGuidanceHelp": "Applies to future reviews. It never overrides what the documents say"
   },
   "review": {
     "title": "Review Jobs",

@@ -76,6 +76,8 @@ model CheckList {
   importance               String             @default("medium") @db.VarChar(10)
   feedbackSummary          String?            @map("feedback_summary") @db.Text
   feedbackSummaryUpdatedAt DateTime?          @map("feedback_summary_updated_at") @db.Timestamp(0)
+  /// 審査のときに見てほしい観点。人が書く。空なら prompt に何も差し込まない
+  reviewGuidance           String?            @map("review_guidance") @db.Text
   checkListSet             CheckListSet       @relation(fields: [checkListSetId], references: [id])
   document                 CheckListDocument? @relation(fields: [documentId], references: [id])
   parent                   CheckList?         @relation("CheckListToCheckList", fields: [parentId], references: [id])

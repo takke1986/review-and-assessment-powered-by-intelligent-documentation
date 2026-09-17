@@ -121,6 +121,8 @@ export async function preReviewItemProcessor(
     checkName: checkList.name,
     checkDescription: checkList.description || "",
     feedbackSummary: checkList.feedbackSummary || null,
+    // 審査のときに見てほしい観点。空なら prompt に何も差し込まれない
+    reviewGuidance: checkList.reviewGuidance || null,
     languageName: getLanguageName(userLanguage),
     documentPaths: documentsToProcess.map((doc) => doc.s3Path),
     documentIds: documentsToProcess.map((doc) => doc.id),

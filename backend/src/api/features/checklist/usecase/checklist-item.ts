@@ -20,6 +20,7 @@ import {
   assertHasOwnerAccessOrThrow,
   RequestUser,
 } from "../../../core/middleware/authorization";
+import { MAX_REVIEW_GUIDANCE_LENGTH } from "../../../constants";
 
 const assertChecklistSetOwner = async (params: {
   user: RequestUser;
@@ -301,5 +302,49 @@ export const updateCheckListItemImportance = async (params: {
   await repo.updateCheckListItemImportance({
     itemId: params.itemId,
     importance,
+  });
+};
+
+/**
+ * チェック項目の着眼点を更新する。
+ * 着眼点は次の審査から効く補助情報で、過去の結果は変わらないため、
+ * 審査ジョブのあるチェックリストでも書ける
+ */
+export const updateCheckListItemReviewGuidance = async (params: {
+  setId: string;
+  itemId: string;
+  reviewGuidance: string;
+  user: RequestUser;
+  deps?: {
+    repo?: CheckRepository;
+  };
+}): Promise<void> => {
+  const repo = params.deps?.repo || (await makePrismaCheckRepository());
+
+  await assertChecklistSetOwner({
+    user: params.user,
+    setId: params.setId,
+    repo,
+    api: "updateCheckListItemReviewGuidance",
+    resourceId: params.itemId,
+  });
+
+  const guidance = (params.reviewGuidance ?? "").trim();
+  // 長すぎる文章は費用が読めなくなるうえ、本来の指示を薄めるので上限を設ける
+  if (guidance.length > MAX_REVIEW_GUIDANCE_LENGTH) {
+    throw new ValidationError(
+      `Review guidance is too long: ${guidance.length} > ${MAX_REVIEW_GUIDANCE_LENGTH}`
+    );
+  }
+
+  // 所有者を確かめたチェックリストの項目であることを確かめる
+  const item = await repo.findCheckListItemById(params.itemId);
+  if (item.setId !== params.setId) {
+    throw new ValidationError("Invalid setId");
+  }
+
+  await repo.updateCheckListItemReviewGuidance({
+    itemId: params.itemId,
+    reviewGuidance: guidance === "" ? null : guidance,
   });
 };
