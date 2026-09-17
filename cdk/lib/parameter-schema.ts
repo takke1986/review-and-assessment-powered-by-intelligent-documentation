@@ -190,6 +190,25 @@ const parameterSchema = z.object({
     .default("WARNING")
     .describe("Review queue lambda log level"),
 
+  reviewQueueRetrySeconds: z
+    .number()
+    .int()
+    .min(5)
+    .max(900)
+    .default(90)
+    .describe(
+      "同時実行の空きが無いときに、キューのメッセージを戻すまでの秒数。短すぎると先行ジョブの終了を待てずに受信回数を使い切る",
+    ),
+
+  reviewQueueMaxReceiveCount: z
+    .number()
+    .int()
+    .min(1)
+    .default(20)
+    .describe(
+      "メッセージがデッドレターキューへ移るまでの受信回数。空き待ちの戻しも1回と数えられる",
+    ),
+
   // AgentCore Code Interpreter設定
   enableCodeInterpreter: z
     .boolean()

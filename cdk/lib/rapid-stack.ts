@@ -336,10 +336,14 @@ export class RapidStack extends cdk.Stack {
             props.parameters.reviewQueueMaxQueueCountMs.toString(),
           ERROR_LAMBDA_NAME: reviewProcessor.reviewLambda.functionName,
           LOG_LEVEL: props.parameters.reviewQueueLogLevel,
+          VISIBILITY_TIMEOUT_RETRY:
+            props.parameters.reviewQueueRetrySeconds.toString(),
 
           // キュー管理のLambdaはWARNINGをデフォルトとする
           // LOG_LEVEL: props.parameters.logLevel,
         },
+        maxReceiveCount: props.parameters.reviewQueueMaxReceiveCount,
+        errorLambdaName: reviewProcessor.reviewLambda.functionName,
       },
     );
 

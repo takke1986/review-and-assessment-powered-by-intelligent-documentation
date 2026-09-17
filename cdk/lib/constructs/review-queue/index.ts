@@ -17,11 +17,25 @@ export interface ReviewQueueProcessorProps {
    * Lambda log retention days (see parameter-schema.ts).
    */
   lambdaLogRetentionDays?: number;
+
+  /**
+   * メッセージがデッドレターキューへ移るまでの受信回数。
+   * @default 20
+   */
+  maxReceiveCount?: number;
+
+  /**
+   * デッドレターキューに落ちたジョブを失敗として記録する Lambda の名前。
+   * 渡すと、デッドレターキューを読む Lambda を作る。
+   */
+  errorLambdaName?: string;
 }
 
 export class ReviewQueueProcessor extends Construct {
   public readonly lambdaFunction: lambda.Function;
   public readonly queue: sqs.Queue;
+  /** デッドレターキューを読む Lambda（errorLambdaName を渡したときだけ作る） */
+  public deadLetterFunction?: lambda.Function;
 
   constructor(
     scope: Construct,
@@ -49,7 +63,7 @@ export class ReviewQueueProcessor extends Construct {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       deadLetterQueue: {
         queue: dlq,
-        maxReceiveCount: 5,
+        maxReceiveCount: props.maxReceiveCount ?? 20,
       },
     });
 
@@ -94,6 +108,43 @@ export class ReviewQueueProcessor extends Construct {
 
     this.queue.grantConsumeMessages(this.lambdaFunction);
     this.queue.grantSendMessages(this.lambdaFunction);
+
+    // デッドレターキューに落ちたメッセージは誰も見ないままになり、ジョブが「待機中」に
+    // 見え続ける。読み取って、審査ジョブを失敗として記録する。
+    if (props.errorLambdaName) {
+      this.deadLetterFunction = new lambda.Function(
+        this,
+        "DeadLetterFunction",
+        {
+          runtime: lambda.Runtime.PYTHON_3_14,
+          handler: "handler.lambda_handler",
+          code: lambda.Code.fromAsset(path.join(__dirname, "dead-letter")),
+          timeout: cdk.Duration.minutes(1),
+          memorySize: 256,
+          environment: {
+            ERROR_LAMBDA_NAME: props.errorLambdaName,
+            LOG_LEVEL: props.environment?.LOG_LEVEL ?? "INFO",
+          },
+          logGroup: new cdk.aws_logs.LogGroup(this, "deadLetterFunctionLog", {
+            removalPolicy: cdk.RemovalPolicy.DESTROY,
+            retention: cdk.aws_logs.RetentionDays.THREE_YEARS,
+          }),
+        },
+      );
+
+      this.deadLetterFunction.addToRolePolicy(
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: ["lambda:InvokeFunction"],
+          resources: ["*"],
+        }),
+      );
+
+      this.deadLetterFunction.addEventSource(
+        new lambdaEventSources.SqsEventSource(dlq, { batchSize: 1 }),
+      );
+      dlq.grantConsumeMessages(this.deadLetterFunction);
+    }
 
     new cdk.CfnOutput(this, "LambdaFunctionName", {
       value: this.lambdaFunction.functionName,
