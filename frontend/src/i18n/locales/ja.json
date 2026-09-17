@@ -1,7 +1,6 @@
 {
   "trends": {
     "title": "不合格になりがちなチェック項目",
-    "checklistSet": "チェックリスト",
     "jobCount": "このチェックリストの審査: {{count}} 回",
     "item": "チェック項目",
     "failRate": "不合格率",
@@ -9,7 +8,6 @@
     "reviewed": "審査回数",
     "confidence": "平均信頼度",
     "lastFailed": "直近の不合格",
-    "few": "参考",
     "empty": "まだ審査の結果がありません",
     "status": "状態",
     "action": "すべきこと",

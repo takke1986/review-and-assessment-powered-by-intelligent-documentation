@@ -402,9 +402,9 @@ def _execute_review_core(
                 check_name,
                 check_description,
                 model_id,
-                toolConfiguration,
-                feedback_summary,
-                review_guidance,
+                tool_config=toolConfiguration,
+                feedback_summary=feedback_summary,
+                review_guidance=review_guidance,
             )
             tools = [file_read, image_reader]
             review_type = "IMAGE"

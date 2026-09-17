@@ -5,40 +5,45 @@ import { useChecklistSets } from "../../checklist/hooks/useCheckListSetQueries";
 import { useCheckFailureTrends } from "../hooks/useCheckFailureTrends";
 import { CHECK_TREND_STATUS, CheckFailureTrendItem } from "../types";
 
-/** 状態ごとの見た目とラベル。判定そのものはバックエンドが返す */
-const STATUS_STYLE: Record<CHECK_TREND_STATUS, string> = {
-  [CHECK_TREND_STATUS.NEEDS_GUIDANCE]: "bg-yellow-100 text-yellow-800",
-  [CHECK_TREND_STATUS.OPERATIONAL_ISSUE]: "bg-red/10 text-red",
-  [CHECK_TREND_STATUS.INSUFFICIENT_DATA]:
-    "bg-light-gray text-aws-font-color-gray",
-  [CHECK_TREND_STATUS.NOT_REVIEWED_RECENTLY]:
-    "bg-light-gray text-aws-font-color-gray",
-  [CHECK_TREND_STATUS.STABLE]: "bg-light-gray text-aws-font-color-gray",
+/**
+ * 状態ごとの見た目・ラベル・行動。判定そのものはバックエンドが返す。
+ * 状態を足すときにここ1箇所だけ直せば済むよう、まとめて持つ。
+ */
+const STATUS_VIEW: Record<
+  CHECK_TREND_STATUS,
+  { style: string; label: string; action: string; actionable: boolean }
+> = {
+  [CHECK_TREND_STATUS.NEEDS_GUIDANCE]: {
+    style: "bg-yellow-100 text-yellow-800",
+    label: "trends.statusNeedsGuidance",
+    action: "trends.actionNeedsGuidance",
+    actionable: true,
+  },
+  [CHECK_TREND_STATUS.OPERATIONAL_ISSUE]: {
+    style: "bg-red/10 text-red",
+    label: "trends.statusOperationalIssue",
+    action: "trends.actionOperationalIssue",
+    actionable: true,
+  },
+  [CHECK_TREND_STATUS.INSUFFICIENT_DATA]: {
+    style: "bg-light-gray text-aws-font-color-gray",
+    label: "trends.statusInsufficientData",
+    action: "trends.actionInsufficientData",
+    actionable: false,
+  },
+  [CHECK_TREND_STATUS.NOT_REVIEWED_RECENTLY]: {
+    style: "bg-light-gray text-aws-font-color-gray",
+    label: "trends.statusNotReviewedRecently",
+    action: "trends.actionNotReviewedRecently",
+    actionable: false,
+  },
+  [CHECK_TREND_STATUS.STABLE]: {
+    style: "bg-light-gray text-aws-font-color-gray",
+    label: "trends.statusStable",
+    action: "trends.actionStable",
+    actionable: false,
+  },
 };
-
-const STATUS_LABEL: Record<CHECK_TREND_STATUS, string> = {
-  [CHECK_TREND_STATUS.NEEDS_GUIDANCE]: "trends.statusNeedsGuidance",
-  [CHECK_TREND_STATUS.OPERATIONAL_ISSUE]: "trends.statusOperationalIssue",
-  [CHECK_TREND_STATUS.INSUFFICIENT_DATA]: "trends.statusInsufficientData",
-  [CHECK_TREND_STATUS.NOT_REVIEWED_RECENTLY]:
-    "trends.statusNotReviewedRecently",
-  [CHECK_TREND_STATUS.STABLE]: "trends.statusStable",
-};
-
-const ACTION_LABEL: Record<CHECK_TREND_STATUS, string> = {
-  [CHECK_TREND_STATUS.NEEDS_GUIDANCE]: "trends.actionNeedsGuidance",
-  [CHECK_TREND_STATUS.OPERATIONAL_ISSUE]: "trends.actionOperationalIssue",
-  [CHECK_TREND_STATUS.INSUFFICIENT_DATA]: "trends.actionInsufficientData",
-  [CHECK_TREND_STATUS.NOT_REVIEWED_RECENTLY]:
-    "trends.actionNotReviewedRecently",
-  [CHECK_TREND_STATUS.STABLE]: "trends.actionStable",
-};
-
-/** 手を付ける価値がある状態。上部の「まず手を付ける」に出す */
-const ACTIONABLE: CHECK_TREND_STATUS[] = [
-  CHECK_TREND_STATUS.NEEDS_GUIDANCE,
-  CHECK_TREND_STATUS.OPERATIONAL_ISSUE,
-];
 
 export default function CheckFailureTrendsPage() {
   const { t } = useTranslation();
@@ -63,7 +68,7 @@ export default function CheckFailureTrendsPage() {
   const todo = useMemo(
     () =>
       items
-        .filter((item) => ACTIONABLE.includes(item.status))
+        .filter((item) => STATUS_VIEW[item.status].actionable)
         .sort((a, b) => b.failedCount - a.failedCount)
         .slice(0, 3),
     [items]
@@ -74,8 +79,8 @@ export default function CheckFailureTrendsPage() {
 
   const action = (item: CheckFailureTrendItem) => (
     <div className="text-sm">
-      <span>{t(ACTION_LABEL[item.status])}</span>
-      {ACTIONABLE.includes(item.status) && setId && (
+      <span>{t(STATUS_VIEW[item.status].action)}</span>
+      {STATUS_VIEW[item.status].actionable && setId && (
         <Link
           to={`/checklist/${setId}`}
           className="ml-2 text-aws-font-color-blue underline">
@@ -143,7 +148,8 @@ export default function CheckFailureTrendsPage() {
               <li key={item.checkId}>
                 <span className="font-medium">{item.name}</span>
                 <span className="ml-2 text-aws-font-color-gray">
-                  {t(STATUS_LABEL[item.status])} / {t(ACTION_LABEL[item.status])}
+                  {t(STATUS_VIEW[item.status].label)} /{" "}
+                  {t(STATUS_VIEW[item.status].action)}
                 </span>
               </li>
             ))}
@@ -186,9 +192,9 @@ export default function CheckFailureTrendsPage() {
                   <td className="px-4 py-3">
                     <span
                       className={`whitespace-nowrap rounded-full px-2 py-1 text-xs ${
-                        STATUS_STYLE[item.status]
+                        STATUS_VIEW[item.status].style
                       }`}>
-                      {t(STATUS_LABEL[item.status])}
+                      {t(STATUS_VIEW[item.status].label)}
                     </span>
                   </td>
                   <td className="px-4 py-3">{action(item)}</td>
