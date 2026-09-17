@@ -1,4 +1,17 @@
 {
+  "trends": {
+    "title": "Check items that tend to fail",
+    "checklistSet": "Checklist",
+    "jobCount": "Reviews of this checklist: {{count}}",
+    "item": "Check item",
+    "failRate": "Fail rate",
+    "failed": "Failed",
+    "reviewed": "Reviewed",
+    "confidence": "Average confidence",
+    "lastFailed": "Last failed",
+    "few": "few samples",
+    "empty": "No review results yet"
+  },
   "common": {
     "appName": "Review & Assessment Powered by Intelligent Documentation",
     "loading": "Loading...",
@@ -57,7 +70,8 @@
     "menu": "Menu",
     "settings": "Prompt Management",
     "checklistPrompt": "Checklist Prompt",
-    "toolConfiguration": "Tool Configuration"
+    "toolConfiguration": "Tool Configuration",
+    "trends": "Trends"
   },
   "auth": {
     "signIn": "Sign In",

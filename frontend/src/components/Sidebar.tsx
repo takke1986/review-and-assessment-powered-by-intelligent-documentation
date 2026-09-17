@@ -14,6 +14,7 @@ import {
   HiChevronRight,
   HiAnnotation,
   HiDownload,
+  HiChartBar,
 } from "react-icons/hi";
 import { useAuth } from "../contexts/AuthContext";
 import LanguageSwitcher from "./LanguageSwitcher";
@@ -92,6 +93,20 @@ export default function Sidebar() {
                   onClick={() => setIsOpen(false)}>
                   <HiDocumentText className="mr-3 h-5 w-5" />
                   {t("sidebar.review")}
+                </Link>
+              </li>
+
+              <li className="mb-1">
+                <Link
+                  to="/trends"
+                  className={`flex items-center rounded-md px-4 py-3 transition-colors ${
+                    isActive("/trends")
+                      ? "bg-aws-sea-blue-light text-aws-font-color-white-light"
+                      : "text-aws-font-color-white-light hover:bg-aws-sea-blue-hover-light"
+                  }`}
+                  onClick={() => setIsOpen(false)}>
+                  <HiChartBar className="mr-3 h-5 w-5" />
+                  {t("sidebar.trends")}
                 </Link>
               </li>
 

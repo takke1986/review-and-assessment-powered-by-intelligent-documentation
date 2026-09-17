@@ -17,6 +17,7 @@ import {
   ToolConfigurationDetailPage,
 } from "./features/tool-configuration";
 import { ExamplesPage } from "./features/examples";
+import CheckFailureTrendsPage from "./features/statistics/pages/CheckFailureTrendsPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ToastProvider } from "./contexts/ToastContext";
@@ -71,6 +72,8 @@ function App() {
                   <Route path="review/:id" element={<ReviewDetailPage />} />
 
                   <Route path="examples" element={<ExamplesPage />} />
+
+                  <Route path="trends" element={<CheckFailureTrendsPage />} />
 
                   <Route
                     path="tool-configurations"
