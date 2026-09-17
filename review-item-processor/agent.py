@@ -812,13 +812,6 @@ def _agent_message_to_dict_legacy(message: Any, agent_response=None) -> Dict[str
     return _agent_message_to_dict(message, agent_response, use_citations=False)
 
 
-def _agent_message_to_dict_with_citations(
-    message: Any, agent_response=None
-) -> Dict[str, Any]:
-    """Convert AgentResult.message to result dict with citation support"""
-    return _agent_message_to_dict(message, agent_response, use_citations=True)
-
-
 # Helper function for dynamic tool section generation
 def _build_tool_usage_section(
     tool_config: Optional[Dict[str, Any]],
