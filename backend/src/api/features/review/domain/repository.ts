@@ -558,10 +558,19 @@ export const makePrismaReviewResultRepository = async (
       ];
     }
 
-    // フィルター条件を追加
+    // 合否で絞り込むときも、子を持つ項目は配下を開けるように常に返す。
+    // 親の判定は子から導いた値なので、子が合格・不合格の混在だと親は不合格になり、
+    // 「合格」で絞ると親ごと消えて、合格の子にたどり着けなくなる。
     if (filter) {
-      whereCondition.status = REVIEW_RESULT_STATUS.COMPLETED;
-      whereCondition.result = filter;
+      whereCondition.AND = [
+        ...(whereCondition.AND ?? []),
+        {
+          OR: [
+            { checkList: { children: { some: {} } } },
+            { status: REVIEW_RESULT_STATUS.COMPLETED, result: filter },
+          ],
+        },
+      ];
     }
 
     // 審査結果を取得
