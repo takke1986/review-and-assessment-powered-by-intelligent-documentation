@@ -95,7 +95,7 @@ export function Table<T>({
         </div>
       )}
 
-      <div className="overflow-x-auto p-2">
+      <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-light-gray">
           {/* 列の意味が分かるように見出しを出す。列定義の header は元からある */}
           {/* 見出しは傾向ページと同じ書式。日本語なので大文字変換と字間調整はかけない */}
@@ -113,7 +113,7 @@ export function Table<T>({
               {actions && actions.length > 0 && (
                 <th
                   scope="col"
-                  className="whitespace-nowrap px-6 py-3 text-right text-sm font-medium text-aws-squid-ink-light">
+                  className="whitespace-nowrap px-6 py-3 text-sm font-medium text-aws-squid-ink-light">
                   {t("table.actions")}
                 </th>
               )}
