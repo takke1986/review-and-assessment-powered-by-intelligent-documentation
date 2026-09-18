@@ -86,6 +86,40 @@ describe("selectSourceDocuments", () => {
     ).toEqual([{ documentId: "doc-1", filename: "稟議書.pdf", pageNumber: 1 }]);
   });
 
+  it("keeps an image the judgment relied on", () => {
+    // 文書と画像を混ぜた審査。画像を候補から外すと、モデルが図面を読んで
+    // 判定していても参照元に出てこない
+    expect(
+      selectSourceDocuments({
+        documents: [
+          { id: "doc-1", filename: "商談議事録.pdf" },
+          { id: "doc-2", filename: "間取り図.png" },
+        ],
+        documentIds: ["doc-1", "doc-2"],
+        sources: [
+          { file: "商談議事録.pdf", page: 1 },
+          { file: "間取り図.png", page: null },
+        ],
+      })
+    ).toEqual([
+      { documentId: "doc-1", filename: "商談議事録.pdf", pageNumber: 1 },
+      { documentId: "doc-2", filename: "間取り図.png", pageNumber: undefined },
+    ]);
+  });
+
+  it("does not put a page number on an image", () => {
+    // モデルがページを書いてきても、画像にページは無い
+    expect(
+      selectSourceDocuments({
+        documents: [{ id: "doc-2", filename: "間取り図.png" }],
+        documentIds: ["doc-2"],
+        sources: [{ file: "間取り図.png", page: 3 }],
+      })
+    ).toEqual([
+      { documentId: "doc-2", filename: "間取り図.png", pageNumber: undefined },
+    ]);
+  });
+
   it("ignores malformed sources", () => {
     expect(
       selectSourceDocuments({

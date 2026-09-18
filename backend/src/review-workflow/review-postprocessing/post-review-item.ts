@@ -153,11 +153,11 @@ export async function postReviewItemProcessor(
       });
 
       // 根拠にする文書。審査処理が返した sources（ファイルとページ）で絞る。
-      // 文書のファイルの種類（PDF）には、Word・Excel・PowerPoint も入る
+      // 種類で絞らない。文書と画像を混ぜた審査では画像も根拠になり、ここで
+      // 落とすと、モデルが図面を読んで判定していても参照元に出てこない。
+      // 審査に渡した分だけを見るのは documentIds が担う
       const documents = selectSourceDocuments({
-        documents: jobDetail.documents.filter(
-          (doc) => doc.fileType === REVIEW_FILE_TYPE.PDF
-        ),
+        documents: jobDetail.documents,
         documentIds,
         sources: resolvedReviewData.sources,
         pageNumber: resolvedReviewData.pageNumber,
