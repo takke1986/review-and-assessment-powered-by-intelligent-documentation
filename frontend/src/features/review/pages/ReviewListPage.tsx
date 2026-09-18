@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTableSort } from "../../../hooks/useTableSort";
 import SearchBox from "../../../components/SearchBox";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -16,8 +17,11 @@ export const ReviewListPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState("id");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  const { sortBy, sortOrder, handleSortChange } = useTableSort({
+    defaultSortBy: "id",
+    onSorted: () => setCurrentPage(1),
+  });
 
   const {
     items: reviewJobs,
@@ -37,16 +41,6 @@ export const ReviewListPage: React.FC = () => {
     search
   );
 
-  // 同じ列なら向きを反転、別の列なら降順から。押すたびに向きを見失わないようにする
-  const handleSortChange = (key: string) => {
-    if (key === sortBy) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortBy(key);
-      setSortOrder("desc");
-    }
-    setCurrentPage(1);
-  };
 
   // 絞り込むと件数が減るので、ページを戻さないと空のページを見ることになる
   const handleSearchChange = (value: string) => {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import SearchBox from "../../../components/SearchBox";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useChecklistSets } from "../../checklist/hooks/useCheckListSetQueries";
@@ -123,15 +124,7 @@ export default function CheckFailureTrendsPage() {
           className="mb-1 block text-sm font-medium text-aws-squid-ink-light">
           {t("trends.search")}
         </label>
-        <input
-          id="checklist-search"
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          disabled={isLoadingSets || sets.length === 0}
-          placeholder={t("trends.searchPlaceholder")}
-          className="w-full max-w-md rounded-md border border-light-gray px-3 py-2"
-        />
+        <SearchBox id="checklist-search" value={query} onChange={setQuery} />
 
         {matchedSets.length === 0 ? (
           <p className="mt-2 text-sm text-aws-font-color-gray">

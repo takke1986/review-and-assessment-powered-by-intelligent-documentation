@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 interface SearchBoxProps {
   value: string;
   onChange: (value: string) => void;
+  /** 画面側に label があるときに、htmlFor と対応させる */
+  id?: string;
   /** 置き場所ごとに幅が違うので、外から渡せるようにする */
   className?: string;
 }
@@ -16,11 +18,13 @@ interface SearchBoxProps {
 export default function SearchBox({
   value,
   onChange,
+  id,
   className = "w-full max-w-md",
 }: SearchBoxProps) {
   const { t } = useTranslation();
   return (
     <input
+      id={id}
       type="search"
       value={value}
       onChange={(event) => onChange(event.target.value)}

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import SearchBox from "../../../components/SearchBox";
 import { useTranslation } from "react-i18next";
 import { CheckListSet } from "../../../features/checklist/types";
 import Pagination from "../../../components/Pagination";
@@ -43,13 +44,10 @@ export const ChecklistSelector: React.FC<ChecklistSelectorProps> = ({
           {t("review.selectChecklistPrompt")}
         </p>
         {onSearchChange && (
-          <input
-            type="search"
+          <SearchBox
             value={search ?? ""}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder={t("common.searchPlaceholder")}
-            aria-label={t("common.search")}
-            className="mt-3 w-full rounded-md border border-light-gray px-3 py-2"
+            onChange={onSearchChange}
+            className="mt-3 w-full"
           />
         )}
       </div>
