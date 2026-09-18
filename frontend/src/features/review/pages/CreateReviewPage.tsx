@@ -55,6 +55,7 @@ export const CreateReviewPage: React.FC = () => {
     REVIEW_FILE_TYPE.PDF
   );
   const [checklistPage, setChecklistPage] = useState(1);
+  const [checklistSearch, setChecklistSearch] = useState("");
   const [checklistLimit] = useState(5);
   const [errors, setErrors] = useState({
     name: "",
@@ -73,8 +74,15 @@ export const CreateReviewPage: React.FC = () => {
     checklistLimit,
     "id",
     "desc",
-    CHECK_LIST_STATUS.COMPLETED
+    CHECK_LIST_STATUS.COMPLETED,
+    checklistSearch
   );
+
+  // 絞り込むと件数が減るので、ページを戻さないと空のページを見ることになる
+  const handleChecklistSearchChange = (value: string) => {
+    setChecklistSearch(value);
+    setChecklistPage(1);
+  };
 
   // 審査ジョブ作成フック
   const { createReviewJob, status, error: createError } = useCreateReviewJob();
@@ -408,6 +416,8 @@ export const CreateReviewPage: React.FC = () => {
                   itemsPerPage={checklistLimit}
                   onPageChange={setChecklistPage}
                   isLoading={isLoadingCheckListSets}
+                  search={checklistSearch}
+                  onSearchChange={handleChecklistSearchChange}
                 />
               )}
             </div>

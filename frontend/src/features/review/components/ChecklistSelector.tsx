@@ -13,6 +13,9 @@ interface ChecklistSelectorProps {
   itemsPerPage: number;
   onPageChange: (page: number) => void;
   isLoading?: boolean;
+  /** 名前での絞り込み。増えると一覧から探せないため */
+  search?: string;
+  onSearchChange?: (value: string) => void;
 }
 
 export const ChecklistSelector: React.FC<ChecklistSelectorProps> = ({
@@ -25,6 +28,8 @@ export const ChecklistSelector: React.FC<ChecklistSelectorProps> = ({
   itemsPerPage,
   onPageChange,
   isLoading = false,
+  search,
+  onSearchChange,
 }) => {
   const { t } = useTranslation();
 
@@ -37,6 +42,16 @@ export const ChecklistSelector: React.FC<ChecklistSelectorProps> = ({
         <p className="mt-1 text-sm text-aws-font-color-gray">
           {t("review.selectChecklistPrompt")}
         </p>
+        {onSearchChange && (
+          <input
+            type="search"
+            value={search ?? ""}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder={t("common.searchPlaceholder")}
+            aria-label={t("common.search")}
+            className="mt-3 w-full rounded-md border border-light-gray px-3 py-2"
+          />
+        )}
       </div>
 
       {isLoading ? (
@@ -45,6 +60,11 @@ export const ChecklistSelector: React.FC<ChecklistSelectorProps> = ({
         </div>
       ) : (
         <>
+          {checklists.length === 0 && (
+            <p className="p-4 text-sm text-aws-font-color-gray">
+              {search?.trim() ? t("common.noMatch") : t("checklist.noChecklists")}
+            </p>
+          )}
           <div className="divide-y divide-light-gray">
             {checklists.map((checklist) => (
               <div
