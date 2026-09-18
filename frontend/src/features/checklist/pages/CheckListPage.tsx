@@ -95,11 +95,17 @@ export function CheckListPage() {
       return;
     }
 
-    // 通常の表示条件: オンボーディングが完了していない場合かつチェックリストが0件の場合
-    if (!onboardingCompleted && !isLoading && checkListSets?.length === 0) {
+    // 通常の表示条件: オンボーディングが完了していない場合かつチェックリストが0件の場合。
+    // 検索中は「0件」が「まだ作っていない」ではなく「見つからなかった」を意味するので出さない
+    if (
+      !onboardingCompleted &&
+      !isLoading &&
+      !search.trim() &&
+      checkListSets?.length === 0
+    ) {
       setShowOnboardingModal(true);
     }
-  }, [onboardingCompleted, isLoading, checkListSets, searchParams]);
+  }, [onboardingCompleted, isLoading, checkListSets, searchParams, search]);
 
   // チェックリストセットの削除処理
   const handleDelete = async (id: string, name: string) => {
