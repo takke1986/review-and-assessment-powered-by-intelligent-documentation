@@ -205,8 +205,9 @@ export default function CheckListItemEditModal({
           </p>
         </div>
 
-        {/* 指摘解消チェックボックス */}
-        {item.ambiguityReview && (
+        {/* 指摘解消チェックボックス。鍵つきでは項目を更新しないので、
+            チェックしても何も起きない。押せるのに効かない状態を避けて隠す */}
+        {item.ambiguityReview && isEditable && (
           <div className="mb-4 flex justify-end">
             <label className="flex items-center">
               <input
