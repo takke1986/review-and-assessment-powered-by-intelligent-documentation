@@ -933,7 +933,7 @@ This feedback represents real-world review experience and should significantly i
 # どのファイルの何ページを根拠にしたか。結果画面の「根拠の文書」をそのファイルに絞るのに使う
 _SOURCES_INSTRUCTION = """
 <sources_instruction>
-Each file is introduced by its original file name. In "sources", list every file your judgment relies on, using the file name exactly as given, with the page number within that file when the file is a PDF and null otherwise. When several files are joined into one document, name the original file, not the joined document.
+Every attached file, whether a document or an image, is introduced by its original file name. In "sources", list every file your judgment relies on, including images you looked at, using the file name exactly as given. Give the page number within that file for a PDF, and null for an image or an Office file. When several files are joined into one document, name the original file, not the joined document.
 </sources_instruction>
 """
 

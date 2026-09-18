@@ -153,7 +153,10 @@ def test_images_beyond_the_request_limit_are_named_instead(tmp_path, monkeypatch
     blocks = rd.build_document_blocks(files, citations=True)
 
     assert len([block for block in blocks if "image" in block]) == 1
-    assert "The next image is image1.png, embedded in 説明資料.pptx." in texts(blocks)
+    assert (
+        "The next image is image1.png, embedded in the file 説明資料.pptx."
+        in texts(blocks)
+    )
     assert texts(blocks)[-1] == (
         "These embedded images are not attached, to keep a request within 1 images and "
         f"{rd.MAX_IMAGE_BYTES_PER_REQUEST} bytes of images: image2.png in 説明資料.pptx."

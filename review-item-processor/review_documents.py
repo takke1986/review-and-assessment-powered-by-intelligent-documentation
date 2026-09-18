@@ -362,7 +362,7 @@ def _image_blocks(
         ):
             left_out.append(name)
             continue
-        blocks.append({"text": f"The next image is {name}."})
+        blocks.append({"text": f"The next file is the image {name}."})
         blocks.append({"image": {"format": image_format, "source": {"bytes": data}}})
         attached += 1
         attached_bytes += len(data)
@@ -375,7 +375,7 @@ def _image_blocks(
                 left_out.append(f"{image.name} in {file.name}")
                 continue
             blocks.append(
-                {"text": f"The next image is {image.name}, embedded in {file.name}."}
+                {"text": f"The next image is {image.name}, embedded in the file {file.name}."}
             )
             blocks.append(
                 {"image": {"format": image.format, "source": {"bytes": image.data}}}
