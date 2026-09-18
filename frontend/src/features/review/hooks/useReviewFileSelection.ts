@@ -6,8 +6,8 @@ import {
   formatFileSize,
 } from "../../../utils/fileValidation";
 import { MAX_REVIEW_DOCUMENTS } from "../../../constants/index";
-import { REVIEW_FILE_TYPE } from "../types";
 import {
+  isImageFileName,
   isProtectedOfficeFile,
   maxFileSizeFor,
 } from "../../../utils/officeFiles";
@@ -20,7 +20,6 @@ import {
  * 呼び出し側が決める。
  */
 export function useReviewFileSelection(params: {
-  fileType: REVIEW_FILE_TYPE;
   upload: Pick<
     ReturnType<typeof useDocumentUpload>,
     | "uploadDocuments"
@@ -33,7 +32,7 @@ export function useReviewFileSelection(params: {
   /** アップロードが終わったとき。選択中のファイルを受け取る */
   onUploaded: (files: File[]) => void;
 }) {
-  const { fileType, upload, setFilesError, onUploaded } = params;
+  const { upload, setFilesError, onUploaded } = params;
   const { t } = useTranslation();
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -53,11 +52,8 @@ export function useReviewFileSelection(params: {
   const applyFiles = async (files: File[]): Promise<boolean> => {
     // ファイル数の検証（PDF・画像とも同じ上限）
     if (files.length > MAX_REVIEW_DOCUMENTS) {
-      setFilesError(
-        fileType === REVIEW_FILE_TYPE.PDF
-          ? t("review.pdfLimitError")
-          : t("review.imageLimitError")
-      );
+      // 上限は種類によらず同じなので、文言も分けない
+      setFilesError(t("review.fileLimitError", { max: MAX_REVIEW_DOCUMENTS }));
       return false;
     }
 
@@ -71,21 +67,30 @@ export function useReviewFileSelection(params: {
     }
 
     try {
-      // PDF・画像とも同じ経路で複数アップロードする。
-      // エンドポイントだけがファイル種別で変わる
-      const results = await upload.uploadDocuments(
-        filesToUpload,
-        fileType === REVIEW_FILE_TYPE.PDF
-          ? upload.documentsPresignedUrlEndpoint
-          : upload.imagesPresignedUrlEndpoint
+      // 送信先は種類ごとに分かれている（文書は review/original、画像は review/images）。
+      // 混在できるよう、ファイルごとに振り分けてから、種類ごとにまとめて送る
+      const images = filesToUpload.filter((file) => isImageFileName(file.name));
+      const documents = filesToUpload.filter(
+        (file) => !isImageFileName(file.name)
       );
+      const uploaded = new Map<File, string>();
+      for (const [group, endpoint] of [
+        [documents, upload.documentsPresignedUrlEndpoint],
+        [images, upload.imagesPresignedUrlEndpoint],
+      ] as const) {
+        if (group.length === 0) {
+          continue;
+        }
+        // 結果は渡したファイルと同じ順に返る
+        const results = await upload.uploadDocuments(group, endpoint);
+        group.forEach((file, index) =>
+          uploaded.set(file, results[index].documentId)
+        );
+      }
 
-      // 結果は渡したファイルと同じ順に返る
       setDocumentIds((prev) => {
         const next = new Map(prev);
-        filesToUpload.forEach((file, index) =>
-          next.set(file, results[index].documentId)
-        );
+        uploaded.forEach((id, file) => next.set(file, id));
         return next;
       });
 

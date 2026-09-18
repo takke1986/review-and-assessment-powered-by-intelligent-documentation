@@ -34,7 +34,7 @@ export const isOfficeFileName = (name: string): boolean =>
 export const isPdfFileName = (name: string): boolean =>
   name.toLowerCase().endsWith(".pdf");
 
-const IMAGE_EXTENSIONS = [
+export const IMAGE_EXTENSIONS = [
   ".jpg",
   ".jpeg",
   ".png",
@@ -44,6 +44,10 @@ const IMAGE_EXTENSIONS = [
   ".tiff",
   ".webp",
 ];
+
+/** 画像ファイルか。アップロード先と documents[].fileType の振り分けに使う */
+export const isImageFileName = (name: string): boolean =>
+  IMAGE_EXTENSIONS.some((extension) => name.toLowerCase().endsWith(extension));
 
 /** 審査するファイルの種類ごとの、1ファイルの上限（バックエンドの maxFileSizeFor と揃える） */
 export const maxFileSizeFor = (name: string): number => {

@@ -241,17 +241,10 @@
     "jobName": "ジョブ名",
     "jobNamePlaceholder": "審査ジョブの名前を入力",
     "jobNameSuffix": "の審査",
-    "fileType": "ファイルタイプ",
-    "pdfFile": "文書ファイル（PDF・Word・Excel・PowerPoint、最大20ファイル）",
-    "imageFiles": "画像ファイル (最大20枚)",
     "targetFiles": "審査対象ファイル",
-    "pdfLimitError": "文書は最大20ファイルまでアップロードできます",
     "protectedOfficeFileError": "パスワードや暗号化ラベルで保護されていて読めないファイルがあります。保護を外してからアップロードしてください",
-    "imageLimitError": "画像モードでは最大20枚までアップロードできます",
     "fileSizeError": "ファイルサイズが4.5MBの制限を超えています",
     "documentFileSizeError": "ファイルサイズが上限を超えています（PDFは100MB、画像は20MB、Word・Excel・PowerPointは30MB）",
-    "documentSizeLimit": "PDFは最大100MB、Word・Excel・PowerPointは最大30MB",
-    "imageSizeLimit": "最大20MB",
     "fileUploadError": "ファイルアップロードエラー",
     "fileRequired": "少なくとも1つのファイルを選択してください",
     "duplicateFileTitle": "同じ名前のファイルがあります",
@@ -401,7 +394,9 @@
     "childItemsLoadError": "子項目の読み込みに失敗しました。",
     "noChildItemsForFilter": "選択したフィルタ条件に一致する子項目がありません",
     "noChildItems": "子項目はありません",
-    "progress": "{{total}} 項目中 {{completed}} 項目の審査が完了"
+    "progress": "{{total}} 項目中 {{completed}} 項目の審査が完了",
+    "fileSizeLimit": "PDF・Word・Excel・PowerPoint は最大100MB、画像は最大20MB",
+    "fileLimitError": "審査するファイルは最大{{max}}件です"
   },
   "fileUploader": {
     "dropFiles": "ファイルをドロップしてください",

@@ -157,11 +157,17 @@ def _should_use_document_block(
     Returns:
         True to use document block, False to use file_read tool
     """
-    if has_images:
-        return False
-
     model = ModelConfig.create(model_id)
-    return ENABLE_CITATIONS and model.supports_document_block
+    if not (ENABLE_CITATIONS and model.supports_document_block):
+        return False
+    # 画像だけなら、拡大や切り出しができる file_read の経路の方が読み取りやすい。
+    # 文書と混ざっているときは、両方を1回の要求に載せられるこちらを使う
+    if has_images:
+        return any(
+            not path.lower().endswith(tuple(IMAGE_FILE_EXTENSIONS))
+            for path in document_paths
+        )
+    return True
 
 
 def create_mcp_client(mcp_server_cfg: Dict[str, Any]) -> MCPClient:
@@ -356,6 +362,7 @@ def _execute_review_core(
             tool_config=toolConfiguration,
             feedback_summary=feedback_summary,
             review_guidance=review_guidance,
+            document_access=_ATTACHED_IMAGES_ACCESS if has_images else None,
         )
         system_prompt = (
             f"You are an expert document reviewer. "
@@ -937,6 +944,12 @@ _SOURCES_SCHEMA = (
 
 # Prompt generation functions
 _FILE_READ_ACCESS = "Use the file_read tool to open and inspect each attached file."
+
+# 文書と画像が同じ要求に載るときの読み方。画像が来ているのに触れないと、
+# 添付されたまま judgment に使われないことがある
+_ATTACHED_IMAGES_ACCESS = """Some of the attached files are images, and each one is introduced by its file name. Look at the images as well as the documents:
+- An image counts as evidence the same way a document does. Name it in "sources" with a null page when you rely on it.
+- Do not assume an image repeats what a document says. Read what it actually shows."""
 
 # ファイルが1回の呼び出しに収まらず、ツールで読ませるときの読み方
 _DOCUMENT_TOOLS_ACCESS = f"""The files are too large to attach to this request, so read them through the document tools:

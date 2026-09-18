@@ -1,5 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
-import { OFFICE_FILE_TYPES } from "../../../utils/officeFiles";
+import {
+  IMAGE_EXTENSIONS,
+  OFFICE_FILE_TYPES,
+  isImageFileName,
+} from "../../../utils/officeFiles";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Button from "../../../components/Button";
@@ -22,10 +26,7 @@ import { useChecklistSets } from "../../checklist/hooks/useCheckListSetQueries";
 import { CHECK_LIST_STATUS, CheckListSet } from "../../checklist/types";
 import {
   HiExclamationCircle,
-  HiDocumentText,
-  HiPhotograph,
 } from "react-icons/hi";
-import SegmentedControl from "../../../components/SegmentedControl";
 import { REVIEW_FILE_TYPE } from "../types";
 import { MAX_REVISION_NOTE_LENGTH } from "../../../constants/index";
 
@@ -51,9 +52,6 @@ export const CreateReviewPage: React.FC = () => {
   const [revisionNote, setRevisionNote] = useState("");
   const isRevisionNoteTooLong =
     revisionNote.trim().length > MAX_REVISION_NOTE_LENGTH;
-  const [fileType, setFileType] = useState<REVIEW_FILE_TYPE>(
-    REVIEW_FILE_TYPE.PDF
-  );
   const [checklistPage, setChecklistPage] = useState(1);
   const [checklistSearch, setChecklistSearch] = useState("");
   const [checklistLimit] = useState(5);
@@ -103,7 +101,6 @@ export const CreateReviewPage: React.FC = () => {
   } = upload;
 
   const fileSelection = useReviewFileSelection({
-    fileType,
     upload,
     setFilesError: (message) =>
       setErrors((prev) => ({
@@ -148,14 +145,6 @@ export const CreateReviewPage: React.FC = () => {
     );
   }, [sourceJob, t]);
 
-  // 再審査では元のジョブと同じファイルの種類にする
-  const sourceFileType = sourceJob?.documents[0]?.fileType;
-  useEffect(() => {
-    if (sourceFileType) {
-      setFileType(sourceFileType);
-    }
-  }, [sourceFileType]);
-
   const documentCount =
     uploadedDocuments.length + rerunDocuments.keptDocumentIds.length;
 
@@ -166,13 +155,6 @@ export const CreateReviewPage: React.FC = () => {
     (checkSelection?.ids.size ?? 0) > 0 &&
     !isRevisionNoteTooLong &&
     jobName.trim() !== "";
-
-  // ファイルタイプ選択ハンドラ
-  const handleFileTypeChange = (value: string) => {
-    setFileType(value as REVIEW_FILE_TYPE);
-    fileSelection.resetFiles();
-    clearUploadedDocuments();
-  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -230,7 +212,10 @@ export const CreateReviewPage: React.FC = () => {
         id: doc.documentId,
         filename: doc.filename,
         s3Key: doc.s3Key,
-        fileType: fileType,
+        // 種類はファイル名から決める。文書と画像を混ぜて審査できるようにするため
+        fileType: isImageFileName(doc.filename)
+          ? REVIEW_FILE_TYPE.IMAGE
+          : REVIEW_FILE_TYPE.PDF,
         replacesDocumentId: sourceJobId
           ? rerunDocuments.replacements[doc.documentId] || undefined
           : undefined,
@@ -328,31 +313,6 @@ export const CreateReviewPage: React.FC = () => {
             />
           )}
 
-          {/* 再審査では元のジョブと同じファイルの種類にする */}
-          {!sourceJobId && (
-          <div className="mb-6">
-            <label className="mb-2 block font-medium text-aws-squid-ink-light dark:text-aws-font-color-white-dark">
-              {t("review.fileType")} <span className="text-red">*</span>
-            </label>
-            <SegmentedControl
-              name="fileType"
-              options={[
-                {
-                  value: REVIEW_FILE_TYPE.PDF,
-                  label: t("review.pdfFile"),
-                  icon: <HiDocumentText />,
-                },
-                {
-                  value: REVIEW_FILE_TYPE.IMAGE,
-                  label: t("review.imageFiles"),
-                  icon: <HiPhotograph />,
-                },
-              ]}
-              value={fileType}
-              onChange={handleFileTypeChange}
-            />
-          </div>
-          )}
 
           <div className="mb-2">
             <label className="block font-medium text-aws-squid-ink-light dark:text-aws-font-color-white-dark">
@@ -375,16 +335,12 @@ export const CreateReviewPage: React.FC = () => {
                 isFileUploaded={fileSelection.isFileUploaded}
                 onDeleteFile={fileSelection.handleFileRemove}
                 fillHeight
-                acceptedFileTypes={
-                  fileType === REVIEW_FILE_TYPE.PDF
-                    ? { "application/pdf": [".pdf"], ...OFFICE_FILE_TYPES }
-                    : { "image/png": [".png"], "image/jpeg": [".jpg", ".jpeg"] }
-                }
-                sizeLimitLabel={
-                  fileType === REVIEW_FILE_TYPE.PDF
-                    ? t("review.documentSizeLimit")
-                    : t("review.imageSizeLimit")
-                }
+                acceptedFileTypes={{
+                  "application/pdf": [".pdf"],
+                  ...OFFICE_FILE_TYPES,
+                  "image/*": IMAGE_EXTENSIONS,
+                }}
+                sizeLimitLabel={t("review.fileSizeLimit")}
               />
             </div>
 

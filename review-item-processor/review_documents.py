@@ -29,10 +29,16 @@ from typing import Any, Callable, Iterable, TypeVar
 
 from pypdf import PdfReader, PdfWriter
 
+from PIL import Image
+
+from review_images import encode_image
 from office_documents import OfficeDocument, convert_office_file, is_office_file
 
 MAX_DOCUMENTS_PER_REQUEST = 5
 MAX_DOCUMENT_BYTES = 4_500_000
+# Converse が受け付ける画像。BMP・TIFF は送る前に変換される
+IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tif", ".tiff")
+
 MAX_IMAGES_PER_REQUEST = 20
 # 画像の合計の上限。Converse の文書にはない上限だが、呼び出し全体の大きさを抑える
 # （Nova は1回の呼び出し全体で 25MB まで）。文書5つで最大 22.5MB になるので、その残り
@@ -75,6 +81,10 @@ class ReviewFile:
     def is_pdf(self) -> bool:
         return self.path.lower().endswith(".pdf")
 
+    @property
+    def is_image(self) -> bool:
+        return self.path.lower().endswith(IMAGE_EXTENSIONS)
+
 
 def build_document_blocks(
     files: list[ReviewFile], citations: bool
@@ -84,13 +94,16 @@ def build_document_blocks(
     プロンプトは含めない。並びは、文書ごとに「説明のテキスト、文書」、最後に画像。
     """
     unsupported = [
-        file.name for file in files if not file.is_pdf and not is_office_file(file.path)
+        file.name
+        for file in files
+        if not file.is_pdf and not file.is_image and not is_office_file(file.path)
     ]
     if unsupported:
         raise ReviewDocumentError(f"Unsupported file type: {', '.join(unsupported)}")
 
     order = {file: index for index, file in enumerate(files)}
     pdfs = [file for file in files if file.is_pdf]
+    images = [file for file in files if file.is_image]
     offices = [
         (file, convert_office_file(file.path, display_name=file.name))
         for file in files
@@ -174,7 +187,7 @@ def build_document_blocks(
     blocks: list[dict[str, Any]] = []
     for number, (_, build) in enumerate(documents, start=1):
         blocks += build(number)
-    blocks += _image_blocks(offices)
+    blocks += _image_blocks(offices, images)
     return blocks
 
 
@@ -317,14 +330,42 @@ def _join_pdfs(group: list[ReviewFile]) -> tuple[bytes, list[tuple[str, int, int
     return buffer.getvalue(), ranges
 
 
+def _uploaded_images(
+    images: list[ReviewFile],
+) -> list[tuple[str, str, bytes]]:
+    """アップロードされた画像を (伝える名前, 形式, データ) にする。送れない形式や大きさは変換する"""
+    prepared = []
+    for file in images:
+        with Image.open(file.path) as image:
+            image_format, data = encode_image(image)
+        prepared.append((file.name, image_format, data))
+    return prepared
+
+
 def _image_blocks(
     offices: list[tuple[ReviewFile, OfficeDocument]],
+    images: list[ReviewFile] | None = None,
 ) -> list[dict[str, Any]]:
-    """Office ファイルの埋め込み画像。1回の呼び出しの上限を超える分は、名前だけ伝える"""
+    """
+    アップロードされた画像と、Office ファイルの埋め込み画像。
+    Converse の上限は要求ごとなので、両者は同じ枚数・バイト数の枠を分け合う。
+    超えた分は、名前だけ伝えて添付しない。
+    """
     blocks: list[dict[str, Any]] = []
     attached = 0
     attached_bytes = 0
     left_out = []
+    for name, image_format, data in _uploaded_images(images or []):
+        if (
+            attached >= MAX_IMAGES_PER_REQUEST
+            or attached_bytes + len(data) > MAX_IMAGE_BYTES_PER_REQUEST
+        ):
+            left_out.append(name)
+            continue
+        blocks.append({"text": f"The next image is {name}."})
+        blocks.append({"image": {"format": image_format, "source": {"bytes": data}}})
+        attached += 1
+        attached_bytes += len(data)
     for file, document in offices:
         for image in document.images:
             if (
