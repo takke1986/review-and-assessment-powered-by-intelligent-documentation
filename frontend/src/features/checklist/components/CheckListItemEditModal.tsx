@@ -11,6 +11,8 @@ import {
 import { useToast } from "../../../contexts/ToastContext";
 
 type CheckListItemEditModalProps = {
+  /** 審査済みのチェックリストは項目を変えられない。着眼点だけ書ける */
+  isEditable?: boolean;
   isOpen: boolean;
   onClose: () => void;
   item: CheckListItemEntity;
@@ -22,6 +24,7 @@ type CheckListItemEditModalProps = {
  * チェックリスト項目編集モーダル
  */
 export default function CheckListItemEditModal({
+  isEditable = true,
   isOpen,
   onClose,
   item,
@@ -69,12 +72,15 @@ export default function CheckListItemEditModal({
     setIsSubmitting(true);
 
     try {
-      const requestData = {
-        name: formData.name,
-        description: formData.description,
-        resolveAmbiguity: resolveAmbiguity,
-      };
-      await updateCheckListItem(item.id, requestData);
+      // 鍵つきのチェックリストでは項目そのものを変えられないので、
+      // 着眼点だけを送る（名前や説明を送ると API に拒否される）
+      if (isEditable) {
+        await updateCheckListItem(item.id, {
+          name: formData.name,
+          description: formData.description,
+          resolveAmbiguity: resolveAmbiguity,
+        });
+      }
       // 着眼点は別のエンドポイント。鍵つきのチェックリストでも書けるようにするため
       if (formData.reviewGuidance !== (item.reviewGuidance || "")) {
         await updateCheckListItemReviewGuidance(
@@ -101,6 +107,11 @@ export default function CheckListItemEditModal({
       title={t("checklist.editItemTitle")}
       size="2xl">
       <form onSubmit={handleSubmit}>
+        {!isEditable && (
+          <div className="mb-4">
+            <InfoAlert message={t("checklist.lockedItemNotice")} variant="info" />
+          </div>
+        )}
         {error && (
           <div className="mb-4 rounded-md border border-red bg-red/10 p-3 text-red">
             {error}
@@ -141,6 +152,7 @@ export default function CheckListItemEditModal({
             name="name"
             value={formData.name}
             onChange={handleChange}
+            readOnly={!isEditable}
             className={`w-full rounded-md border px-4 py-2 focus:outline-none focus:ring-2 focus:ring-aws-sea-blue-light ${
               !formData.name.trim() ? "border-red" : "border-light-gray"
             }`}
@@ -165,6 +177,7 @@ export default function CheckListItemEditModal({
             name="description"
             value={formData.description}
             onChange={handleChange}
+            readOnly={!isEditable}
             rows={3}
             className="w-full rounded-md border border-light-gray px-4 py-2 focus:outline-none focus:ring-2 focus:ring-aws-sea-blue-light"
             placeholder={t("checklist.itemDescriptionPlaceholder")}

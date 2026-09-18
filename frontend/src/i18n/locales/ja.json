@@ -221,7 +221,9 @@
     "childItemsLoadError": "子項目の読み込みに失敗しました。",
     "reviewGuidance": "着眼点",
     "reviewGuidancePlaceholder": "この項目を審査するときに見てほしい観点を書きます（任意）",
-    "reviewGuidanceHelp": "次の審査から効きます。文書の記載より優先されることはありません"
+    "reviewGuidanceHelp": "次の審査から効きます。文書の記載より優先されることはありません",
+    "editGuidanceOnly": "着眼点を書く",
+    "lockedItemNotice": "審査に使ったチェックリストなので、項目そのものは変えられません。着眼点は書けます（次の審査から効きます）。"
   },
   "review": {
     "title": "審査ジョブ一覧",

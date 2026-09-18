@@ -253,16 +253,17 @@ export default function CheckListItemTreeNode({
                       )}
                     </div>
                   }
-                  onClick={() => isEditable && setIsEditModalOpen(true)}
-                  disabled={!isEditable}
-                  title={t("common.edit")}
-                  aria-label={t("common.edit")}
+                  onClick={() => setIsEditModalOpen(true)}
+                  title={
+                    isEditable ? t("common.edit") : t("checklist.editGuidanceOnly")
+                  }
+                  aria-label={
+                    isEditable ? t("common.edit") : t("checklist.editGuidanceOnly")
+                  }
                   className={
-                    !isEditable
-                      ? "text-gray-300 cursor-not-allowed"
-                      : item.ambiguityReview && isEditable
-                        ? "border-yellow text-yellow hover:bg-yellow hover:bg-opacity-10"
-                        : "text-aws-aqua hover:text-aws-sea-blue-light"
+                    item.ambiguityReview && isEditable
+                      ? "border-yellow text-yellow hover:bg-yellow hover:bg-opacity-10"
+                      : "text-aws-aqua hover:text-aws-sea-blue-light"
                   }
                 />
 
@@ -288,6 +289,7 @@ export default function CheckListItemTreeNode({
 
         {isEditModalOpen && (
           <CheckListItemEditModal
+            isEditable={isEditable}
             isOpen={isEditModalOpen}
             onClose={() => setIsEditModalOpen(false)}
             item={item}

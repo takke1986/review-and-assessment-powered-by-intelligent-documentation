@@ -221,7 +221,9 @@
     "childItemsLoadError": "Failed to load child items.",
     "reviewGuidance": "What to look at",
     "reviewGuidancePlaceholder": "Optional: what the reviewer should look at for this item",
-    "reviewGuidanceHelp": "Applies to future reviews. It never overrides what the documents say"
+    "reviewGuidanceHelp": "Applies to future reviews. It never overrides what the documents say",
+    "editGuidanceOnly": "Write what to look at",
+    "lockedItemNotice": "This checklist has been used for a review, so the item itself cannot change. You can still write what to look at; it applies to future reviews."
   },
   "review": {
     "title": "Review Jobs",
