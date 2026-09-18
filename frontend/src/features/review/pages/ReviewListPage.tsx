@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import SearchBox from "../../../components/SearchBox";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Button from "../../../components/Button";
@@ -87,14 +88,7 @@ export const ReviewListPage: React.FC = () => {
       </div>
 
       <div className="mb-4">
-        <input
-          type="search"
-          value={search}
-          onChange={(event) => handleSearchChange(event.target.value)}
-          placeholder={t("common.searchPlaceholder")}
-          aria-label={t("common.search")}
-          className="w-full max-w-md rounded-md border border-light-gray px-3 py-2"
-        />
+       <SearchBox value={search} onChange={handleSearchChange} />
       </div>
 
       {error ? (
