@@ -12,6 +12,8 @@ export interface TableColumn<T> {
   header: string;
   render?: (item: T) => React.ReactNode;
   width?: string;
+  /** 並び替えに使えるか。サーバが受け付ける項目だけ true にする */
+  sortable?: boolean;
 }
 
 // Action definition for table rows
@@ -40,6 +42,10 @@ export interface TableProps<T> {
   keyExtractor: (item: T) => string | number;
   rowClassName?: (item: T) => string;
   rowClickable?: boolean; // Explicitly mark rows as clickable
+  /** 現在の並び替え。サーバ側で並べるので状態は親が持つ */
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+  onSortChange?: (key: string) => void;
 }
 
 /**
@@ -58,6 +64,9 @@ export function Table<T>({
   keyExtractor,
   rowClassName,
   rowClickable,
+  sortBy,
+  sortOrder,
+  onSortChange,
 }: TableProps<T>) {
   const { t } = useTranslation();
   // Show loading state
@@ -101,15 +110,38 @@ export function Table<T>({
           {/* 見出しは傾向ページと同じ書式。日本語なので大文字変換と字間調整はかけない */}
           <thead className="bg-aws-paper-light text-left">
             <tr>
-              {columns.map((column) => (
-                <th
-                  key={`header-${column.key}`}
-                  scope="col"
-                  style={column.width ? { width: column.width } : undefined}
-                  className="whitespace-nowrap px-6 py-3 text-sm font-medium text-aws-squid-ink-light">
-                  {column.header}
-                </th>
-              ))}
+              {columns.map((column) => {
+                const sortable = column.sortable && onSortChange;
+                const active = sortBy === column.key;
+                return (
+                  <th
+                    key={`header-${column.key}`}
+                    scope="col"
+                    aria-sort={
+                      active
+                        ? sortOrder === "asc"
+                          ? "ascending"
+                          : "descending"
+                        : undefined
+                    }
+                    style={column.width ? { width: column.width } : undefined}
+                    className="whitespace-nowrap px-6 py-3 text-sm font-medium text-aws-squid-ink-light">
+                    {sortable ? (
+                      <button
+                        type="button"
+                        onClick={() => onSortChange(column.key)}
+                        className="flex items-center gap-1 hover:text-aws-font-color-blue">
+                        {column.header}
+                        <span className="text-xs text-aws-font-color-gray">
+                          {active ? (sortOrder === "asc" ? "▲" : "▼") : "↕"}
+                        </span>
+                      </button>
+                    ) : (
+                      column.header
+                    )}
+                  </th>
+                );
+              })}
               {actions && actions.length > 0 && (
                 <th
                   scope="col"

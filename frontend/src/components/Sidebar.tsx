@@ -10,8 +10,6 @@ import {
   HiLogout,
   HiUser,
   HiCog,
-  HiChevronDown,
-  HiChevronRight,
   HiAnnotation,
   HiDownload,
   HiChartBar,
@@ -26,7 +24,6 @@ import { getVersion } from "../utils/version";
  */
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
-  const [isPromptMenuOpen, setIsPromptMenuOpen] = useState(false);
   const location = useLocation();
   const { signOut, user } = useAuth();
   const { t } = useTranslation();
@@ -41,10 +38,6 @@ export default function Sidebar() {
     setIsOpen(!isOpen);
   };
 
-  // プロンプト管理メニューの開閉を切り替える
-  const togglePromptMenu = () => {
-    setIsPromptMenuOpen(!isPromptMenuOpen);
-  };
 
   // ログアウト処理（URL のリセットは ProtectedRoute 側で処理）
   const handleLogout = async () => {
@@ -138,41 +131,19 @@ export default function Sidebar() {
                 </Link>
               </li>
 
+              {/* 配下が1つしかないので、階層にせず直接開く */}
               <li className="mb-1">
-                <button
+                <Link
+                  to="/prompt-templates/checklist"
                   className={`flex w-full items-center rounded-md px-4 py-3 transition-colors ${
                     isActive("/prompt-templates")
                       ? "bg-aws-sea-blue-light text-aws-font-color-white-light"
                       : "text-aws-font-color-white-light hover:bg-aws-sea-blue-hover-light"
                   }`}
-                  onClick={togglePromptMenu}>
+                  onClick={() => setIsOpen(false)}>
                   <HiAnnotation className="mr-3 h-5 w-5" />
-                  {t("sidebar.settings")}
-                  <span className="ml-auto">
-                    {isPromptMenuOpen ? (
-                      <HiChevronDown className="h-4 w-4" />
-                    ) : (
-                      <HiChevronRight className="h-4 w-4" />
-                    )}
-                  </span>
-                </button>
-
-                {isPromptMenuOpen && (
-                  <ul className="ml-6 mt-1 space-y-1">
-                    <li>
-                      <Link
-                        to="/prompt-templates/checklist"
-                        className={`mt-2 flex items-center rounded-md px-4 py-2 transition-colors ${
-                          isActive("/prompt-templates/checklist")
-                            ? "bg-aws-sea-blue-light text-aws-font-color-white-light"
-                            : "text-aws-font-color-white-light hover:bg-aws-sea-blue-hover-light"
-                        }`}
-                        onClick={() => setIsOpen(false)}>
-                        {t("sidebar.checklistPrompt")}
-                      </Link>
-                    </li>
-                  </ul>
-                )}
+                  {t("sidebar.checklistPrompt")}
+                </Link>
               </li>
             </ul>
           </nav>

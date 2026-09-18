@@ -22,6 +22,10 @@ type CheckListSetListProps = {
   onDuplicate: (id: string, name: string) => void;
   /** 0件のときの文言。検索中は「無い」ではなく「見つからない」を出したい */
   emptyMessage?: string;
+  /** 並び替え。サーバ側で並べるので状態は画面が持つ */
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+  onSortChange?: (key: string) => void;
 };
 
 /**
@@ -34,6 +38,9 @@ export default function CheckListSetList({
   onDelete,
   onDuplicate,
   emptyMessage,
+  sortBy,
+  sortOrder,
+  onSortChange,
 }: CheckListSetListProps) {
   const { t } = useTranslation();
 
@@ -101,6 +108,7 @@ export default function CheckListSetList({
     {
       key: "name",
       header: t("checklist.name"),
+      sortable: true,
       render: (item) => (
         <div className="flex items-center">
           <div className="text-sm font-medium text-aws-squid-ink-light dark:text-aws-font-color-white-dark">
@@ -138,6 +146,7 @@ export default function CheckListSetList({
     {
       key: "description",
       header: t("common.description"),
+      sortable: true,
       render: (item) => (
         <div
           className="max-w-xs truncate text-sm text-aws-font-color-gray"
@@ -158,6 +167,7 @@ export default function CheckListSetList({
     {
       key: "createdAt",
       header: t("common.createdAt"),
+      sortable: true,
       render: (item) => (
         <div className="text-sm text-aws-font-color-gray">
           {formatDate(item.createdAt)}
@@ -206,6 +216,9 @@ export default function CheckListSetList({
         isLoading={isLoading}
         error={error}
         emptyMessage={emptyMessage ?? t("checklist.noChecklists")}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={onSortChange}
         keyExtractor={(item) => item.id}
         onRowClick={handleRowClick}
         rowClickable={true}

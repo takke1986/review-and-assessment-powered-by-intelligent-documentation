@@ -15,6 +15,8 @@ export const ReviewListPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("id");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const {
     items: reviewJobs,
@@ -25,7 +27,25 @@ export const ReviewListPage: React.FC = () => {
     refetch: revalidate,
     isLoading,
     error,
-  } = useReviewJobs(currentPage, itemsPerPage, "id", "desc", undefined, search);
+  } = useReviewJobs(
+    currentPage,
+    itemsPerPage,
+    sortBy,
+    sortOrder,
+    undefined,
+    search
+  );
+
+  // 同じ列なら向きを反転、別の列なら降順から。押すたびに向きを見失わないようにする
+  const handleSortChange = (key: string) => {
+    if (key === sortBy) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(key);
+      setSortOrder("desc");
+    }
+    setCurrentPage(1);
+  };
 
   // 絞り込むと件数が減るので、ページを戻さないと空のページを見ることになる
   const handleSearchChange = (value: string) => {
@@ -46,16 +66,6 @@ export const ReviewListPage: React.FC = () => {
 
   return (
     <div>
-      <div className="mb-4">
-        <input
-          type="search"
-          value={search}
-          onChange={(event) => handleSearchChange(event.target.value)}
-          placeholder={t("common.searchPlaceholder")}
-          aria-label={t("common.search")}
-          className="w-full max-w-md rounded-md border border-light-gray px-3 py-2"
-        />
-      </div>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <div className="flex items-center">
@@ -76,6 +86,17 @@ export const ReviewListPage: React.FC = () => {
         </Button>
       </div>
 
+      <div className="mb-4">
+        <input
+          type="search"
+          value={search}
+          onChange={(event) => handleSearchChange(event.target.value)}
+          placeholder={t("common.searchPlaceholder")}
+          aria-label={t("common.search")}
+          className="w-full max-w-md rounded-md border border-light-gray px-3 py-2"
+        />
+      </div>
+
       {error ? (
         <ErrorAlert
           error={error}
@@ -87,6 +108,9 @@ export const ReviewListPage: React.FC = () => {
         <>
           <ReviewJobList
             emptyMessage={search.trim() ? t("common.noMatch") : undefined}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSortChange={handleSortChange}
             jobs={reviewJobs}
             onJobClick={handleJobClick}
             revalidate={revalidate}

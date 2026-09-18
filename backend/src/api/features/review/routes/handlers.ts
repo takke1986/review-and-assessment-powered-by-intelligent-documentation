@@ -45,7 +45,8 @@ export const getAllReviewJobsHandler = async (
   const limitNum = typeof limit === "string" ? parseInt(limit, 10) : limit;
 
   // Validate sortBy parameter - only allow valid fields
-  const validSortFields = ["id", "createdAt", "status"];
+  // 一覧の主役の列なので名前でも並べられるようにする
+  const validSortFields = ["id", "name", "createdAt", "status"];
   const validSortBy = validSortFields.includes(sortBy) ? sortBy : "id";
 
   const result = await getAllReviewJobs({

@@ -16,6 +16,10 @@ interface ReviewJobListProps {
   isLoading?: boolean;
   /** 0件のときの文言。検索中は「無い」ではなく「見つからない」を出したい */
   emptyMessage?: string;
+  /** 並び替え。サーバ側で並べるので状態は画面が持つ */
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+  onSortChange?: (key: string) => void;
 }
 
 export const ReviewJobList: React.FC<ReviewJobListProps> = ({
@@ -23,6 +27,9 @@ export const ReviewJobList: React.FC<ReviewJobListProps> = ({
   revalidate,
   isLoading,
   emptyMessage,
+  sortBy,
+  sortOrder,
+  onSortChange,
 }) => {
   const { t } = useTranslation();
 
@@ -83,6 +90,7 @@ export const ReviewJobList: React.FC<ReviewJobListProps> = ({
     {
       key: "name",
       header: t("checklist.name"),
+      sortable: true,
       render: (job) => (
         <div className="text-sm font-medium text-aws-squid-ink-light dark:text-aws-font-color-white-dark">
           {job.name}
@@ -128,6 +136,7 @@ export const ReviewJobList: React.FC<ReviewJobListProps> = ({
     {
       key: "status",
       header: t("review.status"),
+      sortable: true,
       // 実行中は、審査が終わった項目の数も出す
       render: (job) => (
         <StatusBadge
@@ -143,6 +152,7 @@ export const ReviewJobList: React.FC<ReviewJobListProps> = ({
     {
       key: "createdAt",
       header: t("review.createdAt"),
+      sortable: true,
       render: (job) => (
         <div className="text-sm text-aws-font-color-gray">
           {formatDate(job.createdAt)}
@@ -187,6 +197,9 @@ export const ReviewJobList: React.FC<ReviewJobListProps> = ({
         actions={actions}
         isLoading={isLoading}
         emptyMessage={emptyMessage ?? t("review.noJobs")}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={onSortChange}
         keyExtractor={(item) => item.id}
         onRowClick={handleRowClick}
         rowClickable={true}
