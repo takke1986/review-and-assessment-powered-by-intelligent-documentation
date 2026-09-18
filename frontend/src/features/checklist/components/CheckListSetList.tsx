@@ -20,6 +20,8 @@ type CheckListSetListProps = {
   error: string | null;
   onDelete: (id: string, name: string) => Promise<void>;
   onDuplicate: (id: string, name: string) => void;
+  /** 0件のときの文言。検索中は「無い」ではなく「見つからない」を出したい */
+  emptyMessage?: string;
 };
 
 /**
@@ -31,6 +33,7 @@ export default function CheckListSetList({
   error,
   onDelete,
   onDuplicate,
+  emptyMessage,
 }: CheckListSetListProps) {
   const { t } = useTranslation();
 
@@ -105,7 +108,7 @@ export default function CheckListSetList({
           </div>
           {/* 編集不可の場合に鍵アイコンを表示 */}
           {item.isEditable === false && (
-            <div className="text-gray-500 ml-2">
+            <div className="ml-2 text-gray-500">
               <HiLockClosed
                 className="h-5 w-5"
                 title={t("checklist.notEditable")}
@@ -202,7 +205,7 @@ export default function CheckListSetList({
         actions={actions}
         isLoading={isLoading}
         error={error}
-        emptyMessage={t("checklist.noChecklists")}
+        emptyMessage={emptyMessage ?? t("checklist.noChecklists")}
         keyExtractor={(item) => item.id}
         onRowClick={handleRowClick}
         rowClickable={true}

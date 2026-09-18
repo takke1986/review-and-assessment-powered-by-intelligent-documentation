@@ -86,6 +86,7 @@ export const ReviewListPage: React.FC = () => {
       ) : (
         <>
           <ReviewJobList
+            emptyMessage={search.trim() ? t("common.noMatch") : undefined}
             jobs={reviewJobs}
             onJobClick={handleJobClick}
             revalidate={revalidate}

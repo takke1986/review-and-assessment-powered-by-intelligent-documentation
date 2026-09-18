@@ -14,12 +14,15 @@ interface ReviewJobListProps {
   onJobClick?: (job: ReviewJobSummary) => void;
   revalidate?: () => void;
   isLoading?: boolean;
+  /** 0件のときの文言。検索中は「無い」ではなく「見つからない」を出したい */
+  emptyMessage?: string;
 }
 
 export const ReviewJobList: React.FC<ReviewJobListProps> = ({
   jobs,
   revalidate,
   isLoading,
+  emptyMessage,
 }) => {
   const { t } = useTranslation();
 
@@ -183,7 +186,7 @@ export const ReviewJobList: React.FC<ReviewJobListProps> = ({
         columns={columns}
         actions={actions}
         isLoading={isLoading}
-        emptyMessage={t("review.noJobs")}
+        emptyMessage={emptyMessage ?? t("review.noJobs")}
         keyExtractor={(item) => item.id}
         onRowClick={handleRowClick}
         rowClickable={true}

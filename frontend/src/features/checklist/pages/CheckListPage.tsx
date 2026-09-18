@@ -40,10 +40,8 @@ export function CheckListPage() {
   const [newDescription, setNewDescription] = useState("");
 
   // オンボーディングモーダル用の状態
-  const [onboardingCompleted, setOnboardingCompleted] = useLocalStorage<boolean>(
-    "onboarding_completed",
-    false
-  );
+  const [onboardingCompleted, setOnboardingCompleted] =
+    useLocalStorage<boolean>("onboarding_completed", false);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
 
   const {
@@ -206,6 +204,7 @@ export function CheckListPage() {
         />
       </div>
       <CheckListSetList
+        emptyMessage={search.trim() ? t("common.noMatch") : undefined}
         checkListSets={checkListSets || []}
         isLoading={isLoading}
         error={error}
