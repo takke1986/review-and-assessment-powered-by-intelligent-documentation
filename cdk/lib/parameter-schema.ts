@@ -103,6 +103,11 @@ const parameterSchema = z.object({
       z.object({
         start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
         stop: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+        /** 適用する曜日。省略すると毎日 */
+        days: z
+          .array(z.enum(["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]))
+          .min(1)
+          .optional(),
       }),
     )
     .min(1)

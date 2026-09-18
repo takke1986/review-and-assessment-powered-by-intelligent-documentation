@@ -9,10 +9,24 @@ import {
 import { Universal } from "aws-cdk-lib/aws-scheduler-targets";
 import { Construct } from "constructs";
 
+/** cron の曜日。並びは cron の 1=日曜 に合わせる */
+export const WEEK_DAYS = [
+  "SUN",
+  "MON",
+  "TUE",
+  "WED",
+  "THU",
+  "FRI",
+  "SAT",
+] as const;
+export type WeekDay = (typeof WEEK_DAYS)[number];
+
 /** 使える時間帯（HH:MM）。stop が start より小さいときは日をまたぐ */
 export interface OpenWindow {
   readonly start: string;
   readonly stop: string;
+  /** この曜日だけ適用する。省略すると毎日 */
+  readonly days?: readonly WeekDay[];
 }
 
 /**
@@ -50,12 +64,28 @@ export class CostSchedule extends Construct {
 
     const stack = cdk.Stack.of(this);
     const timeZone = cdk.TimeZone.of(props.timeZone);
-    const at = (time: string, offsetMinutes = 0) => {
+    // 曜日を dayShift 日ずらす。日をまたぐ時刻を、跨いだ先の曜日で指定するため
+    const shifted = (days: readonly WeekDay[] | undefined, dayShift: number) =>
+      days?.map(
+        (day) => WEEK_DAYS[(WEEK_DAYS.indexOf(day) + dayShift + 7) % 7],
+      );
+
+    const at = (
+      time: string,
+      offsetMinutes = 0,
+      days?: readonly WeekDay[],
+      extraDayShift = 0,
+    ) => {
       const [hour, minute] = time.split(":").map(Number);
-      const total = (hour * 60 + minute + offsetMinutes + 1440) % 1440;
+      const raw = hour * 60 + minute + offsetMinutes;
+      // 前倒しで 00:00 を跨いで前日になることがある
+      const dayShift = Math.floor(raw / 1440) + extraDayShift;
+      const total = ((raw % 1440) + 1440) % 1440;
+      const weekDays = shifted(days, dayShift);
       return ScheduleExpression.cron({
         hour: String(Math.floor(total / 60)),
         minute: String(total % 60),
+        ...(weekDays ? { weekDay: weekDays.join(",") } : {}),
         timeZone,
       });
     };
@@ -118,24 +148,29 @@ export class CostSchedule extends Construct {
 
     props.windows.forEach((window, index) => {
       const suffix = `${index + 1}`;
+      // 日をまたぐ時間帯は、終わりが翌日になる。曜日を指定するときは
+      // 停止を1日ずらさないと、その週の最後の日の分が閉じずに動き続ける
+      const stopDayShift = window.stop <= window.start ? 1 : 0;
+      const startAt = at(window.start, -props.prestartMinutes, window.days);
+      const stopAt = at(window.stop, 0, window.days, stopDayShift);
       new Schedule(this, `StartNatInstance${suffix}`, {
         description: `Start the NAT instance before ${window.start}`,
-        schedule: at(window.start, -props.prestartMinutes),
+        schedule: startAt,
         target: startNat,
       });
       new Schedule(this, `KeepDatabaseAwake${suffix}`, {
         description: `Keep Aurora awake for the hours from ${window.start} (also resumes it)`,
-        schedule: at(window.start, -props.prestartMinutes),
+        schedule: startAt,
         target: keepAwake,
       });
       new Schedule(this, `StopNatInstance${suffix}`, {
         description: `Stop the NAT instance at ${window.stop}`,
-        schedule: at(window.stop),
+        schedule: stopAt,
         target: stopNat,
       });
       new Schedule(this, `LetDatabasePause${suffix}`, {
         description: `Let Aurora scale to 0 ACU and pause at ${window.stop}`,
-        schedule: at(window.stop),
+        schedule: stopAt,
         target: letPause,
       });
     });

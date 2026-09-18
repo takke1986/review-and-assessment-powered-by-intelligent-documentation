@@ -152,7 +152,14 @@ export const parameters = {
   // 検証環境は昼の1時間と夜だけ使うので、それ以外の時間は NAT を止め、Aurora を自動停止にする
   costSchedule: true,
   costScheduleWindows: [
-    { start: "12:00", stop: "13:00" },
-    { start: "17:30", stop: "02:00" },
+    // 平日。毎日にすると、土曜13:00の停止が土曜の枠を途中で閉じてしまう
+    { start: "12:00", stop: "13:00", days: ["MON", "TUE", "WED", "THU", "FRI"] },
+    {
+      start: "17:30",
+      stop: "02:00",
+      days: ["MON", "TUE", "WED", "THU", "FRI"],
+    },
+    // 土日は通しで使う
+    { start: "08:00", stop: "01:00", days: ["SAT", "SUN"] },
   ],
 };
