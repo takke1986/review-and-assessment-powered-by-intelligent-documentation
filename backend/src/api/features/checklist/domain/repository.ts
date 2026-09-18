@@ -29,6 +29,8 @@ export interface CheckRepository {
     sortOrder?: "asc" | "desc";
     status?: CHECK_LIST_STATUS;
     ownerUserId?: string;
+    /** 名前の一部での絞り込み */
+    search?: string;
   }): Promise<PaginatedResponse<CheckListSetSummary>>;
   findCheckListItems(
     setId: string,
@@ -215,6 +217,8 @@ export const makePrismaCheckRepository = async (
       sortOrder?: "asc" | "desc";
       status?: CHECK_LIST_STATUS;
       ownerUserId?: string;
+      /** 名前の一部。増えてくると一覧から探せないため */
+      search?: string;
     } = {}
   ): Promise<PaginatedResponse<CheckListSetSummary>> => {
     const {
@@ -224,6 +228,7 @@ export const makePrismaCheckRepository = async (
       sortOrder = "desc",
       status,
       ownerUserId,
+      search,
     } = params;
     // ステータスフィルタリングのためのサブクエリを準備
     let whereCondition: Record<string, any> = {};
@@ -261,6 +266,15 @@ export const makePrismaCheckRepository = async (
           console.log("[Repository] Using processing filter condition");
           break;
       }
+    }
+
+    // 名前での絞り込み。ステータスの分岐が whereCondition を再代入するため、
+    // ここで AND に包んで足す（直接項目を置くと条件が消える）
+    const needle = search?.trim();
+    if (needle) {
+      whereCondition = {
+        AND: [whereCondition, { name: { contains: needle } }],
+      };
     }
 
     // ownerUserId が指定されている場合は作成者（documents.userId）でフィルタする

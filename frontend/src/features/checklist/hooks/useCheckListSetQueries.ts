@@ -13,7 +13,8 @@ export const getChecklistSetsKey = (
   limit?: number,
   sortBy?: string,
   sortOrder?: "asc" | "desc",
-  status?: CHECK_LIST_STATUS
+  status?: CHECK_LIST_STATUS,
+  search?: string
 ) => {
   const params = new URLSearchParams();
   if (page) params.append("page", page.toString());
@@ -21,6 +22,8 @@ export const getChecklistSetsKey = (
   if (sortBy) params.append("sortBy", sortBy);
   if (sortOrder) params.append("sortOrder", sortOrder);
   if (status) params.append("status", status);
+  // 絞り込みはサーバ側で行う。画面側で絞ると、そのページの分しか対象にならない
+  if (search?.trim()) params.append("search", search.trim());
   return `/checklist-sets?${params.toString()}`;
 };
 
@@ -35,9 +38,17 @@ export function useChecklistSets(
   limit = 10,
   sortBy?: string,
   sortOrder?: "asc" | "desc",
-  status?: CHECK_LIST_STATUS
+  status?: CHECK_LIST_STATUS,
+  search?: string
 ) {
-  const url = getChecklistSetsKey(page, limit, sortBy, sortOrder, status);
+  const url = getChecklistSetsKey(
+    page,
+    limit,
+    sortBy,
+    sortOrder,
+    status,
+    search
+  );
   const { data, isLoading, error, refetch } =
     useApiClient().useQuery<GetAllChecklistSetsResponse>(url);
 

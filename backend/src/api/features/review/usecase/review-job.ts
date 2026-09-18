@@ -74,6 +74,8 @@ export const getAllReviewJobs = async (params: {
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   status?: string;
+  /** 名前の一部での絞り込み */
+  search?: string;
   // オプショナルでリクエストユーザーを受け取り、一般ユーザの場合は ownerUserId を使って絞る
   user: RequestUser;
   deps?: {
@@ -92,6 +94,7 @@ export const getAllReviewJobs = async (params: {
     sortBy: params.sortBy,
     sortOrder: params.sortOrder,
     status: params.status,
+    search: params.search,
     ownerUserId,
   });
   return result;

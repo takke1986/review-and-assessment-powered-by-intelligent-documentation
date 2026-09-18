@@ -14,6 +14,7 @@ export const ReviewListPage: React.FC = () => {
   const { t } = useTranslation();
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [search, setSearch] = useState("");
 
   const {
     items: reviewJobs,
@@ -24,7 +25,13 @@ export const ReviewListPage: React.FC = () => {
     refetch: revalidate,
     isLoading,
     error,
-  } = useReviewJobs(currentPage, itemsPerPage, "id", "desc");
+  } = useReviewJobs(currentPage, itemsPerPage, "id", "desc", undefined, search);
+
+  // 絞り込むと件数が減るので、ページを戻さないと空のページを見ることになる
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setCurrentPage(1);
+  };
 
   // 画面表示時またはlocationが変わった時にデータを再取得
   useEffect(() => {
@@ -39,6 +46,16 @@ export const ReviewListPage: React.FC = () => {
 
   return (
     <div>
+      <div className="mb-4">
+        <input
+          type="search"
+          value={search}
+          onChange={(event) => handleSearchChange(event.target.value)}
+          placeholder={t("common.searchPlaceholder")}
+          aria-label={t("common.search")}
+          className="w-full max-w-md rounded-md border border-light-gray px-3 py-2"
+        />
+      </div>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <div className="flex items-center">

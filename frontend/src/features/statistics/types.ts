@@ -21,6 +21,8 @@ export interface CheckFailureTrendItem {
   failRate: number;
   averageConfidence: number | null;
   lastFailedAt: string | null;
+  /** 直近で不合格になった審査ジョブ。結果を見に行く先 */
+  lastFailedReviewJobId: string | null;
   /** 再審査で引き継いだ回数。審査し直していないことを示す */
   carriedOverCount: number;
   /** 次に何をすべきかを示す状態 */

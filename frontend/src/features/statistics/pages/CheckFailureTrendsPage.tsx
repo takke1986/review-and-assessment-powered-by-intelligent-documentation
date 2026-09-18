@@ -77,18 +77,41 @@ export default function CheckFailureTrendsPage() {
   const percent = (rate: number) => `${Math.round(rate * 100)}%`;
   const selectedSet = sets.find((set) => set.id === setId);
 
-  const action = (item: CheckFailureTrendItem) => (
-    <div className="text-sm">
-      <span>{t(STATUS_VIEW[item.status].action)}</span>
-      {STATUS_VIEW[item.status].actionable && setId && (
-        <Link
-          to={`/checklist/${setId}`}
-          className="ml-2 text-aws-font-color-blue underline">
-          {t("trends.openChecklist")}
-        </Link>
-      )}
-    </div>
-  );
+  // 行き先は状態で変わる。着眼点を書くならその項目、実務の問題なら落ちた審査の結果
+  const destination = (item: CheckFailureTrendItem) => {
+    if (item.status === CHECK_TREND_STATUS.NEEDS_GUIDANCE && setId) {
+      return {
+        to: `/checklist/${setId}?item=${item.checkId}`,
+        label: t("trends.openGuidance"),
+      };
+    }
+    if (
+      item.status === CHECK_TREND_STATUS.OPERATIONAL_ISSUE &&
+      item.lastFailedReviewJobId
+    ) {
+      return {
+        to: `/review/${item.lastFailedReviewJobId}`,
+        label: t("trends.openResults"),
+      };
+    }
+    return null;
+  };
+
+  const action = (item: CheckFailureTrendItem) => {
+    const link = destination(item);
+    return (
+      <div className="text-sm">
+        <span>{t(STATUS_VIEW[item.status].action)}</span>
+        {link && (
+          <Link
+            to={link.to}
+            className="ml-2 text-aws-font-color-blue underline">
+            {link.label}
+          </Link>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">

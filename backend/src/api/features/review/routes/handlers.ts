@@ -26,6 +26,7 @@ export const getAllReviewJobsHandler = async (
       sortBy?: string;
       sortOrder?: "asc" | "desc";
       status?: string;
+      search?: string;
     };
   }>,
   reply: FastifyReply
@@ -36,6 +37,7 @@ export const getAllReviewJobsHandler = async (
     sortBy = "id",
     sortOrder = "desc",
     status,
+    search,
   } = request.query;
 
   // Convert string query parameters to numbers
@@ -52,6 +54,7 @@ export const getAllReviewJobsHandler = async (
     sortBy: validSortBy,
     sortOrder,
     status,
+    search,
     user: request.user,
   });
 

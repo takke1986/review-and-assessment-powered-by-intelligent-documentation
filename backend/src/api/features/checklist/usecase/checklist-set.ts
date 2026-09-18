@@ -249,6 +249,8 @@ export const getAllChecklistSets = async (params: {
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   ownerUserId?: string;
+  /** 名前の一部での絞り込み */
+  search?: string;
   deps?: {
     repo?: CheckRepository;
   };
@@ -262,6 +264,7 @@ export const getAllChecklistSets = async (params: {
     sortBy: params.sortBy,
     sortOrder: params.sortOrder,
     ownerUserId: params.ownerUserId,
+    search: params.search,
   });
   return result;
 };

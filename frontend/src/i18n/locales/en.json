@@ -24,8 +24,9 @@
     "search": "Filter checklists",
     "searchPlaceholder": "Type part of a name",
     "noMatch": "No checklist matches",
-    "openChecklist": "Open the checklist",
-    "carriedOver": "Carried over"
+    "carriedOver": "Carried over",
+    "openGuidance": "Write what to look at",
+    "openResults": "Open the results"
   },
   "common": {
     "appName": "Review & Assessment Powered by Intelligent Documentation",
@@ -63,7 +64,9 @@
     "description": "Description",
     "documentUrlError": "Failed to get document URL",
     "pageNumber": "(Page {{page}})",
-    "createdAt": "Created"
+    "createdAt": "Created",
+    "search": "Search",
+    "searchPlaceholder": "Type part of a name"
   },
   "imagePreview": {
     "zoomView": "Zoom View",

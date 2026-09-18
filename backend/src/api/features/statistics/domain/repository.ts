@@ -20,6 +20,8 @@ export interface CheckFailureTrendRow {
   averageConfidence: number | null;
   /** 直近で不合格になった日時。無ければ null */
   lastFailedAt: Date | null;
+  /** 直近で不合格になった審査ジョブ。結果を見に行く先。無ければ null */
+  lastFailedReviewJobId: string | null;
   /** 再審査で引き継いだ回数。審査し直していないことを示すのに使う */
   carriedOverCount: number;
   /** 次に何をすべきかを示す状態 */
@@ -66,7 +68,8 @@ export const makePrismaStatisticsRepository = async (
           by: ["checkId"],
           where: { ...judged, result: RESULT_FAIL },
           _count: { _all: true },
-          _max: { updatedAt: true },
+          // reviewJobId は ULID なので、最大値がそのまま直近のジョブになる
+          _max: { updatedAt: true, reviewJobId: true },
         }),
         // 引き継ぎは判定の重複なので数には入れないが、「審査し直していない」
         // 項目を一覧から消さないために、別に数えておく
@@ -119,6 +122,7 @@ export const makePrismaStatisticsRepository = async (
             failRate,
             averageConfidence,
             lastFailedAt: failure?._max.updatedAt ?? null,
+            lastFailedReviewJobId: failure?._max.reviewJobId ?? null,
             carriedOverCount,
             status: decideCheckTrendStatus({
               reviewedCount,

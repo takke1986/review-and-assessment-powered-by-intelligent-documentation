@@ -41,6 +41,8 @@ interface CheckListItemTreeNodeProps {
   importanceFilter?: ImportanceFilterValue;
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
+  /** 傾向画面から指定された項目。見つけたら開いて目立たせる */
+  openItemId?: string | null;
 }
 
 export default function CheckListItemTreeNode({
@@ -53,8 +55,13 @@ export default function CheckListItemTreeNode({
   importanceFilter = "all",
   selectedIds,
   onToggleSelect,
+  openItemId,
 }: CheckListItemTreeNodeProps) {
-  const [isExpanded, setIsExpanded] = useState(level < maxDepth || autoExpand);
+  const isOpenTarget = !!openItemId && openItemId === item.id;
+  // 指定された項目は、深くても開いた状態で見せる
+  const [isExpanded, setIsExpanded] = useState(
+    level < maxDepth || autoExpand || !!openItemId
+  );
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddChildModalOpen, setIsAddChildModalOpen] = useState(false);
 
@@ -146,7 +153,8 @@ export default function CheckListItemTreeNode({
       <div>
         <div style={indentStyle}>
           <ResultCard
-            variant={item.ambiguityReview && isEditable ? "error" : "default"}>
+            variant={item.ambiguityReview && isEditable ? "error" : "default"}
+            className={isOpenTarget ? "ring-2 ring-aws-sea-blue-light" : ""}>
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center">
                 {/* チェックボックス - リーフノードのみ */}

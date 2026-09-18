@@ -31,6 +31,8 @@ export interface ReviewJobRepository {
     status?: string;
     // ownerUserId が指定された場合、そのユーザのジョブのみ返す（管理者は未指定）
     ownerUserId?: string;
+    /** 名前の一部での絞り込み */
+    search?: string;
   }): Promise<PaginatedResponse<ReviewJobSummary>>;
   findReviewJobById(params: { reviewJobId: string }): Promise<ReviewJobDetail>;
   createReviewJob(params: ReviewJobEntity): Promise<void>;
@@ -79,6 +81,8 @@ export const makePrismaReviewJobRepository = async (
       sortOrder?: "asc" | "desc";
       status?: string;
       ownerUserId?: string;
+      /** 名前の一部。増えてくると一覧から探せないため */
+      search?: string;
     } = {}
   ): Promise<PaginatedResponse<ReviewJobSummary>> => {
     const {
@@ -87,12 +91,21 @@ export const makePrismaReviewJobRepository = async (
       sortBy = "id",
       sortOrder = "desc",
       status,
+      search,
     } = params;
 
     // WHERE条件を構築
-    const whereCondition: { status?: string; userId?: string } = {};
+    const whereCondition: {
+      status?: string;
+      userId?: string;
+      name?: { contains: string };
+    } = {};
     if (status) {
       whereCondition.status = status;
+    }
+    const needle = search?.trim();
+    if (needle) {
+      whereCondition.name = { contains: needle };
     }
     // ownerUserId が指定されている場合はそのユーザのジョブに限定する
     if (params.ownerUserId) {

@@ -24,8 +24,9 @@
     "search": "チェックリストを絞り込む",
     "searchPlaceholder": "名前の一部を入力",
     "noMatch": "該当するチェックリストがありません",
-    "openChecklist": "チェックリストを開く",
-    "carriedOver": "引き継ぎ"
+    "carriedOver": "引き継ぎ",
+    "openGuidance": "着眼点を書く",
+    "openResults": "審査結果を見る"
   },
   "common": {
     "appName": "Review & Assessment Powered by Intelligent Documentation",
@@ -63,7 +64,9 @@
     "description": "説明",
     "documentUrlError": "ドキュメントのURLの取得に失敗しました",
     "pageNumber": "（{{page}}ページ）",
-    "createdAt": "作成日"
+    "createdAt": "作成日",
+    "search": "検索",
+    "searchPlaceholder": "名前の一部を入力"
   },
   "imagePreview": {
     "zoomView": "拡大表示",

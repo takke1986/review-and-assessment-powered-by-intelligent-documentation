@@ -135,6 +135,7 @@ export const getAllChecklistSetsHandler = async (
       limit?: number;
       sortBy?: string;
       sortOrder?: "asc" | "desc";
+      search?: string;
     };
   }>,
   reply: FastifyReply
@@ -145,6 +146,7 @@ export const getAllChecklistSetsHandler = async (
     limit = 10,
     sortBy = "id",
     sortOrder = "desc",
+    search,
   } = request.query;
 
   // Convert string query parameters to numbers
@@ -162,6 +164,7 @@ export const getAllChecklistSetsHandler = async (
     status,
     page: pageNum,
     limit: limitNum,
+    search,
     sortBy: validSortBy,
     sortOrder,
     ownerUserId,

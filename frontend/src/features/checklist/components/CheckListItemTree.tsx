@@ -14,6 +14,8 @@ interface CheckListItemTreeProps {
   importanceFilter?: ImportanceFilterValue;
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
+  /** 傾向画面から指定された項目。見つけたら開いて目立たせる */
+  openItemId?: string | null;
 }
 
 export default function CheckListItemTree({
@@ -23,6 +25,7 @@ export default function CheckListItemTree({
   importanceFilter = "all",
   selectedIds,
   onToggleSelect,
+  openItemId,
 }: CheckListItemTreeProps) {
   const { t } = useTranslation();
   const {
@@ -70,6 +73,7 @@ export default function CheckListItemTree({
           importanceFilter={importanceFilter}
           selectedIds={selectedIds}
           onToggleSelect={onToggleSelect}
+          openItemId={openItemId}
         />
       ))}
     </div>

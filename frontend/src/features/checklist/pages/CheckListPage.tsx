@@ -23,6 +23,7 @@ import { useLocalStorage } from "../../../hooks/useLocalStorage";
 export function CheckListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [search, setSearch] = useState("");
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { addToast } = useToast();
@@ -54,7 +55,20 @@ export function CheckListPage() {
     isLoading,
     error,
     refetch,
-  } = useChecklistSets(currentPage, itemsPerPage, "id", "desc");
+  } = useChecklistSets(
+    currentPage,
+    itemsPerPage,
+    "id",
+    "desc",
+    undefined,
+    search
+  );
+
+  // 絞り込むと件数が減るので、ページを戻さないと空のページを見ることになる
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setCurrentPage(1);
+  };
 
   const {
     deleteChecklistSet,
@@ -175,6 +189,16 @@ export function CheckListPage() {
         <CreateChecklistButton />
       </div>
 
+      <div className="mb-4">
+        <input
+          type="search"
+          value={search}
+          onChange={(event) => handleSearchChange(event.target.value)}
+          placeholder={t("common.searchPlaceholder")}
+          aria-label={t("common.search")}
+          className="w-full max-w-md rounded-md border border-light-gray px-3 py-2"
+        />
+      </div>
       <CheckListSetList
         checkListSets={checkListSets || []}
         isLoading={isLoading}

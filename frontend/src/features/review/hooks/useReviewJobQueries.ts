@@ -23,7 +23,8 @@ export const getReviewJobsKey = (
   limit = 10,
   sortBy?: string,
   sortOrder?: "asc" | "desc",
-  status?: string
+  status?: string,
+  search?: string
 ) => {
   const params = new URLSearchParams({
     page: page.toString(),
@@ -32,6 +33,8 @@ export const getReviewJobsKey = (
   if (sortBy) params.append("sortBy", sortBy);
   if (sortOrder) params.append("sortOrder", sortOrder);
   if (status) params.append("status", status);
+  // 絞り込みはサーバ側で行う。画面側で絞ると、そのページの分しか対象にならない
+  if (search?.trim()) params.append("search", search.trim());
   return `/review-jobs?${params.toString()}`;
 };
 
@@ -49,9 +52,10 @@ export function useReviewJobs(
   limit = 10,
   sortBy?: string,
   sortOrder?: "asc" | "desc",
-  status?: string
+  status?: string,
+  search?: string
 ) {
-  const url = getReviewJobsKey(page, limit, sortBy, sortOrder, status);
+  const url = getReviewJobsKey(page, limit, sortBy, sortOrder, status, search);
   const {
     data: result,
     isLoading,

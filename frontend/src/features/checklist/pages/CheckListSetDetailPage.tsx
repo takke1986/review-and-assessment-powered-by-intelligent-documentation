@@ -1,4 +1,9 @@
-import { useParams, Link, useNavigate } from "react-router-dom";
+import {
+  useParams,
+  Link,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useChecklistSetDetail } from "../hooks/useCheckListSetQueries";
@@ -41,6 +46,9 @@ import { useBulkAssignToolConfiguration } from "../hooks/useCheckListItemMutatio
  */
 export function CheckListSetDetailPage() {
   const { id } = useParams<{ id: string }>();
+  // 傾向画面から「着眼点を書く」で来たときに、その項目を開いた状態にする
+  const [searchParams] = useSearchParams();
+  const openItemId = searchParams.get("item");
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { addToast } = useToast();
@@ -335,12 +343,13 @@ export function CheckListSetDetailPage() {
                 </div>
               )}
             </div>
-            <CheckListItemTree 
-              setId={id} 
+            <CheckListItemTree
+              setId={id}
               ambiguityFilter={ambiguityFilter}
               importanceFilter={importanceFilter}
               selectedIds={selectedItemIds}
               onToggleSelect={handleToggleSelect}
+              openItemId={openItemId}
             />
           </>
         )}
