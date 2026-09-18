@@ -101,17 +101,14 @@ export function CheckListPage() {
       return;
     }
 
-    // 通常の表示条件: オンボーディングが完了していない場合かつチェックリストが0件の場合。
-    // 検索中は「0件」が「まだ作っていない」ではなく「見つからなかった」を意味するので出さない
-    if (
-      !onboardingCompleted &&
-      !isLoading &&
-      !search.trim() &&
-      checkListSets?.length === 0
-    ) {
+    // 通常の表示条件: まだ1つも作っていない人に出す。
+    // 画面に出ている件数で判断すると、検索で見つからないとき、並び替えや
+    // ページ移動でデータが届く前の一瞬にも「0件」になり、そのたびに開く。
+    // 絞り込みに左右されない総件数を使い、届いたことを確かめてから判断する
+    if (!onboardingCompleted && isLoaded && !search.trim() && total === 0) {
       setShowOnboardingModal(true);
     }
-  }, [onboardingCompleted, isLoading, checkListSets, searchParams, search]);
+  }, [onboardingCompleted, isLoaded, total, searchParams, search]);
 
   // チェックリストセットの削除処理
   const handleDelete = async (id: string, name: string) => {

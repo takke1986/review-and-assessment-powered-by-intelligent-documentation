@@ -60,6 +60,8 @@ export function useChecklistSets(
         }))
       : [],
     total: data?.total ?? 0,
+    // 取得前は items が空配列になるので、「0件」と「まだ届いていない」を区別する
+    isLoaded: data !== undefined,
     page: data?.page ?? page,
     limit: data?.limit ?? limit,
     totalPages: data?.totalPages ?? 0,
