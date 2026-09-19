@@ -17,11 +17,40 @@ export interface CreateToolConfigurationRequest {
 }
 
 export const getAllToolConfigurationsHandler = async (
-  request: FastifyRequest,
+  request: FastifyRequest<{
+    Querystring: {
+      page?: number;
+      limit?: number;
+      sortBy?: string;
+      sortOrder?: "asc" | "desc";
+      search?: string;
+    };
+  }>,
   reply: FastifyReply
 ): Promise<void> => {
-  const configs = await getAllToolConfigurations({});
-  reply.code(200).send({ success: true, data: configs });
+  const {
+    page = 1,
+    limit = 10,
+    sortBy = "createdAt",
+    sortOrder = "desc",
+    search,
+  } = request.query;
+
+  const pageNum = typeof page === "string" ? parseInt(page, 10) : page;
+  const limitNum = typeof limit === "string" ? parseInt(limit, 10) : limit;
+
+  // 並べられるのは列と、関連の件数（使用状況）だけ
+  const validSortFields = ["name", "createdAt", "updatedAt", "usageCount"];
+  const validSortBy = validSortFields.includes(sortBy) ? sortBy : "createdAt";
+
+  const result = await getAllToolConfigurations({
+    page: pageNum,
+    limit: limitNum,
+    sortBy: validSortBy,
+    sortOrder,
+    search,
+  });
+  reply.code(200).send({ success: true, data: result });
 };
 
 export const getToolConfigurationByIdHandler = async (

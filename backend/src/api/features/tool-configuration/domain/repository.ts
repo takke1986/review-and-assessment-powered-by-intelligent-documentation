@@ -1,10 +1,17 @@
 import { PrismaClient, getPrismaClient, Prisma } from "../../../core/db";
+import { PaginatedResponse } from "../../../common/types";
 import { NotFoundError } from "../../../core/errors";
 import { ToolConfigurationEntity } from "./model/tool-configuration";
 
 export interface ToolConfigurationRepository {
   create(config: ToolConfigurationEntity): Promise<void>;
-  findAll(): Promise<ToolConfigurationEntity[]>;
+  findAll(params?: {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: "asc" | "desc";
+    search?: string;
+  }): Promise<PaginatedResponse<ToolConfigurationEntity>>;
   findById(id: string): Promise<ToolConfigurationEntity>;
   delete(id: string): Promise<void>;
   isUsedByCheckLists(id: string): Promise<boolean>;
@@ -34,17 +41,47 @@ export const makePrismaToolConfigurationRepository = async (
     });
   };
 
-  const findAll = async (): Promise<ToolConfigurationEntity[]> => {
-    const configs = await client.toolConfiguration.findMany({
-      orderBy: { createdAt: "desc" },
-      include: {
-        _count: {
-          select: { checkLists: true },
-        },
-      },
-    });
+  const findAll = async (
+    params: {
+      page?: number;
+      limit?: number;
+      sortBy?: string;
+      sortOrder?: "asc" | "desc";
+      /** 名前の一部。増えてくると一覧から探せないため */
+      search?: string;
+    } = {}
+  ): Promise<PaginatedResponse<ToolConfigurationEntity>> => {
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+      search,
+    } = params;
 
-    return configs.map((config) => ({
+    const needle = search?.trim();
+    const where = needle ? { name: { contains: needle } } : {};
+
+    const [configs, total] = await Promise.all([
+      client.toolConfiguration.findMany({
+        where,
+        // 使用状況は関連の件数なので、件数で並べる
+        orderBy:
+          sortBy === "usageCount"
+            ? { checkLists: { _count: sortOrder } }
+            : { [sortBy]: sortOrder },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          _count: {
+            select: { checkLists: true },
+          },
+        },
+      }),
+      client.toolConfiguration.count({ where }),
+    ]);
+
+    const items = configs.map((config) => ({
       id: config.id,
       name: config.name,
       description: config.description || undefined,
@@ -57,6 +94,14 @@ export const makePrismaToolConfigurationRepository = async (
       updatedAt: config.updatedAt,
       usageCount: (config as any)._count.checkLists,
     }));
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   };
 
   const findById = async (id: string): Promise<ToolConfigurationEntity> => {

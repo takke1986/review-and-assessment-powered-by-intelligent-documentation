@@ -10,12 +10,22 @@ type ToolConfigurationListProps = {
   toolConfigurations: ToolConfiguration[];
   isLoading: boolean;
   onDelete: (id: string, name: string) => Promise<void>;
+  /** 0件のときの文言。検索中は「無い」ではなく「見つからない」を出したい */
+  emptyMessage?: string;
+  /** 並び替え。サーバ側で並べるので状態は画面が持つ */
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+  onSortChange?: (key: string) => void;
 };
 
 export default function ToolConfigurationList({
   toolConfigurations,
   isLoading,
   onDelete,
+  emptyMessage,
+  sortBy,
+  sortOrder,
+  onSortChange,
 }: ToolConfigurationListProps) {
   const { t } = useTranslation();
   const { showConfirm, showError, AlertModal } = useAlert();
@@ -52,6 +62,7 @@ export default function ToolConfigurationList({
     {
       key: "name",
       header: t("toolConfiguration.name"),
+      sortable: true,
       render: (item) => (
         <div>
           <div className="text-sm font-medium text-aws-squid-ink-light dark:text-aws-font-color-white-dark">
@@ -89,6 +100,8 @@ export default function ToolConfigurationList({
     {
       key: "usageCount",
       header: t("toolConfiguration.usage"),
+      // 使っているチェック項目の件数。表示も件数なので並び順と一致する
+      sortable: true,
       render: (item) => (
         <div className="flex items-center gap-2">
           {(item.usageCount ?? 0) > 0 && (
@@ -131,7 +144,10 @@ export default function ToolConfigurationList({
         columns={columns}
         actions={actions}
         isLoading={isLoading}
-        emptyMessage={t("toolConfiguration.noConfigurations")}
+        emptyMessage={emptyMessage ?? t("toolConfiguration.noConfigurations")}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={onSortChange}
         keyExtractor={(item) => item.id}
         onRowClick={handleRowClick}
         rowClickable={true}

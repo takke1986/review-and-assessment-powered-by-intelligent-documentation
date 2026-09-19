@@ -46,14 +46,13 @@ export const getAllReviewJobsHandler = async (
 
   // Validate sortBy parameter - only allow valid fields
   // 一覧の主役の列なので名前でも並べられるようにする。
-  // checkListSet は関連先の名前、documents は件数で並べる
+  // checkListSet は関連先の名前で並べる
   const validSortFields = [
     "id",
     "name",
     "createdAt",
     "status",
     "checkListSet",
-    "documents",
   ];
   const validSortBy = validSortFields.includes(sortBy) ? sortBy : "id";
 

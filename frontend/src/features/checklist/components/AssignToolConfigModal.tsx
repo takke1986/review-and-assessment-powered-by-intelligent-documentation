@@ -19,7 +19,10 @@ export default function AssignToolConfigModal({
   currentConfigId,
 }: AssignToolConfigModalProps) {
   const { t } = useTranslation();
-  const { toolConfigurations, isLoading } = useToolConfigurations();
+  // ここは一覧ではなく選択肢なので、ページで区切らず全部から選べるようにする
+  const { toolConfigurations, isLoading } = useToolConfigurations({
+    limit: 200,
+  });
 
   const handleAssign = (configId: string | null) => {
     onAssign(configId);
