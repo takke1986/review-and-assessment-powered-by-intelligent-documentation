@@ -8,10 +8,20 @@ import { makePrismaCheckRepository } from "../../api/features/checklist/domain/r
 import { CHECK_LIST_STATUS } from "../../api/features/checklist/domain/model/checklist";
 
 /**
- * テキストとして取り込めるファイル。
- * 変換は review-item-processor の office_documents が行う
+ * PDF 以外で取り込めるファイル。
+ *
+ * Office は中身が XML なので、テキストファイルと同じくページに起こせる。
+ * 変換は review-item-processor 側の Lambda が行う。ページへの分け方を
+ * 2か所に置かないよう、テキストもそちらに通す
  */
-export const OFFICE_FILE_EXTENSIONS = ["xlsx", "docx", "pptx"];
+export const CONVERTIBLE_FILE_EXTENSIONS = [
+  "xlsx",
+  "docx",
+  "pptx",
+  "txt",
+  "md",
+  "csv",
+];
 
 export interface ProcessDocumentParams {
   documentId: string;
@@ -36,9 +46,9 @@ export async function processDocument({
 
   const fileExtension = fileName.split(".").pop()?.toLowerCase() ?? "";
 
-  // Office ファイルは中身が XML なので、画像にせずテキストにできる。
-  // 変換器は Python 側にあるので、ここでは変換が要ることだけを伝えて戻る
-  if (OFFICE_FILE_EXTENSIONS.includes(fileExtension)) {
+  // 画像にせずテキストにできるもの。変換器は Python 側にあるので、
+  // ここでは変換が要ることだけを伝えて戻る
+  if (CONVERTIBLE_FILE_EXTENSIONS.includes(fileExtension)) {
     return {
       documentId,
       pageCount: 0,

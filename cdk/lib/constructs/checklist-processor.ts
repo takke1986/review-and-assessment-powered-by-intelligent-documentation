@@ -148,12 +148,17 @@ export class ChecklistProcessor extends Construct {
       },
     );
 
-    // Office ファイルをテキストにする Lambda。
+    // PDF 以外のファイルをテキストのページにする Lambda。
+    // Office ファイルのほか、.txt / .md / .csv もここを通る。
     //
     // 変換器は review-item-processor（Python）にあるので、そこを土台に
     // 作る。同じものを TypeScript でもう一度書くと、同じ Excel が審査と
-    // チェックリストとで違って見えることになる。
-    // エージェント本体とは別のイメージで、uv も Node も積んでいない
+    // チェックリストとで違って見えることになる。ページへの分け方も
+    // ここ1か所に置く。
+    // エージェント本体とは別のイメージで、uv も Node も積んでいない。
+    //
+    // 名前は Office のままにしてある。変えると Lambda が作り直しになり、
+    // 得るものが呼び名だけなので見合わない
     const officeConverterLambda = new lambda.DockerImageFunction(
       this,
       "OfficeConverterFunction",
@@ -210,7 +215,7 @@ export class ChecklistProcessor extends Construct {
       },
     );
 
-    // Office ファイルをテキストにする。結果は ProcessDocument と同じ場所に
+    // PDF 以外をテキストのページにする。結果は ProcessDocument と同じ場所に
     // 置き、後段からは PDF と同じに見えるようにする
     const convertOfficeTask = new tasks.LambdaInvoke(
       this,

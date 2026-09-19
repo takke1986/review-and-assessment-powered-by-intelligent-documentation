@@ -261,7 +261,8 @@ export function CreateChecklistPage() {
             uploadedDocuments={uploadedDocuments || []}
             onDeleteFile={handleFileRemove}
             /* Office ファイルは中身が XML なので、画像にせずそのまま
-               テキストにできる。表の値も数式も欠けない */
+               テキストにできる。表の値も数式も欠けない。
+               手元のメモや Excel から出した CSV もそのまま取り込める */
             acceptedFileTypes={{
               "application/pdf": [".pdf"],
               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
@@ -270,6 +271,9 @@ export function CreateChecklistPage() {
                 [".docx"],
               "application/vnd.openxmlformats-officedocument.presentationml.presentation":
                 [".pptx"],
+              "text/plain": [".txt"],
+              "text/markdown": [".md"],
+              "text/csv": [".csv"],
             }}
           />
 

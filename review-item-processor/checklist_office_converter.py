@@ -1,9 +1,10 @@
 """
-Office ファイルをテキストにして、チェックリスト抽出に渡す Lambda。
+PDF 以外のファイルをテキストのページにして、チェックリスト抽出に渡す Lambda。
 
 チェックリストのワークフローは TypeScript だが、Office ファイルを読む処理は
 ここ（Python）にある。同じものを TypeScript でもう一度書くと、同じ Excel が
 審査とチェックリストとで違って見えることになるので、こちらを呼ぶ形にした。
+テキストファイルも同じ入口に通す。ページへの分け方を2か所に置かないため。
 
 PDF は画像にしてから読む必要があるが、Office ファイルは中身が XML なので
 そのままテキストにできる。画像化を挟まない分、表の値も数式も欠けない。
@@ -22,7 +23,19 @@ from office_documents import (
     OfficeFileError,
     ProtectedOfficeFileError,
     convert_office_file,
+    is_office_file,
 )
+
+# そのまま読めるファイル。.csv も行が読めれば十分なので、表として解釈しない
+TEXT_FILE_EXTENSIONS = (".txt", ".md", ".csv")
+
+# 読む順。日本語のテキストは UTF-8 とは限らず、Excel から出した CSV は
+# CP932 のことが多い。utf-8-sig は BOM 付きも落とせる
+TEXT_ENCODINGS = ("utf-8-sig", "cp932")
+
+# メモ帳が「Unicode」で保存するとこれが付く。UTF-16 は CP932 でも
+# 例外を出さずに読めてしまうので、印を見て先に分ける
+_UTF16_BOMS = {b"\xff\xfe": "utf-16", b"\xfe\xff": "utf-16"}
 
 # 1回の抽出に渡すテキストの上限。長すぎると取りこぼしが増え、費用も伸びる。
 # シートやスライドの切れ目で分けたうえで、なお長いものはここで切る
@@ -107,6 +120,42 @@ def split_into_pages(markdown: str) -> list[str]:
     return [f"{preamble}\n\n{page}" for page in pages]
 
 
+def is_text_file(filename: str) -> bool:
+    return filename.lower().endswith(TEXT_FILE_EXTENSIONS)
+
+
+def decode_text(data: bytes, filename: str) -> str:
+    """
+    文字コードを決め打ちせずに読む。
+
+    間違った文字コードで読むと、落ちずに化けたまま通ってしまい、出来上がった
+    チェックリストを見るまで気づけない。とくに CP932 はほとんどのバイト列を
+    読めてしまうので、「例外が出なければ正しい」とは言えない。
+    そこで、読めた結果に NUL が混じっていたらテキストではないと見なす。
+
+    ここで見抜けないものが一つある。印の無い UTF-16 で、中身が漢字だけの
+    場合は NUL が出ないので、CP932 として化けたまま通る。印を付けずに
+    UTF-16 で保存する道具は少ないので、そこは追わない
+    """
+    for bom, encoding in _UTF16_BOMS.items():
+        if data.startswith(bom):
+            return data.decode(encoding)
+
+    for encoding in TEXT_ENCODINGS:
+        try:
+            text = data.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+        if "\x00" in text:
+            # 読めたように見えるが、中身はテキストではない
+            break
+        return text
+
+    raise RuntimeError(
+        f"{filename} could not be read as text. Save it as UTF-8 and upload it again."
+    )
+
+
 def handler(event: dict[str, Any], _context: Any = None) -> dict[str, Any]:
     document_id = event["documentId"]
     filename = event["fileName"]
@@ -117,16 +166,26 @@ def handler(event: dict[str, Any], _context: Any = None) -> dict[str, Any]:
     with tempfile.TemporaryDirectory() as directory:
         local_path = posixpath.join(directory, posixpath.basename(filename))
         _s3.download_file(bucket, _original_key(document_id, filename), local_path)
-        try:
-            document = convert_office_file(local_path, display_name=filename)
-        except ProtectedOfficeFileError as error:
-            # 読めない理由が利用者に伝わるよう、そのまま上げる。
-            # ここを握りつぶすと「0件のチェックリスト」ができてしまう
-            raise RuntimeError(str(error)) from error
-        except OfficeFileError as error:
-            raise RuntimeError(str(error)) from error
+        if is_office_file(filename):
+            try:
+                markdown = convert_office_file(
+                    local_path, display_name=filename
+                ).markdown
+            except ProtectedOfficeFileError as error:
+                # 読めない理由が利用者に伝わるよう、そのまま上げる。
+                # ここを握りつぶすと「0件のチェックリスト」ができてしまう
+                raise RuntimeError(str(error)) from error
+            except OfficeFileError as error:
+                raise RuntimeError(str(error)) from error
+        elif is_text_file(filename):
+            with open(local_path, "rb") as file:
+                body = decode_text(file.read(), filename)
+            # Office 側と同じく、どのファイルの話かがページに残るようにする
+            markdown = f"# {filename}\n\n{body}"
+        else:
+            raise RuntimeError(f"{filename} is not a file this step can read")
 
-    pages = split_into_pages(document.markdown)
+    pages = split_into_pages(markdown)
     for number, text in enumerate(pages, start=1):
         _s3.put_object(
             Bucket=bucket,
