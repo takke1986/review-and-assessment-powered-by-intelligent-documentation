@@ -116,7 +116,14 @@ export const makePrismaReviewJobRepository = async (
     const [jobs, total] = await Promise.all([
       client.reviewJob.findMany({
         where: whereCondition,
-        orderBy: { [sortBy]: sortOrder },
+        // チェックリストは関連先の名前で、ドキュメントは別テーブルなので件数で。
+        // それ以外は列の名前をそのまま使う
+        orderBy:
+          sortBy === "checkListSet"
+            ? { checkListSet: { name: sortOrder } }
+            : sortBy === "documents"
+              ? { documents: { _count: sortOrder } }
+              : { [sortBy]: sortOrder },
         skip: (page - 1) * limit,
         take: limit,
         include: {

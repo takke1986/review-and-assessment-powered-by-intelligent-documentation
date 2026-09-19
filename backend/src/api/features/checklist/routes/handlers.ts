@@ -154,7 +154,14 @@ export const getAllChecklistSetsHandler = async (
   const limitNum = typeof limit === "string" ? parseInt(limit, 10) : limit;
 
   // Validate sortBy parameter - only allow valid fields
-  const validSortFields = ["id", "name", "description", "createdAt"];
+  // documents は件数で並べる（別テーブルのため、ファイル名では並べられない）
+  const validSortFields = [
+    "id",
+    "name",
+    "description",
+    "createdAt",
+    "documents",
+  ];
   const validSortBy = validSortFields.includes(sortBy) ? sortBy : "id";
 
   // 管理者は全件、それ以外は自分の所有物のみを取得する

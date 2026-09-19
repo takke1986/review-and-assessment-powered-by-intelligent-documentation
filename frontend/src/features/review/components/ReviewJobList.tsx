@@ -100,6 +100,8 @@ export const ReviewJobList: React.FC<ReviewJobListProps> = ({
     {
       key: "documents",
       header: t("review.documents"),
+      // ファイル名では並べられないので件数で並ぶ
+      sortable: true,
       render: (job) => (
         <div className="text-sm text-aws-font-color-gray">
           {job.documents && job.documents.length > 0
@@ -117,6 +119,7 @@ export const ReviewJobList: React.FC<ReviewJobListProps> = ({
     {
       key: "checkListSet",
       header: t("review.checklist"),
+      sortable: true,
       render: (job) => (
         <div className="text-sm text-aws-font-color-gray">
           {job.checkListSet.name}

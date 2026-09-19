@@ -129,6 +129,8 @@ export default function CheckListSetList({
     {
       key: "documents",
       header: t("review.documents"),
+      // ファイル名では並べられないので件数で並ぶ
+      sortable: true,
       render: (item) => (
         <div className="text-sm text-aws-font-color-gray">
           {item.documents && item.documents.length > 0

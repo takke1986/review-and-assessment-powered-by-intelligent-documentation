@@ -328,7 +328,12 @@ export const makePrismaCheckRepository = async (
           },
           _count: { select: { reviewJobs: true } },
         },
-        orderBy: { [sortBy]: sortOrder },
+        // ドキュメントは別テーブルなので、並べられるのは件数。
+        // それ以外は列の名前をそのまま使う
+        orderBy:
+          sortBy === "documents"
+            ? { documents: { _count: sortOrder } }
+            : { [sortBy]: sortOrder },
         skip: (page - 1) * limit,
         take: limit,
       }),
