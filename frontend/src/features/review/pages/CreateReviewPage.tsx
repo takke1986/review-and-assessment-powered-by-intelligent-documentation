@@ -18,6 +18,7 @@ import CheckItemPicker from "../components/CheckItemPicker";
 import RerunDocumentPicker from "../components/RerunDocumentPicker";
 import RerunSourcePanel from "../components/RerunSourcePanel";
 import { useCreateReviewJob } from "../hooks/useReviewJobMutations";
+import { requestNotificationPermission } from "../hooks/useJobCompletionNotice";
 import { useRerunSource } from "../hooks/useRerunSource";
 import { useRerunDocuments } from "../hooks/useRerunDocuments";
 import { useReviewFileSelection } from "../hooks/useReviewFileSelection";
@@ -205,6 +206,9 @@ export const CreateReviewPage: React.FC = () => {
     if (!validate() || !checkListSetId) {
       return;
     }
+
+    // 審査は数分かかる。始めるこの操作をきっかけに、終了を知らせる許可を求める
+    await requestNotificationPermission();
 
     try {
       // すべてのドキュメントを同じ構造で扱う

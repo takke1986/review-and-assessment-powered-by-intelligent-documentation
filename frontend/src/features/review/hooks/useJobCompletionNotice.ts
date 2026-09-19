@@ -13,6 +13,29 @@ export interface NotifiableJob {
   status: REVIEW_JOB_STATUS;
 }
 
+/** ブラウザの通知が使えるか。対応していない環境では静かに諦める */
+export function canUseBrowserNotification(): boolean {
+  return typeof Notification !== "undefined";
+}
+
+/**
+ * 通知の許可を求める。
+ *
+ * 審査を始めるボタンから呼ぶ。ブラウザは操作をきっかけにしない許可要求を
+ * 嫌うし、利用者にとっても「待たされるものを始めた」ときが一番分かりやすい。
+ * 断られても審査は妨げない。そのときはトーストだけが残る
+ */
+export async function requestNotificationPermission(): Promise<void> {
+  if (!canUseBrowserNotification() || Notification.permission !== "default") {
+    return;
+  }
+  try {
+    await Notification.requestPermission();
+  } catch {
+    // 許可を求められない環境もある。通知が出ないだけ
+  }
+}
+
 /**
  * 知らせるべき変化か。
  *
@@ -31,10 +54,11 @@ export function shouldNotifyCompletion(
 }
 
 /**
- * 審査が終わったことをトーストで知らせる。
+ * 審査が終わったことを知らせる。
  *
  * 審査は数分かかるので、終わるまで画面を見張ることになりがち。一覧か詳細を
- * 開いたままにしておけば、他の画面を触っていても終了に気づける
+ * 開いたままにしておけば、別のタブや別のアプリを見ていても終了に気づける。
+ * ブラウザを閉じてしまうと届かない。そこまで要るならメールなど別の道が要る
  */
 export function useJobCompletionNotice(jobs: NotifiableJob[]): void {
   const { t } = useTranslation();
@@ -50,8 +74,29 @@ export function useJobCompletionNotice(jobs: NotifiableJob[]): void {
         continue;
       }
       const succeeded = job.status === REVIEW_JOB_STATUS.COMPLETED;
+      const title = succeeded
+        ? t("review.notice.completed")
+        : t("review.notice.failed");
+
+      // この画面を見ていないときだけ、ブラウザの通知も出す。見ているのに
+      // 通知まで出ると、同じことを二度言われることになる。
+      // visibilityState では足りない。別のアプリに切り替えただけでは
+      // 「表示中」のままで、一番知らせたい状況で通知が出なくなる
+      if (
+        !document.hasFocus() &&
+        canUseBrowserNotification() &&
+        Notification.permission === "granted"
+      ) {
+        try {
+          // 同じジョブの通知が積み上がらないよう、タグで置き換える
+          new Notification(title, { body: job.name, tag: `review-${job.id}` });
+        } catch {
+          // 通知を作れなくても、下のトーストで戻ったときに気づける
+        }
+      }
+
       addToast(
-        `${succeeded ? t("review.notice.completed") : t("review.notice.failed")}: ${job.name}`,
+        `${title}: ${job.name}`,
         succeeded ? "success" : "error",
         // 目を離しているあいだに消えては意味が無いので、既定より長く出す
         NOTICE_DURATION_MS
