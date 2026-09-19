@@ -21,6 +21,7 @@ import {
 } from "../../checklist/domain/model/checklist";
 import { countCheckItems } from "./service/check-item-selection";
 import { countReviewProgress } from "./service/review-progress";
+import { summarizeCost } from "./service/review-cost-summary";
 
 /** 期間で絞るための条件。片側だけの指定もできる */
 export interface ReviewJobPeriod {
@@ -28,35 +29,54 @@ export interface ReviewJobPeriod {
   createdTo?: Date;
 }
 
-/**
- * 一覧に、絞り込み条件に合うジョブ全体の費用を添えたもの。
- *
- * ページの合計では「今月いくら使ったか」に答えられない。知りたいのは
- * 表示中の10件ではなく、条件に合うすべてなので、集計は別に行う
- */
-export type ReviewJobListResult = PaginatedResponse<ReviewJobSummary> & {
-  costSummary: {
-    /** 条件に合うジョブの費用の合計。費用が未記録のジョブは 0 として扱う */
+/** 費用の集計。どこにいくら掛かっているかを見るためのもの */
+export interface ReviewCostSummary {
+  /** 期間全体 */
+  total: {
     totalCost: number;
-    /** 合計の対象になったジョブの数 */
     jobCount: number;
+    /** 1件あたり。件数が0なら0 */
+    averageCost: number;
+    totalInputTokens: number;
+    totalOutputTokens: number;
   };
-};
+  /** 月ごと。古い順 */
+  byMonth: Array<{ month: string; totalCost: number; jobCount: number }>;
+  /** チェックリストごと。高い順。どの種類の審査に掛かっているかを見る */
+  byChecklist: Array<{
+    checkListSetId: string;
+    name: string;
+    totalCost: number;
+    jobCount: number;
+  }>;
+  /** 費用の高いジョブ。突出したものを見つける */
+  topJobs: Array<{
+    id: string;
+    name: string;
+    totalCost: number;
+    createdAt: Date;
+  }>;
+}
 
 export interface ReviewJobRepository {
-  findAllReviewJobs(
-    params?: {
-      page?: number;
-      limit?: number;
-      sortBy?: string;
-      sortOrder?: "asc" | "desc";
-      status?: string;
-      // ownerUserId が指定された場合、そのユーザのジョブのみ返す（管理者は未指定）
+  findAllReviewJobs(params?: {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: "asc" | "desc";
+    status?: string;
+    // ownerUserId が指定された場合、そのユーザのジョブのみ返す（管理者は未指定）
+    ownerUserId?: string;
+    /** 名前の一部での絞り込み */
+    search?: string;
+  }): Promise<PaginatedResponse<ReviewJobSummary>>;
+  summarizeReviewCost(
+    params: {
       ownerUserId?: string;
-      /** 名前の一部での絞り込み */
-      search?: string;
+      /** 月を切る時間帯。getTimezoneOffset と同じ向き */
+      tzOffsetMinutes?: number;
     } & ReviewJobPeriod
-  ): Promise<ReviewJobListResult>;
+  ): Promise<ReviewCostSummary>;
   findReviewJobById(params: { reviewJobId: string }): Promise<ReviewJobDetail>;
   createReviewJob(params: ReviewJobEntity): Promise<void>;
   deleteReviewJobById(params: { reviewJobId: string }): Promise<void>;
@@ -106,8 +126,8 @@ export const makePrismaReviewJobRepository = async (
       ownerUserId?: string;
       /** 名前の一部。増えてくると一覧から探せないため */
       search?: string;
-    } & ReviewJobPeriod = {}
-  ): Promise<ReviewJobListResult> => {
+    } = {}
+  ): Promise<PaginatedResponse<ReviewJobSummary>> => {
     const {
       page = 1,
       limit = 10,
@@ -115,8 +135,6 @@ export const makePrismaReviewJobRepository = async (
       sortOrder = "desc",
       status,
       search,
-      createdFrom,
-      createdTo,
     } = params;
 
     // WHERE条件を構築
@@ -124,7 +142,6 @@ export const makePrismaReviewJobRepository = async (
       status?: string;
       userId?: string;
       name?: { contains: string };
-      createdAt?: { gte?: Date; lte?: Date };
     } = {};
     if (status) {
       whereCondition.status = status;
@@ -137,16 +154,9 @@ export const makePrismaReviewJobRepository = async (
     if (params.ownerUserId) {
       whereCondition.userId = params.ownerUserId;
     }
-    // 期間。費用は「今月いくら」を知りたいので、作った日で区切る
-    if (createdFrom || createdTo) {
-      whereCondition.createdAt = {
-        ...(createdFrom ? { gte: createdFrom } : {}),
-        ...(createdTo ? { lte: createdTo } : {}),
-      };
-    }
 
     // ページネーション用のクエリを並列実行
-    const [jobs, total, costAggregate] = await Promise.all([
+    const [jobs, total] = await Promise.all([
       client.reviewJob.findMany({
         where: whereCondition,
         // チェックリストは関連先の名前で、ドキュメントは別テーブルなので件数で。
@@ -190,11 +200,6 @@ export const makePrismaReviewJobRepository = async (
       }),
       client.reviewJob.count({
         where: whereCondition,
-      }),
-      // 費用は条件に合う全件で合計する。ページの中だけでは意味をなさない
-      client.reviewJob.aggregate({
-        where: whereCondition,
-        _sum: { totalCost: true },
       }),
     ]);
 
@@ -266,11 +271,56 @@ export const makePrismaReviewJobRepository = async (
       page,
       limit,
       totalPages,
-      costSummary: {
-        totalCost: Number(costAggregate._sum.totalCost ?? 0),
-        jobCount: total,
-      },
     };
+  };
+
+  const summarizeReviewCost = async (
+    params: { ownerUserId?: string; tzOffsetMinutes?: number } & ReviewJobPeriod
+  ): Promise<ReviewCostSummary> => {
+    const where: {
+      userId?: string;
+      createdAt?: { gte?: Date; lte?: Date };
+    } = {};
+    if (params.ownerUserId) {
+      where.userId = params.ownerUserId;
+    }
+    if (params.createdFrom || params.createdTo) {
+      where.createdAt = {
+        ...(params.createdFrom ? { gte: params.createdFrom } : {}),
+        ...(params.createdTo ? { lte: params.createdTo } : {}),
+      };
+    }
+
+    // 月ごとの集計は SQL では書きにくい（利用者の時間帯で月を切るため）ので、
+    // 費用に要る列だけを読んで手元でまとめる。読むのは1件あたり数十バイトで、
+    // 審査ジョブがこの方法で重くなるのはずっと先
+    const jobs = await client.reviewJob.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        totalCost: true,
+        totalInputTokens: true,
+        totalOutputTokens: true,
+        checkListSetId: true,
+        checkListSet: { select: { name: true } },
+      },
+    });
+
+    return summarizeCost(
+      jobs.map((job) => ({
+        id: job.id,
+        name: job.name,
+        createdAt: job.createdAt,
+        totalCost: job.totalCost === null ? null : Number(job.totalCost),
+        totalInputTokens: job.totalInputTokens,
+        totalOutputTokens: job.totalOutputTokens,
+        checkListSetId: job.checkListSetId,
+        checkListSetName: job.checkListSet.name,
+      })),
+      params.tzOffsetMinutes ?? 0
+    );
   };
 
   const findReviewJobById = async (params: {
@@ -522,6 +572,7 @@ export const makePrismaReviewJobRepository = async (
 
   return {
     findAllReviewJobs,
+    summarizeReviewCost,
     findReviewJobById,
     createReviewJob,
     deleteReviewJobById,

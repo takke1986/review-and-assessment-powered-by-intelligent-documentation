@@ -3,6 +3,7 @@ import {
   computeGlobalConcurrency,
   createReviewJob,
   getAllReviewJobs,
+  getReviewCostSummary,
   getReviewJobById,
   getReviewDocumentPresignedUrl,
   getReviewDocumentsPresignedUrl,
@@ -27,9 +28,6 @@ export const getAllReviewJobsHandler = async (
       sortOrder?: "asc" | "desc";
       status?: string;
       search?: string;
-      /** 費用を見るときの期間。ISO 8601 の日時 */
-      createdFrom?: string;
-      createdTo?: string;
     };
   }>,
   reply: FastifyReply
@@ -41,8 +39,6 @@ export const getAllReviewJobsHandler = async (
     sortOrder = "desc",
     status,
     search,
-    createdFrom,
-    createdTo,
   } = request.query;
 
   // Convert string query parameters to numbers
@@ -62,8 +58,35 @@ export const getAllReviewJobsHandler = async (
   ];
   const validSortBy = validSortFields.includes(sortBy) ? sortBy : "id";
 
-  // 受け取った日時が読めなければ、絞り込まない。
-  // 不正な日付で 0 件になるより、全件を出して気づいてもらう方がいい
+  const result = await getAllReviewJobs({
+    page: pageNum,
+    limit: limitNum,
+    sortBy: validSortBy,
+    sortOrder,
+    status,
+    search,
+    user: request.user,
+  });
+
+  reply.code(200).send({
+    success: true,
+    data: result,
+  });
+};
+
+export const getReviewCostSummaryHandler = async (
+  request: FastifyRequest<{
+    Querystring: {
+      createdFrom?: string;
+      createdTo?: string;
+      /** 月を切る時間帯。画面の getTimezoneOffset をそのまま渡す */
+      tzOffsetMinutes?: string;
+    };
+  }>,
+  reply: FastifyReply
+): Promise<void> => {
+  const { createdFrom, createdTo, tzOffsetMinutes } = request.query;
+
   const parseDate = (value?: string): Date | undefined => {
     if (!value) {
       return undefined;
@@ -72,15 +95,13 @@ export const getAllReviewJobsHandler = async (
     return Number.isNaN(parsed.getTime()) ? undefined : parsed;
   };
 
-  const result = await getAllReviewJobs({
-    page: pageNum,
-    limit: limitNum,
-    sortBy: validSortBy,
-    sortOrder,
-    status,
-    search,
+  // 読めない値なら UTC で切る。ここで落とすほどのことではない
+  const offset = Number(tzOffsetMinutes);
+
+  const result = await getReviewCostSummary({
     createdFrom: parseDate(createdFrom),
     createdTo: parseDate(createdTo),
+    tzOffsetMinutes: Number.isFinite(offset) ? offset : 0,
     user: request.user,
   });
 

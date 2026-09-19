@@ -91,7 +91,8 @@
     "settings": "プロンプト管理",
     "checklistPrompt": "チェックリストプロンプト",
     "toolConfiguration": "ツール設定",
-    "trends": "傾向"
+    "trends": "傾向",
+    "cost": "費用"
   },
   "auth": {
     "signIn": "サインイン",
@@ -423,8 +424,6 @@
       "failed": "審査に失敗しました"
     },
     "cost": "費用",
-    "costTotalLabel": "この期間の費用",
-    "costTotalDetail": "審査 {{count}} 件",
     "period": {
       "all": "全期間",
       "thisMonth": "今月",
@@ -602,5 +601,21 @@
       "exploreExamples": "サンプルを見る",
       "dontShowAgain": "今後表示しない"
     }
+  },
+  "cost": {
+    "title": "費用",
+    "description": "審査に掛かった費用の内訳です。",
+    "total": "合計",
+    "jobCount": "審査の件数",
+    "jobCountValue": "{{count}} 件",
+    "average": "1件あたり",
+    "tokens": "トークン（入力 / 出力）",
+    "byMonth": "月ごとの推移",
+    "byChecklist": "チェックリスト別",
+    "byChecklistHint": "どの審査に掛かっているかが分かると、項目数やモデルの見直しにつながります。",
+    "topJobs": "費用の高い審査",
+    "empty": "この期間に審査はありません。",
+    "loadError": "費用を読み込めませんでした",
+    "loadErrorMessage": "時間をおいて、もう一度お試しください。"
   }
 }

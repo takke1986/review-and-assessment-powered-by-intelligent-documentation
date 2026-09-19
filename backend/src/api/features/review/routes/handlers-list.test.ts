@@ -29,25 +29,7 @@ describe("getAllReviewJobsHandler", () => {
       page: 1,
       limit: 10,
       totalPages: 0,
-      costSummary: { totalCost: 0, jobCount: 0 },
     } as any);
-  });
-
-  it("passes the period through as dates", async () => {
-    const params = await call({
-      createdFrom: "2026-09-01T00:00:00.000Z",
-      createdTo: "2026-09-30T23:59:59.999Z",
-    });
-
-    expect(params?.createdFrom?.toISOString()).toBe("2026-09-01T00:00:00.000Z");
-    expect(params?.createdTo?.toISOString()).toBe("2026-09-30T23:59:59.999Z");
-  });
-
-  it("ignores a date it cannot read, rather than returning nothing", async () => {
-    const params = await call({ createdFrom: "先月", createdTo: "" });
-
-    expect(params?.createdFrom).toBeUndefined();
-    expect(params?.createdTo).toBeUndefined();
   });
 
   it("allows sorting by cost", async () => {

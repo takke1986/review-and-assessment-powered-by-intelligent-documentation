@@ -18,6 +18,7 @@ import {
 } from "./features/tool-configuration";
 import { ExamplesPage } from "./features/examples";
 import CheckFailureTrendsPage from "./features/statistics/pages/CheckFailureTrendsPage";
+import ReviewCostPage from "./features/cost/pages/ReviewCostPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ToastProvider } from "./contexts/ToastContext";
@@ -74,6 +75,7 @@ function App() {
                   <Route path="examples" element={<ExamplesPage />} />
 
                   <Route path="trends" element={<CheckFailureTrendsPage />} />
+                  <Route path="costs" element={<ReviewCostPage />} />
 
                   <Route
                     path="tool-configurations"

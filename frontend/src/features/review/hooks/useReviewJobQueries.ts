@@ -19,8 +19,7 @@ export const getReviewJobsKey = (
   sortBy?: string,
   sortOrder?: "asc" | "desc",
   status?: string,
-  search?: string,
-  createdFrom?: Date
+  search?: string
 ) => {
   const params = new URLSearchParams({
     page: page.toString(),
@@ -31,8 +30,6 @@ export const getReviewJobsKey = (
   if (status) params.append("status", status);
   // 絞り込みはサーバ側で行う。画面側で絞ると、そのページの分しか対象にならない
   if (search?.trim()) params.append("search", search.trim());
-  // 費用の合計もこの条件で数えるので、期間もサーバ側に渡す
-  if (createdFrom) params.append("createdFrom", createdFrom.toISOString());
   return `/review-jobs?${params.toString()}`;
 };
 
@@ -51,18 +48,9 @@ export function useReviewJobs(
   sortBy?: string,
   sortOrder?: "asc" | "desc",
   status?: string,
-  search?: string,
-  createdFrom?: Date
+  search?: string
 ) {
-  const url = getReviewJobsKey(
-    page,
-    limit,
-    sortBy,
-    sortOrder,
-    status,
-    search,
-    createdFrom
-  );
+  const url = getReviewJobsKey(page, limit, sortBy, sortOrder, status, search);
   const {
     data: result,
     isLoading,
@@ -79,7 +67,6 @@ export function useReviewJobs(
 
   return {
     items: result?.items ?? [],
-    costSummary: result?.costSummary,
     total: result?.total ?? 0,
     page: result?.page ?? page,
     limit: result?.limit ?? limit,

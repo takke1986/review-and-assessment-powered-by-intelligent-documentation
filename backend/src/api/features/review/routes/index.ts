@@ -4,6 +4,7 @@ import {
   deleteReviewDocumentHandler,
   deleteReviewJobHandler,
   getAllReviewJobsHandler,
+  getReviewCostSummaryHandler,
   getReviewJobByIdHandler,
   getReviewPresignedUrlHandler,
   getReviewDocumentsPresignedUrlHandler,
@@ -34,6 +35,12 @@ export function registerReviewRoutes(fastify: FastifyInstance): void {
   // ダウンロード用Presigned URL取得エンドポイント
   fastify.get("/documents/download-url", {
     handler: getDownloadPresignedUrlHandler,
+  });
+
+  // 費用の内訳。Fastify は :id より静的な区間を優先するので、
+  // cost-summary がジョブIDとして拾われることはない
+  fastify.get("/review-jobs/cost-summary", {
+    handler: getReviewCostSummaryHandler,
   });
 
   // 審査ジョブ関連

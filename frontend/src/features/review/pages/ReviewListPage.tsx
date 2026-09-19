@@ -7,8 +7,6 @@ import Button from "../../../components/Button";
 import { ReviewJobList } from "../components/ReviewJobList";
 import { useReviewJobs } from "../hooks/useReviewJobQueries";
 import { useJobCompletionNotice } from "../hooks/useJobCompletionNotice";
-import { REVIEW_PERIODS, useReviewPeriod } from "../hooks/useReviewPeriod";
-import SegmentedControl from "../../../components/SegmentedControl";
 import Pagination from "../../../components/Pagination";
 import { HiPlus, HiDocumentText } from "react-icons/hi";
 import { ErrorAlert } from "../../../components/ErrorAlert";
@@ -26,11 +24,8 @@ export const ReviewListPage: React.FC = () => {
     onSorted: () => setCurrentPage(1),
   });
 
-  const { period, setPeriod, createdFrom } = useReviewPeriod();
-
   const {
     items: reviewJobs,
-    costSummary,
     total,
     page,
     limit,
@@ -44,8 +39,7 @@ export const ReviewListPage: React.FC = () => {
     sortBy,
     sortOrder,
     undefined,
-    search,
-    createdFrom
+    search
   );
 
   // 一覧を開いたままにしておけば、どのジョブが終わっても気づける
@@ -91,38 +85,9 @@ export const ReviewListPage: React.FC = () => {
         </Button>
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+      <div className="mb-4">
         <SearchBox value={search} onChange={handleSearchChange} />
-        <SegmentedControl
-          name="review-period"
-          size="sm"
-          value={period}
-          onChange={(value) => {
-            setPeriod(value as typeof period);
-            // 期間を変えると件数が変わる。ページはいったん先頭に戻す
-            setCurrentPage(1);
-          }}
-          options={REVIEW_PERIODS.map((value) => ({
-            value,
-            label: t(`review.period.${value}`),
-          }))}
-        />
       </div>
-
-      {/* 費用は、表示中のページではなく絞り込み条件に合う全件の合計 */}
-      {costSummary && (
-        <div className="mb-4 flex flex-wrap items-baseline gap-x-3 rounded-lg border border-light-gray bg-aws-paper-light px-4 py-3">
-          <span className="text-sm text-aws-font-color-gray">
-            {t("review.costTotalLabel")}
-          </span>
-          <span className="text-xl font-bold tabular-nums text-aws-squid-ink-light">
-            ${costSummary.totalCost.toFixed(4)}
-          </span>
-          <span className="text-sm text-aws-font-color-gray">
-            {t("review.costTotalDetail", { count: costSummary.jobCount })}
-          </span>
-        </div>
-      )}
 
       {error ? (
         <ErrorAlert

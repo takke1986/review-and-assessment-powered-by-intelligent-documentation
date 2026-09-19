@@ -91,7 +91,8 @@
     "settings": "Prompt Management",
     "checklistPrompt": "Checklist Prompt",
     "toolConfiguration": "Tool Configuration",
-    "trends": "Trends"
+    "trends": "Trends",
+    "cost": "Cost"
   },
   "auth": {
     "signIn": "Sign In",
@@ -423,8 +424,6 @@
       "failed": "Review failed"
     },
     "cost": "Cost",
-    "costTotalLabel": "Cost for this period",
-    "costTotalDetail": "{{count}} reviews",
     "period": {
       "all": "All time",
       "thisMonth": "This month",
@@ -602,5 +601,21 @@
       "exploreExamples": "Explore Examples",
       "dontShowAgain": "Don't show this again"
     }
+  },
+  "cost": {
+    "title": "Cost",
+    "description": "What the reviews have cost.",
+    "total": "Total",
+    "jobCount": "Reviews",
+    "jobCountValue": "{{count}}",
+    "average": "Per review",
+    "tokens": "Tokens (in / out)",
+    "byMonth": "By month",
+    "byChecklist": "By checklist",
+    "byChecklistHint": "Knowing which reviews cost the most tells you where to trim items or change the model.",
+    "topJobs": "Most expensive reviews",
+    "empty": "There were no reviews in this period.",
+    "loadError": "Could not load the costs",
+    "loadErrorMessage": "Please try again in a moment."
   }
 }

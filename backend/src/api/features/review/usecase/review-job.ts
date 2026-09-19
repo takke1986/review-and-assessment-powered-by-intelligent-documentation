@@ -7,7 +7,7 @@ import {
 } from "../domain/model/review";
 import { PaginatedResponse } from "../../../common/types";
 import {
-  ReviewJobListResult,
+  ReviewCostSummary,
   ReviewJobRepository,
   ReviewResultRepository,
   makePrismaReviewJobRepository,
@@ -77,15 +77,12 @@ export const getAllReviewJobs = async (params: {
   status?: string;
   /** 名前の一部での絞り込み */
   search?: string;
-  /** 費用を見るときに期間で絞る */
-  createdFrom?: Date;
-  createdTo?: Date;
   // オプショナルでリクエストユーザーを受け取り、一般ユーザの場合は ownerUserId を使って絞る
   user: RequestUser;
   deps?: {
     repo?: ReviewJobRepository;
   };
-}): Promise<ReviewJobListResult> => {
+}): Promise<PaginatedResponse<ReviewJobSummary>> => {
   const repo = params.deps?.repo || (await makePrismaReviewJobRepository());
 
   // 一般ユーザの場合は自身のジョブのみ返す（管理者は全件）
@@ -99,11 +96,36 @@ export const getAllReviewJobs = async (params: {
     sortOrder: params.sortOrder,
     status: params.status,
     search: params.search,
-    createdFrom: params.createdFrom,
-    createdTo: params.createdTo,
     ownerUserId,
   });
   return result;
+};
+
+/**
+ * 費用の内訳を返す。
+ *
+ * 一般利用者には自分のジョブだけ。管理者は全体。一覧と同じ見え方に合わせる
+ */
+export const getReviewCostSummary = async (params: {
+  createdFrom?: Date;
+  createdTo?: Date;
+  /** 月を切る時間帯。getTimezoneOffset と同じ向き */
+  tzOffsetMinutes?: number;
+  user: RequestUser;
+  deps?: {
+    repo?: ReviewJobRepository;
+  };
+}): Promise<ReviewCostSummary> => {
+  const repo = params.deps?.repo || (await makePrismaReviewJobRepository());
+  const ownerUserId =
+    params.user && !params.user.isAdmin ? params.user.userId : undefined;
+
+  return repo.summarizeReviewCost({
+    createdFrom: params.createdFrom,
+    createdTo: params.createdTo,
+    tzOffsetMinutes: params.tzOffsetMinutes,
+    ownerUserId,
+  });
 };
 
 export const getReviewDocumentPresignedUrl = async (params: {
