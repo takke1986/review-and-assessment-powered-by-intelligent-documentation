@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import Button from "../../../components/Button";
 import { ReviewJobList } from "../components/ReviewJobList";
 import { useReviewJobs } from "../hooks/useReviewJobQueries";
+import { useJobCompletionNotice } from "../hooks/useJobCompletionNotice";
 import Pagination from "../../../components/Pagination";
 import { HiPlus, HiDocumentText } from "react-icons/hi";
 import { ErrorAlert } from "../../../components/ErrorAlert";
@@ -40,6 +41,9 @@ export const ReviewListPage: React.FC = () => {
     undefined,
     search
   );
+
+  // 一覧を開いたままにしておけば、どのジョブが終わっても気づける
+  useJobCompletionNotice(reviewJobs);
 
 
   // 絞り込むと件数が減るので、ページを戻さないと空のページを見ることになる

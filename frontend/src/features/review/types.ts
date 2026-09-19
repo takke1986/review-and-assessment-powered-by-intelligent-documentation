@@ -30,6 +30,11 @@ export enum REVIEW_RESULT_STATUS {
 /**
  * Review result enum
  */
+/** 審査が終わっていない（待機中か処理中の）ジョブか */
+export const isJobRunning = (status: REVIEW_JOB_STATUS) =>
+  status === REVIEW_JOB_STATUS.PENDING ||
+  status === REVIEW_JOB_STATUS.PROCESSING;
+
 export enum REVIEW_RESULT {
   PASS = "pass",
   FAIL = "fail",

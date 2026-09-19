@@ -417,6 +417,10 @@
         "userComment": "Comment"
       },
       "error": "Could not export the results"
+    },
+    "notice": {
+      "completed": "Review finished",
+      "failed": "Review failed"
     }
   },
   "fileUploader": {

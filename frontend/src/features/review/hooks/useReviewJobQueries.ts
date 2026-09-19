@@ -5,15 +5,10 @@ import type {
   ReviewJobDetail,
   GetReviewJobDetailResponse,
 } from "../types";
-import { REVIEW_JOB_STATUS } from "../types";
+import { isJobRunning } from "../types";
 
 /** 実行中のジョブを読み直す間隔 */
 export const RUNNING_JOB_REFRESH_INTERVAL_MS = 5000;
-
-/** 審査が終わっていない（待機中か処理中の）ジョブか */
-export const isJobRunning = (status: REVIEW_JOB_STATUS) =>
-  status === REVIEW_JOB_STATUS.PENDING ||
-  status === REVIEW_JOB_STATUS.PROCESSING;
 
 /**
  * 審査ジョブ一覧のキャッシュキーを生成する関数

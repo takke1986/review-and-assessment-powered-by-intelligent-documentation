@@ -2,12 +2,11 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAlert } from "../../../hooks/useAlert";
 import { useTranslation } from "react-i18next";
-import { ReviewJobSummary } from "../types";
+import { ReviewJobSummary, isJobRunning } from "../types";
 import { HiEye, HiTrash } from "react-icons/hi";
 import Table, { TableColumn, TableAction } from "../../../components/Table";
 import StatusBadge from "../../../components/StatusBadge";
 import { useDeleteReviewJob } from "../hooks/useReviewJobMutations";
-import { isJobRunning } from "../hooks/useReviewJobQueries";
 
 interface ReviewJobListProps {
   jobs: ReviewJobSummary[];

@@ -417,6 +417,10 @@
         "userComment": "コメント"
       },
       "error": "結果を書き出せませんでした"
+    },
+    "notice": {
+      "completed": "審査が終わりました",
+      "failed": "審査に失敗しました"
     }
   },
   "fileUploader": {

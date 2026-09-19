@@ -1,18 +1,16 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { mutate } from "swr";
 import { useTranslation } from "react-i18next";
 import ReviewResultTree from "../components/ReviewResultTree";
 import ReviewResultFilter from "../components/ReviewResultFilter";
 import { FilterType } from "../hooks/useReviewResultQueries";
-import {
-  isJobRunning,
-  useReviewJobDetail,
-} from "../hooks/useReviewJobQueries";
+import { useReviewJobDetail } from "../hooks/useReviewJobQueries";
+import { useJobCompletionNotice } from "../hooks/useJobCompletionNotice";
 import { ErrorAlert } from "../../../components/ErrorAlert";
 import Slider from "../../../components/Slider";
 import { DetailSkeleton } from "../../../components/Skeleton";
-import { REVIEW_JOB_STATUS } from "../types";
+import { isJobRunning, REVIEW_JOB_STATUS } from "../types";
 import Breadcrumb from "../../../components/Breadcrumb";
 import TotalReviewCostSummary from "../components/TotalReviewCostSummary";
 import Button from "../../../components/Button";
@@ -39,6 +37,9 @@ export default function ReviewDetailPage() {
     error: jobError,
     refetch: refetchJob,
   } = useReviewJobDetail(id || null);
+
+  // 開いているジョブが終わったら知らせる。別のタブに移っていても届く
+  useJobCompletionNotice(useMemo(() => (job ? [job] : []), [job]));
 
   // 実行中は、項目の審査が終わるたびに結果のツリーも読み直す。
   // 最後に親の判定がまとまるので、ジョブの状態が変わったときも読み直す
