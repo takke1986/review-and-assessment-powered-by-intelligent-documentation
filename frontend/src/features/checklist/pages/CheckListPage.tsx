@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTableSort } from "../../../hooks/useTableSort";
 import SearchBox from "../../../components/SearchBox";
 import { useLocation, useSearchParams } from "react-router-dom";
@@ -45,6 +45,9 @@ export function CheckListPage() {
   const [onboardingCompleted, setOnboardingCompleted] =
     useLocalStorage<boolean>("onboarding_completed", false);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+  // 一度出したら、閉じた後にまた条件が成立しても開かない。
+  // 「まだ1つも作っていない」の案内は、画面を開いて1回伝われば足りる
+  const onboardingShown = useRef(false);
 
   const { sortBy, sortOrder, handleSortChange } = useTableSort({
     defaultSortBy: "id",
@@ -106,7 +109,14 @@ export function CheckListPage() {
     // 画面に出ている件数で判断すると、検索で見つからないとき、並び替えや
     // ページ移動でデータが届く前の一瞬にも「0件」になり、そのたびに開く。
     // 絞り込みに左右されない総件数を使い、届いたことを確かめてから判断する
-    if (!onboardingCompleted && isLoaded && !search.trim() && total === 0) {
+    if (
+      !onboardingCompleted &&
+      !onboardingShown.current &&
+      isLoaded &&
+      !search.trim() &&
+      total === 0
+    ) {
+      onboardingShown.current = true;
       setShowOnboardingModal(true);
     }
   }, [onboardingCompleted, isLoaded, total, searchParams, search]);

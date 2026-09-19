@@ -56,8 +56,10 @@ export default function OnboardingModal({
       .join("");
   };
 
+  // 周りを押しても閉じられるようにする（dismissible の既定は true）。
+  // 読み飛ばしたい人を閉じ込めない
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="" size="xl" dismissible={false}>
+    <Modal isOpen={isOpen} onClose={handleClose} title="" size="xl">
       <div className="py-8 px-6">
         {/* Hero Section */}
         <div className="text-center mb-8">
