@@ -2,7 +2,7 @@
  * チェックリスト項目の階層構造のノードコンポーネント
  * 子要素を動的に読み込む機能を持つ
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAlert } from "../../../hooks/useAlert";
 import { publicAsset } from "../../../utils/publicAsset";
@@ -64,6 +64,15 @@ export default function CheckListItemTreeNode({
   );
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddChildModalOpen, setIsAddChildModalOpen] = useState(false);
+  // 傾向画面から「着眼点を書く」で来たときは、書く場所まで開く。
+  // 一度開いたら記録して二度と評価しない（閉じたのに開き直すのを防ぐ）
+  const openedFromTrends = useRef(false);
+  useEffect(() => {
+    if (isOpenTarget && !openedFromTrends.current) {
+      openedFromTrends.current = true;
+      setIsEditModalOpen(true);
+    }
+  }, [isOpenTarget]);
 
   const {
     deleteCheckListItem,
@@ -359,6 +368,7 @@ export default function CheckListItemTreeNode({
                   importanceFilter={importanceFilter}
                   selectedIds={selectedIds}
                   onToggleSelect={onToggleSelect}
+                  openItemId={openItemId}
                 />
               ))
             )}
