@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { HiSearch } from "react-icons/hi";
 
 /** 入力が落ち着くまで待つ時間。短すぎると打っている途中で検索が走る */
 const SETTLE_MS = 400;
@@ -9,6 +10,7 @@ interface SearchBoxProps {
   onChange: (value: string) => void;
   /** 画面側に label があるときに、htmlFor と対応させる */
   id?: string;
+  /** 置き場所ごとに幅や余白が違うので、外から渡せるようにする */
   className?: string;
 }
 
@@ -48,21 +50,28 @@ export default function SearchBox({
   }, [text, value]);
 
   return (
-    <input
-      id={id}
-      type="search"
-      value={text}
-      onChange={(event) => setText(event.target.value)}
-      onCompositionStart={() => {
-        isComposing.current = true;
-      }}
-      onCompositionEnd={(event) => {
-        isComposing.current = false;
-        setText(event.currentTarget.value);
-      }}
-      placeholder={t("common.searchPlaceholder")}
-      aria-label={t("common.search")}
-      className={`rounded-md border border-light-gray px-3 py-2 ${className}`}
-    />
+    <div className={`relative ${className}`}>
+      {/* 虫眼鏡。枠だけでは、ここが検索の欄だと分からない */}
+      <HiSearch
+        className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-aws-font-color-gray"
+        aria-hidden="true"
+      />
+      <input
+        id={id}
+        type="search"
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+        onCompositionStart={() => {
+          isComposing.current = true;
+        }}
+        onCompositionEnd={(event) => {
+          isComposing.current = false;
+          setText(event.currentTarget.value);
+        }}
+        placeholder={t("common.searchPlaceholder")}
+        aria-label={t("common.search")}
+        className="w-full rounded-full border border-light-gray bg-white py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-aws-sea-blue-light"
+      />
+    </div>
   );
 }
