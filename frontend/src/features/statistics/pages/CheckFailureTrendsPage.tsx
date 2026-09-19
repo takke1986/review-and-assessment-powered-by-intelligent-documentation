@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import SearchBox from "../../../components/SearchBox";
+import { useTableSort } from "../../../hooks/useTableSort";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useChecklistSets } from "../../checklist/hooks/useCheckListSetQueries";
@@ -46,6 +47,18 @@ const STATUS_VIEW: Record<
   },
 };
 
+/** 表の列。見出しを押すと並び替える */
+const SORTABLE_COLUMNS = [
+  { key: "name", label: "trends.item", alignRight: false },
+  { key: "status", label: "trends.status", alignRight: false },
+  { key: "action", label: "trends.action", alignRight: false },
+  { key: "failRate", label: "trends.failRate", alignRight: true },
+  { key: "failedCount", label: "trends.failed", alignRight: true },
+  { key: "reviewedCount", label: "trends.reviewed", alignRight: true },
+  { key: "averageConfidence", label: "trends.confidence", alignRight: true },
+  { key: "lastFailedAt", label: "trends.lastFailed", alignRight: false },
+] as const;
+
 export default function CheckFailureTrendsPage() {
   const { t } = useTranslation();
   const { items: sets, isLoading: isLoadingSets } = useChecklistSets(1, 100);
@@ -65,6 +78,48 @@ export default function CheckFailureTrendsPage() {
     if (!needle) return sets;
     return sets.filter((set) => set.name.toLowerCase().includes(needle));
   }, [sets, query]);
+
+  // この表はページで区切らず全件を持っているので、画面側で並べても正しい。
+  // 「すべきこと」は状態から決まるので、状態と同じ並びになる
+  const { sortBy, sortOrder, handleSortChange } = useTableSort({
+    defaultSortBy: "failRate",
+  });
+
+  const sortedItems = useMemo(() => {
+    const value = (item: CheckFailureTrendItem) => {
+      switch (sortBy) {
+        case "name":
+          return item.name;
+        case "status":
+        case "action":
+          return t(STATUS_VIEW[item.status].label);
+        case "failedCount":
+          return item.failedCount;
+        case "reviewedCount":
+          return item.reviewedCount;
+        case "averageConfidence":
+          return item.averageConfidence;
+        case "lastFailedAt":
+          return item.lastFailedAt
+            ? new Date(item.lastFailedAt).getTime()
+            : null;
+        default:
+          return item.failRate;
+      }
+    };
+    const direction = sortOrder === "asc" ? 1 : -1;
+    return [...items].sort((a, b) => {
+      const left = value(a);
+      const right = value(b);
+      // 値の無い項目は、どちら向きでも最後に置く（先頭に空欄が並ぶと見たいものが隠れる）
+      if (left === null || left === undefined) return 1;
+      if (right === null || right === undefined) return -1;
+      if (typeof left === "string" && typeof right === "string") {
+        return left.localeCompare(right) * direction;
+      }
+      return ((left as number) - (right as number)) * direction;
+    });
+  }, [items, sortBy, sortOrder, t]);
 
   const todo = useMemo(
     () =>
@@ -182,20 +237,41 @@ export default function CheckFailureTrendsPage() {
           <table className="w-full text-sm">
             <thead className="bg-aws-paper-light text-left">
               <tr>
-                <th className="px-4 py-3">{t("trends.item")}</th>
-                <th className="px-4 py-3">{t("trends.status")}</th>
-                <th className="px-4 py-3">{t("trends.action")}</th>
-                <th className="px-4 py-3 text-right">{t("trends.failRate")}</th>
-                <th className="px-4 py-3 text-right">{t("trends.failed")}</th>
-                <th className="px-4 py-3 text-right">{t("trends.reviewed")}</th>
-                <th className="px-4 py-3 text-right">
-                  {t("trends.confidence")}
-                </th>
-                <th className="px-4 py-3">{t("trends.lastFailed")}</th>
+                {SORTABLE_COLUMNS.map((column) => (
+                  <th
+                    key={column.key}
+                    scope="col"
+                    aria-sort={
+                      sortBy === column.key
+                        ? sortOrder === "asc"
+                          ? "ascending"
+                          : "descending"
+                        : undefined
+                    }
+                    className={`px-4 py-3 ${
+                      column.alignRight ? "text-right" : ""
+                    }`}>
+                    <button
+                      type="button"
+                      onClick={() => handleSortChange(column.key)}
+                      className={`flex items-center gap-1 hover:text-aws-font-color-blue ${
+                        column.alignRight ? "ml-auto" : ""
+                      }`}>
+                      {t(column.label)}
+                      <span className="text-xs text-aws-font-color-gray">
+                        {sortBy === column.key
+                          ? sortOrder === "asc"
+                            ? "▲"
+                            : "▼"
+                          : "↕"}
+                      </span>
+                    </button>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {sortedItems.map((item) => (
                 <tr key={item.checkId} className="border-t border-light-gray">
                   <td className="px-4 py-3">
                     {item.name}
