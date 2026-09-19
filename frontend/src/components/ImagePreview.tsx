@@ -146,6 +146,12 @@ export default function ImagePreview({
             <span className="text-white text-xs mt-1">{t("imagePreview.zoomView")}</span>
           </div>
         </div>
+        {/* 縮小画像だけでは何のファイルか分からないので、名前も出す */}
+        <p
+          className="mt-1 max-w-full truncate text-sm text-aws-squid-ink-light"
+          title={filename}>
+          {filename}
+        </p>
       </div>
 
       {isModalOpen && (
