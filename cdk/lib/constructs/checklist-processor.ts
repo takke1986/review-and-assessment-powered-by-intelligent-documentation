@@ -148,6 +148,35 @@ export class ChecklistProcessor extends Construct {
       },
     );
 
+    // Office ファイルをテキストにする Lambda。
+    //
+    // 変換器は review-item-processor（Python）にあるので、そこを土台に
+    // 作る。同じものを TypeScript でもう一度書くと、同じ Excel が審査と
+    // チェックリストとで違って見えることになる。
+    // エージェント本体とは別のイメージで、uv も Node も積んでいない
+    const officeConverterLambda = new lambda.DockerImageFunction(
+      this,
+      "OfficeConverterFunction",
+      {
+        code: lambda.DockerImageCode.fromImageAsset(
+          path.join(__dirname, "../../../review-item-processor/"),
+          {
+            file: "Dockerfile.office-converter",
+            platform: Platform.LINUX_ARM64,
+          },
+        ),
+        // XML を展開して読むので、大きなブックでも収まるようにしておく
+        memorySize: 2048,
+        timeout: cdk.Duration.minutes(5),
+        architecture: cdk.aws_lambda.Architecture.ARM_64,
+        environment: {
+          DOCUMENT_BUCKET: props.documentBucket.bucketName,
+        },
+      },
+    );
+    // 元のファイルを読み、変換したページを書き戻す
+    props.documentBucket.grantReadWrite(officeConverterLambda);
+
     // Lambda関数にS3バケットへのアクセス権限を付与
     props.documentBucket.grantReadWrite(this.documentLambda);
 
@@ -181,6 +210,21 @@ export class ChecklistProcessor extends Construct {
       },
     );
 
+    // Office ファイルをテキストにする。結果は ProcessDocument と同じ場所に
+    // 置き、後段からは PDF と同じに見えるようにする
+    const convertOfficeTask = new tasks.LambdaInvoke(
+      this,
+      "ConvertOfficeDocument",
+      {
+        lambdaFunction: officeConverterLambda,
+        payload: sfn.TaskInput.fromObject({
+          documentId: sfn.JsonPath.stringAt("$.documentId"),
+          fileName: sfn.JsonPath.stringAt("$.fileName"),
+        }),
+        resultPath: "$.processingResult",
+      },
+    );
+
     // LLM処理用のLambda Invoke Task
     const processWithLLMTask = new tasks.LambdaInvoke(this, "ProcessWithLLM", {
       lambdaFunction: this.documentLambda,
@@ -189,6 +233,7 @@ export class ChecklistProcessor extends Construct {
         documentId: sfn.JsonPath.stringAt("$.documentId"),
         pageNumber: sfn.JsonPath.stringAt("$.pageNumber"),
         userId: sfn.JsonPath.stringAt("$.userId"), // Pass userId from the input (was $$.Execution.Input.userId)
+        pageFormat: sfn.JsonPath.stringAt("$.pageFormat"),
       }),
       payloadResponseOnly: true,
       outputPath: "$",
@@ -251,6 +296,10 @@ export class ChecklistProcessor extends Construct {
           "$.processingResult.Payload.documentId",
         ),
         userId: sfn.JsonPath.stringAt("$.userId"), // Pass userId from the input
+        // PDF か、Office から起こしたテキストか
+        pageFormat: sfn.JsonPath.stringAt(
+          "$.processingResult.Payload.pageFormat",
+        ),
       },
       // resultSelector は Map の結果に対して適用されるので、ここでは不要です
     });
@@ -308,8 +357,19 @@ export class ChecklistProcessor extends Construct {
       },
     );
 
+    // Office ファイルだけ変換を挟む。PDF はこれまでどおり
+    const needsConversionChoice = new sfn.Choice(this, "NeedsOfficeConversion")
+      .when(
+        sfn.Condition.booleanEquals(
+          "$.processingResult.Payload.needsOfficeConversion",
+          true,
+        ),
+        convertOfficeTask.next(inlineMapState),
+      )
+      .otherwise(inlineMapState);
+
     // ワークフロー定義
-    const definition = documentProcessorTask.next(inlineMapState);
+    const definition = documentProcessorTask.next(needsConversionChoice);
 
     // 各処理パスから結合タスクへの接続
     inlineMapState.next(aggregateResultTask);
@@ -321,6 +381,11 @@ export class ChecklistProcessor extends Construct {
 
     // エラーハンドリングの設定
     documentProcessorTask.addCatch(handleErrorTask, {
+      resultPath: "$.error",
+    });
+    // 読めない Excel（保護されている、壊れている）もここに来る。
+    // 握りつぶすと0件のチェックリストができてしまう
+    convertOfficeTask.addCatch(handleErrorTask, {
       resultPath: "$.error",
     });
     aggregateResultTask.addCatch(handleErrorTask, {

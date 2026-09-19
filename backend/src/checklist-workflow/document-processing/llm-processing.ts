@@ -106,10 +106,20 @@ Extract checklists from the input document in the format above and return as a J
 `;
 };
 
+/**
+ * ページの持ち方。
+ *
+ * PDF は画像として読ませる必要があるので document ブロックで渡す。
+ * Office ファイルは中身が XML なので、変換済みのテキストをそのまま渡す
+ */
+export type ChecklistPageFormat = "pdf" | "md";
+
 export interface ProcessWithLLMParams {
   documentId: string;
   pageNumber: number;
   userId?: string; // Optional user ID for language preference
+  /** 省略時は PDF。この分岐より前に作られたジョブも動くようにしている */
+  pageFormat?: ChecklistPageFormat;
 }
 
 /**
@@ -121,6 +131,7 @@ export async function processWithLLM({
   documentId,
   pageNumber,
   userId,
+  pageFormat = "pdf",
 }: ProcessWithLLMParams): Promise<ProcessWithLLMResult> {
   const s3Client = new S3Client({});
   const bedrockClient = new BedrockRuntimeClient({ region: BEDROCK_REGION });
@@ -162,9 +173,8 @@ export async function processWithLLM({
     );
   }
 
-  // Get PDF page
-  const pageKey = getChecklistPageKey(documentId, pageNumber, "pdf");
-  console.log(`Getting PDF page: ${pageKey}`);
+  const pageKey = getChecklistPageKey(documentId, pageNumber, pageFormat);
+  console.log(`Getting page: ${pageKey}`);
   const { Body } = await s3Client.send(
     new GetObjectCommand({
       Bucket: bucketName,
@@ -176,10 +186,17 @@ export async function processWithLLM({
     throw new Error(`Page not found: ${pageKey}`);
   }
 
-  // Get PDF as byte array
-  console.log(`Getting PDF as byte array: ${pageKey}`);
-  const pdfBytes = await Body.transformToByteArray();
-  console.log(`PDF byte array acquired: ${pdfBytes.length} bytes`);
+  // PDF は画像として読ませるのでバイト列のまま、Office 由来のページは
+  // 変換済みのテキストなのでそのまま渡す
+  const pdfBytes =
+    pageFormat === "pdf" ? await Body.transformToByteArray() : undefined;
+  const pageText =
+    pageFormat === "pdf" ? undefined : await Body.transformToString("utf-8");
+  console.log(
+    pdfBytes
+      ? `PDF byte array acquired: ${pdfBytes.length} bytes`
+      : `Page text acquired: ${pageText?.length} characters`
+  );
 
   console.log(
     `Requesting checklist extraction from LLM: ${documentId}, page number: ${pageNumber}`
@@ -190,7 +207,7 @@ export async function processWithLLM({
     `[DEBUG] Final language used for checklist extraction: ${userLanguage}`
   );
   console.log(`[DEBUG] Using model: ${MODEL_ID}`);
-  console.log(`[DEBUG] PDF size: ${pdfBytes.length} bytes`);
+  console.log(`[DEBUG] Page size: ${pdfBytes?.length ?? pageText?.length} ${pageFormat === "pdf" ? "bytes" : "characters"}`);
 
   const checklistExtractionPrompt = getChecklistExtractionPrompt(userLanguage);
 
@@ -204,6 +221,27 @@ export async function processWithLLM({
     `[DEBUG] Citations enabled: ${citationsConfig.enabled} (Nova model: ${isNovaModel})`
   );
 
+  /**
+   * ページをモデルに渡す形にする。
+   *
+   * PDF は document ブロック、Office 由来のページはテキスト。
+   * 初回と再試行で違う形になると、片方だけ直したときに気づけないので、
+   * ここ1か所で作る
+   */
+  const pageContent = (): any[] =>
+    pdfBytes
+      ? [
+          {
+            document: {
+              name: "ChecklistDocument",
+              format: "pdf",
+              source: { bytes: pdfBytes },
+              citations: citationsConfig,
+            },
+          },
+        ]
+      : [{ text: pageText ?? "" }];
+
   let response: any;
 
   try {
@@ -213,19 +251,7 @@ export async function processWithLLM({
         messages: [
           {
             role: "user",
-            content: [
-              { text: checklistExtractionPrompt },
-              {
-                document: {
-                  name: "ChecklistDocument",
-                  format: "pdf",
-                  source: {
-                    bytes: pdfBytes, // Actual PDF binary data
-                  },
-                  citations: citationsConfig,
-                },
-              },
-            ],
+            content: [{ text: checklistExtractionPrompt }, ...pageContent()],
           },
         ],
         // additionalModelRequestFields: {
@@ -245,7 +271,7 @@ export async function processWithLLM({
   } catch (error: any) {
     console.error(`[ERROR] Bedrock API call failed:`, error);
     console.error(`[ERROR] Model ID: ${MODEL_ID}`);
-    console.error(`[ERROR] PDF size: ${pdfBytes.length} bytes`);
+    console.error(`[ERROR] Page size: ${pdfBytes?.length ?? pageText?.length}`);
     console.error(`[ERROR] Citations enabled: ${citationsConfig.enabled}`);
     console.error(
       `[ERROR] Error type: ${error?.constructor?.name || "Unknown"}`
@@ -315,18 +341,9 @@ export async function processWithLLM({
               role: "user",
               content: [
                 {
-                  text: `${checklistExtractionPrompt}\n\nThe previous output could not be parsed as JSON. Error: ${errorMessage}\n\nPlease output in strict JSON array format.\n\nThis is page ${pageNumber} of the PDF file. Please extract the checklist.`,
+                  text: `${checklistExtractionPrompt}\n\nThe previous output could not be parsed as JSON. Error: ${errorMessage}\n\nPlease output in strict JSON array format.\n\nThis is part ${pageNumber} of the file. Please extract the checklist.`,
                 },
-                {
-                  document: {
-                    name: "ChecklistDocument",
-                    format: "pdf",
-                    source: {
-                      bytes: pdfBytes, // 実際のPDFバイナリデータ
-                    },
-                    citations: citationsConfig, // Use same citations config as initial request
-                  },
-                },
+                ...pageContent(),
               ],
             },
           ],

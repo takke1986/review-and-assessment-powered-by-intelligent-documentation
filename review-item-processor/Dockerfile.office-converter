@@ -1,0 +1,17 @@
+# チェックリスト取り込み用の Office → テキスト変換 Lambda。
+#
+# ビルドの土台をこのディレクトリにしているのは、office_documents/ を
+# ここから読むため。同じ変換器を審査とチェックリストの両方で使い、
+# 同じファイルが経路によって違って見えないようにしている。
+#
+# エージェント本体（Dockerfile）とは別物で、uv も Node も要らない。
+# 必要なのは標準ライブラリと Pillow だけなので、イメージは小さく保つ。
+FROM --platform=linux/arm64 public.ecr.aws/lambda/python:3.13
+
+# office_documents が画像の取り出しに使う。版はエージェント側の uv.lock に合わせる
+RUN pip install --no-cache-dir "pillow==11.3.0"
+
+COPY office_documents ${LAMBDA_TASK_ROOT}/office_documents
+COPY checklist_office_converter.py ${LAMBDA_TASK_ROOT}/
+
+CMD ["checklist_office_converter.handler"]

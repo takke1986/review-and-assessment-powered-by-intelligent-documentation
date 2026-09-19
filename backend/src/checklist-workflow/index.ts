@@ -48,6 +48,7 @@ async function handleProcessWithLLM(event: any) {
     documentId: event.documentId,
     pageNumber: event.pageNumber,
     userId: event.userId,
+    pageFormat: event.pageFormat,
   });
 }
 

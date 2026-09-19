@@ -260,8 +260,16 @@ export function CreateChecklistPage() {
             multiple={false}
             uploadedDocuments={uploadedDocuments || []}
             onDeleteFile={handleFileRemove}
+            /* Office ファイルは中身が XML なので、画像にせずそのまま
+               テキストにできる。表の値も数式も欠けない */
             acceptedFileTypes={{
-              'application/pdf': ['.pdf']
+              "application/pdf": [".pdf"],
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+                [".xlsx"],
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                [".docx"],
+              "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+                [".pptx"],
             }}
           />
 
