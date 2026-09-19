@@ -421,6 +421,14 @@
     "notice": {
       "completed": "Review finished",
       "failed": "Review failed"
+    },
+    "cost": "Cost",
+    "costTotalLabel": "Cost for this period",
+    "costTotalDetail": "{{count}} reviews",
+    "period": {
+      "all": "All time",
+      "thisMonth": "This month",
+      "last30Days": "Last 30 days"
     }
   },
   "fileUploader": {

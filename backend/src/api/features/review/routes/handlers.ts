@@ -27,6 +27,9 @@ export const getAllReviewJobsHandler = async (
       sortOrder?: "asc" | "desc";
       status?: string;
       search?: string;
+      /** 費用を見るときの期間。ISO 8601 の日時 */
+      createdFrom?: string;
+      createdTo?: string;
     };
   }>,
   reply: FastifyReply
@@ -38,6 +41,8 @@ export const getAllReviewJobsHandler = async (
     sortOrder = "desc",
     status,
     search,
+    createdFrom,
+    createdTo,
   } = request.query;
 
   // Convert string query parameters to numbers
@@ -53,8 +58,19 @@ export const getAllReviewJobsHandler = async (
     "createdAt",
     "status",
     "checkListSet",
+    "totalCost",
   ];
   const validSortBy = validSortFields.includes(sortBy) ? sortBy : "id";
+
+  // 受け取った日時が読めなければ、絞り込まない。
+  // 不正な日付で 0 件になるより、全件を出して気づいてもらう方がいい
+  const parseDate = (value?: string): Date | undefined => {
+    if (!value) {
+      return undefined;
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+  };
 
   const result = await getAllReviewJobs({
     page: pageNum,
@@ -63,6 +79,8 @@ export const getAllReviewJobsHandler = async (
     sortOrder,
     status,
     search,
+    createdFrom: parseDate(createdFrom),
+    createdTo: parseDate(createdTo),
     user: request.user,
   });
 

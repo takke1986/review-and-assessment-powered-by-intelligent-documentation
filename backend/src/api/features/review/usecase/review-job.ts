@@ -7,6 +7,7 @@ import {
 } from "../domain/model/review";
 import { PaginatedResponse } from "../../../common/types";
 import {
+  ReviewJobListResult,
   ReviewJobRepository,
   ReviewResultRepository,
   makePrismaReviewJobRepository,
@@ -76,12 +77,15 @@ export const getAllReviewJobs = async (params: {
   status?: string;
   /** 名前の一部での絞り込み */
   search?: string;
+  /** 費用を見るときに期間で絞る */
+  createdFrom?: Date;
+  createdTo?: Date;
   // オプショナルでリクエストユーザーを受け取り、一般ユーザの場合は ownerUserId を使って絞る
   user: RequestUser;
   deps?: {
     repo?: ReviewJobRepository;
   };
-}): Promise<PaginatedResponse<ReviewJobSummary>> => {
+}): Promise<ReviewJobListResult> => {
   const repo = params.deps?.repo || (await makePrismaReviewJobRepository());
 
   // 一般ユーザの場合は自身のジョブのみ返す（管理者は全件）
@@ -95,6 +99,8 @@ export const getAllReviewJobs = async (params: {
     sortOrder: params.sortOrder,
     status: params.status,
     search: params.search,
+    createdFrom: params.createdFrom,
+    createdTo: params.createdTo,
     ownerUserId,
   });
   return result;

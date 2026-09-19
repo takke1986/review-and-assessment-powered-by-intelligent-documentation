@@ -150,6 +150,17 @@ export const ReviewJobList: React.FC<ReviewJobListProps> = ({
       ),
     },
     {
+      key: "totalCost",
+      header: t("review.cost"),
+      sortable: true,
+      render: (job) => (
+        <div className="text-right text-sm tabular-nums text-aws-font-color-gray">
+          {/* 実行中や失敗したジョブには費用が入っていない */}
+          {job.totalCost === undefined ? "-" : `$${job.totalCost.toFixed(4)}`}
+        </div>
+      ),
+    },
+    {
       key: "createdAt",
       header: t("review.createdAt"),
       sortable: true,

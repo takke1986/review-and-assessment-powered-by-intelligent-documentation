@@ -119,6 +119,14 @@ export type GetAllReviewJobsResponse = ApiResponse<{
   page: number;
   limit: number;
   totalPages: number;
+  /**
+   * 絞り込み条件に合うジョブ全体の費用。表示中のページの合計ではない。
+   * 「今月いくら使ったか」に答えるには、ページの外まで数える必要がある
+   */
+  costSummary?: {
+    totalCost: number;
+    jobCount: number;
+  };
 }>;
 
 /**
@@ -243,6 +251,8 @@ export interface ReviewJobSummary {
   updatedAt: Date;
   completedAt?: Date;
   userId?: string;
+  /** 実行中や失敗したジョブには入らない */
+  totalCost?: number;
   documents: Array<{
     id: string;
     filename: string;

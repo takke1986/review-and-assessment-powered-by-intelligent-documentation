@@ -421,6 +421,14 @@
     "notice": {
       "completed": "審査が終わりました",
       "failed": "審査に失敗しました"
+    },
+    "cost": "費用",
+    "costTotalLabel": "この期間の費用",
+    "costTotalDetail": "審査 {{count}} 件",
+    "period": {
+      "all": "全期間",
+      "thisMonth": "今月",
+      "last30Days": "過去30日"
     }
   },
   "fileUploader": {

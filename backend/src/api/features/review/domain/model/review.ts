@@ -104,6 +104,8 @@ export interface ReviewJobSummary {
   updatedAt: Date;
   completedAt?: Date;
   userId?: string;
+  /** 実行中や失敗したジョブには入らない */
+  totalCost?: number;
   documents: Array<{
     id: string;
     filename: string;

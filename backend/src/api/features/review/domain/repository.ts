@@ -22,18 +22,41 @@ import {
 import { countCheckItems } from "./service/check-item-selection";
 import { countReviewProgress } from "./service/review-progress";
 
+/** 期間で絞るための条件。片側だけの指定もできる */
+export interface ReviewJobPeriod {
+  createdFrom?: Date;
+  createdTo?: Date;
+}
+
+/**
+ * 一覧に、絞り込み条件に合うジョブ全体の費用を添えたもの。
+ *
+ * ページの合計では「今月いくら使ったか」に答えられない。知りたいのは
+ * 表示中の10件ではなく、条件に合うすべてなので、集計は別に行う
+ */
+export type ReviewJobListResult = PaginatedResponse<ReviewJobSummary> & {
+  costSummary: {
+    /** 条件に合うジョブの費用の合計。費用が未記録のジョブは 0 として扱う */
+    totalCost: number;
+    /** 合計の対象になったジョブの数 */
+    jobCount: number;
+  };
+};
+
 export interface ReviewJobRepository {
-  findAllReviewJobs(params?: {
-    page?: number;
-    limit?: number;
-    sortBy?: string;
-    sortOrder?: "asc" | "desc";
-    status?: string;
-    // ownerUserId が指定された場合、そのユーザのジョブのみ返す（管理者は未指定）
-    ownerUserId?: string;
-    /** 名前の一部での絞り込み */
-    search?: string;
-  }): Promise<PaginatedResponse<ReviewJobSummary>>;
+  findAllReviewJobs(
+    params?: {
+      page?: number;
+      limit?: number;
+      sortBy?: string;
+      sortOrder?: "asc" | "desc";
+      status?: string;
+      // ownerUserId が指定された場合、そのユーザのジョブのみ返す（管理者は未指定）
+      ownerUserId?: string;
+      /** 名前の一部での絞り込み */
+      search?: string;
+    } & ReviewJobPeriod
+  ): Promise<ReviewJobListResult>;
   findReviewJobById(params: { reviewJobId: string }): Promise<ReviewJobDetail>;
   createReviewJob(params: ReviewJobEntity): Promise<void>;
   deleteReviewJobById(params: { reviewJobId: string }): Promise<void>;
@@ -83,8 +106,8 @@ export const makePrismaReviewJobRepository = async (
       ownerUserId?: string;
       /** 名前の一部。増えてくると一覧から探せないため */
       search?: string;
-    } = {}
-  ): Promise<PaginatedResponse<ReviewJobSummary>> => {
+    } & ReviewJobPeriod = {}
+  ): Promise<ReviewJobListResult> => {
     const {
       page = 1,
       limit = 10,
@@ -92,6 +115,8 @@ export const makePrismaReviewJobRepository = async (
       sortOrder = "desc",
       status,
       search,
+      createdFrom,
+      createdTo,
     } = params;
 
     // WHERE条件を構築
@@ -99,6 +124,7 @@ export const makePrismaReviewJobRepository = async (
       status?: string;
       userId?: string;
       name?: { contains: string };
+      createdAt?: { gte?: Date; lte?: Date };
     } = {};
     if (status) {
       whereCondition.status = status;
@@ -111,9 +137,16 @@ export const makePrismaReviewJobRepository = async (
     if (params.ownerUserId) {
       whereCondition.userId = params.ownerUserId;
     }
+    // 期間。費用は「今月いくら」を知りたいので、作った日で区切る
+    if (createdFrom || createdTo) {
+      whereCondition.createdAt = {
+        ...(createdFrom ? { gte: createdFrom } : {}),
+        ...(createdTo ? { lte: createdTo } : {}),
+      };
+    }
 
     // ページネーション用のクエリを並列実行
-    const [jobs, total] = await Promise.all([
+    const [jobs, total, costAggregate] = await Promise.all([
       client.reviewJob.findMany({
         where: whereCondition,
         // チェックリストは関連先の名前で、ドキュメントは別テーブルなので件数で。
@@ -158,6 +191,11 @@ export const makePrismaReviewJobRepository = async (
       client.reviewJob.count({
         where: whereCondition,
       }),
+      // 費用は条件に合う全件で合計する。ページの中だけでは意味をなさない
+      client.reviewJob.aggregate({
+        where: whereCondition,
+        _sum: { totalCost: true },
+      }),
     ]);
 
     // 項目を選んで作ったジョブを見分けるため、チェックリストの項目を読む
@@ -191,6 +229,8 @@ export const makePrismaReviewJobRepository = async (
         updatedAt: job.updatedAt,
         completedAt: job.completedAt || undefined,
         userId: job.userId || undefined,
+        // 実行中や失敗したジョブには費用が入っていない
+        totalCost: job.totalCost ? Number(job.totalCost) : undefined,
         documents: job.documents.map((doc) => ({
           id: doc.id,
           filename: doc.filename,
@@ -226,6 +266,10 @@ export const makePrismaReviewJobRepository = async (
       page,
       limit,
       totalPages,
+      costSummary: {
+        totalCost: Number(costAggregate._sum.totalCost ?? 0),
+        jobCount: total,
+      },
     };
   };
 
