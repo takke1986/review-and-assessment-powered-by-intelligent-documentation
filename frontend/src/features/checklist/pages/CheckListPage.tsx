@@ -58,6 +58,7 @@ export function CheckListPage() {
     limit,
     totalPages,
     isLoading,
+    isLoaded,
     error,
     refetch,
   } = useChecklistSets(
