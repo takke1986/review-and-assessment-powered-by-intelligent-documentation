@@ -69,9 +69,11 @@ def test_page_keys_match_the_workflow():
     )
 
 
-def test_converts_a_real_workbook_end_to_end(tmp_path):
+def test_converts_a_real_workbook_end_to_end(tmp_path, monkeypatch):
     """実際の xlsx を通して、変換・分割・S3 への書き込みまでを見る"""
     from tests.test_office_documents import workbook_parts, write_package
+
+    monkeypatch.setenv("DOCUMENT_BUCKET", "bucket")
 
     path = write_package(tmp_path, "見積.xlsx", workbook_parts())
     written: dict[str, bytes] = {}
@@ -95,7 +97,9 @@ def test_converts_a_real_workbook_end_to_end(tmp_path):
         )
 
     assert result["pageFormat"] == "md"
-    assert result["pageCount"] == len(written) >= 1
+    assert result["pageCount"] >= 1
+    # 返したページ数と、実際に書いた数が合っている
+    assert result["pageCount"] == len(written)
     assert result["pages"][0] == {"pageNumber": 1}
 
     first = written["checklist/pages/doc-1/page_1.md"].decode("utf-8")
