@@ -13,6 +13,13 @@ export interface GetPromptTemplatesRequest {
   Params: {
     type: string;
   };
+  Querystring: {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: "asc" | "desc";
+    search?: string;
+  };
 }
 
 export interface GetPromptTemplateByIdRequest {
@@ -64,15 +71,39 @@ export const getPromptTemplatesHandler = async (
     return;
   }
 
-  const templates = await getPromptTemplates({
+  const {
+    page = 1,
+    limit = 10,
+    sortBy = "updatedAt",
+    sortOrder = "desc",
+    search,
+  } = request.query;
+
+  const pageNum = typeof page === "string" ? parseInt(page, 10) : page;
+  const limitNum = typeof limit === "string" ? parseInt(limit, 10) : limit;
+
+  const validSortFields = ["name", "description", "createdAt", "updatedAt"];
+  const validSortBy = validSortFields.includes(sortBy) ? sortBy : "updatedAt";
+
+  const result = await getPromptTemplates({
     userId,
     type: type as PromptTemplateType,
+    page: pageNum,
+    limit: limitNum,
+    sortBy: validSortBy,
+    sortOrder,
+    search,
   });
 
   reply.code(200).send({
     success: true,
     data: {
-      templates,
+      // これまでの呼び出し側が templates で受けているので、名前は変えない
+      templates: result.items,
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      totalPages: result.totalPages,
     },
   });
 };

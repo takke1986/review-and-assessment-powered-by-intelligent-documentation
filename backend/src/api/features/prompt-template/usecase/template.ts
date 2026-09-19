@@ -9,17 +9,30 @@ import {
 } from "../domain/repository";
 import { NotFoundError } from "../../../core/errors";
 import { getChecklistExtractionPrompt } from "../../../../checklist-workflow/document-processing/llm-processing";
+import { PaginatedResponse } from "../../../common/types";
 
 export const getPromptTemplates = async (params: {
   userId: string;
   type: PromptTemplateType;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+  /** 名前の一部での絞り込み */
+  search?: string;
   deps?: {
     repo?: PromptTemplateRepository;
   };
-}): Promise<PromptTemplateEntity[]> => {
+}): Promise<PaginatedResponse<PromptTemplateEntity>> => {
   const repo =
     params.deps?.repo || (await makePrismaPromptTemplateRepository());
-  return repo.getPromptTemplates(params.userId, params.type);
+  return repo.getPromptTemplates(params.userId, params.type, {
+    page: params.page,
+    limit: params.limit,
+    sortBy: params.sortBy,
+    sortOrder: params.sortOrder,
+    search: params.search,
+  });
 };
 
 export const getPromptTemplateById = async (params: {

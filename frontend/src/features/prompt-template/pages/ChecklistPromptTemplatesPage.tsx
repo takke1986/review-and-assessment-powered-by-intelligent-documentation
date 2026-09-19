@@ -1,4 +1,7 @@
 import React, { useState } from "react";
+import SearchBox from "../../../components/SearchBox";
+import Pagination from "../../../components/Pagination";
+import { useTableSort } from "../../../hooks/useTableSort";
 import { useTranslation } from "react-i18next";
 import { PromptTemplateList } from "../components/PromptTemplateList";
 import { PromptTemplateEditor } from "../components/PromptTemplateEditor";
@@ -21,9 +24,28 @@ import {
 
 export const ChecklistPromptTemplatesPage: React.FC = () => {
   const { t } = useTranslation();
-  const { templates, isLoading, refetch } = usePromptTemplates(
-    PromptTemplateType.CHECKLIST
-  );
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [search, setSearch] = useState("");
+  const { sortBy, sortOrder, handleSortChange } = useTableSort({
+    defaultSortBy: "updatedAt",
+    onSorted: () => setCurrentPage(1),
+  });
+
+  const { templates, total, totalPages, isLoading, refetch } =
+    usePromptTemplates(PromptTemplateType.CHECKLIST, {
+      page: currentPage,
+      limit: itemsPerPage,
+      sortBy,
+      sortOrder,
+      search,
+    });
+
+  // 絞り込むと件数が減るので、ページを戻さないと空のページを見ることになる
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setCurrentPage(1);
+  };
   const { createTemplate } = useCreatePromptTemplate();
   const { updateTemplate } = useUpdatePromptTemplate();
   const { deleteTemplate } = useDeletePromptTemplate();
@@ -144,6 +166,10 @@ export const ChecklistPromptTemplatesPage: React.FC = () => {
         </Button>
       </div>
 
+      <div className="mb-4">
+        <SearchBox value={search} onChange={handleSearchChange} />
+      </div>
+
       <PromptTemplateList
         templates={templates}
         onEdit={handleEdit}
@@ -151,7 +177,21 @@ export const ChecklistPromptTemplatesPage: React.FC = () => {
         onSetDefault={() => {}}
         onCreateNew={handleCreateNew}
         isLoading={isLoading}
+        emptyMessage={search.trim() ? t("common.noMatch") : undefined}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={handleSortChange}
       />
+
+      {totalPages > 1 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={total}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
+      )}
 
       {/* エディターモーダル */}
       {isEditorOpen && (

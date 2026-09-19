@@ -31,6 +31,10 @@ export interface UpdatePromptTemplateRequest {
 
 export type GetPromptTemplatesResponse = ApiResponse<{
   templates: PromptTemplate[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }>;
 
 export type GetPromptTemplateResponse = ApiResponse<{

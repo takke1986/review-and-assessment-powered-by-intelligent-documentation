@@ -1,12 +1,20 @@
 import { PrismaClient, getPrismaClient } from "../../../core/db";
+import { PaginatedResponse } from "../../../common/types";
 import { NotFoundError } from "../../../core/errors";
 import { PromptTemplateEntity, PromptTemplateType } from "./model/template";
 
 export interface PromptTemplateRepository {
   getPromptTemplates(
     userId: string,
-    type: PromptTemplateType
-  ): Promise<PromptTemplateEntity[]>;
+    type: PromptTemplateType,
+    params?: {
+      page?: number;
+      limit?: number;
+      sortBy?: string;
+      sortOrder?: "asc" | "desc";
+      search?: string;
+    }
+  ): Promise<PaginatedResponse<PromptTemplateEntity>>;
   getPromptTemplateById(id: string): Promise<PromptTemplateEntity>;
   createPromptTemplate(template: PromptTemplateEntity): Promise<void>;
   updatePromptTemplate(template: PromptTemplateEntity): Promise<void>;
@@ -20,17 +28,42 @@ export const makePrismaPromptTemplateRepository = async (
 
   const getPromptTemplates = async (
     userId: string,
-    type: PromptTemplateType
-  ): Promise<PromptTemplateEntity[]> => {
-    const templates = await client.promptTemplate.findMany({
-      where: {
-        userId,
-        type,
-      },
-      orderBy: [{ updatedAt: "desc" }],
-    });
+    type: PromptTemplateType,
+    params: {
+      page?: number;
+      limit?: number;
+      sortBy?: string;
+      sortOrder?: "asc" | "desc";
+      /** 名前の一部。増えてくると一覧から探せないため */
+      search?: string;
+    } = {}
+  ): Promise<PaginatedResponse<PromptTemplateEntity>> => {
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = "updatedAt",
+      sortOrder = "desc",
+      search,
+    } = params;
 
-    return templates.map((template) => ({
+    const needle = search?.trim();
+    const where = {
+      userId,
+      type,
+      ...(needle ? { name: { contains: needle } } : {}),
+    };
+
+    const [templates, total] = await Promise.all([
+      client.promptTemplate.findMany({
+        where,
+        orderBy: { [sortBy]: sortOrder },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      client.promptTemplate.count({ where }),
+    ]);
+
+    const items = templates.map((template) => ({
       id: template.id,
       userId: template.userId,
       name: template.name,
@@ -40,6 +73,14 @@ export const makePrismaPromptTemplateRepository = async (
       createdAt: template.createdAt,
       updatedAt: template.updatedAt,
     }));
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   };
 
   const getPromptTemplateById = async (

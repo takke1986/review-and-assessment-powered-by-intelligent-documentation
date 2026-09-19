@@ -40,9 +40,11 @@ export function CreateChecklistPage() {
     string | undefined
   >(undefined);
 
-  // プロンプトテンプレートを取得
+  // プロンプトテンプレートを取得。ここは一覧ではなく選択肢なので、
+  // ページで区切らず全部から選べるようにする
   const { templates, isLoading: isLoadingTemplates } = usePromptTemplates(
-    PromptTemplateType.CHECKLIST
+    PromptTemplateType.CHECKLIST,
+    { limit: 200 }
   );
 
   const {

@@ -12,6 +12,12 @@ interface PromptTemplateListProps {
   onSetDefault: (template: PromptTemplate) => void;
   onCreateNew: () => void;
   isLoading: boolean;
+  /** 0件のときの文言。検索中は「無い」ではなく「見つからない」を出したい */
+  emptyMessage?: string;
+  /** 並び替え。サーバ側で並べるので状態は画面が持つ */
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+  onSortChange?: (key: string) => void;
 }
 
 export const PromptTemplateList: React.FC<PromptTemplateListProps> = ({
@@ -21,6 +27,10 @@ export const PromptTemplateList: React.FC<PromptTemplateListProps> = ({
   onSetDefault,
   onCreateNew,
   isLoading,
+  emptyMessage,
+  sortBy,
+  sortOrder,
+  onSortChange,
 }) => {
   const { t } = useTranslation();
   // Define columns
@@ -28,6 +38,7 @@ export const PromptTemplateList: React.FC<PromptTemplateListProps> = ({
     {
       key: "name",
       header: t("promptTemplate.name"),
+      sortable: true,
       render: (template) => (
         <div className="text-sm font-medium text-aws-squid-ink-light dark:text-aws-font-color-white-dark">
           {template.name}
@@ -46,6 +57,7 @@ export const PromptTemplateList: React.FC<PromptTemplateListProps> = ({
     {
       key: "description",
       header: t("promptTemplate.description"),
+      sortable: true,
       render: (template) => (
         <div
           className="max-w-xs truncate text-sm text-aws-font-color-gray"
@@ -57,6 +69,7 @@ export const PromptTemplateList: React.FC<PromptTemplateListProps> = ({
     {
       key: "updatedAt",
       header: t("promptTemplate.updatedAt"),
+      sortable: true,
       render: (template) => (
         <div className="text-sm text-aws-font-color-gray">
           {new Date(template.updatedAt).toLocaleString()}
@@ -96,7 +109,10 @@ export const PromptTemplateList: React.FC<PromptTemplateListProps> = ({
       columns={columns}
       actions={actions}
       isLoading={isLoading}
-      emptyMessage={t("promptTemplate.noTemplates")}
+      emptyMessage={emptyMessage ?? t("promptTemplate.noTemplates")}
+      sortBy={sortBy}
+      sortOrder={sortOrder}
+      onSortChange={onSortChange}
       keyExtractor={(item) => item.id}
       onRowClick={handleRowClick}
       rowClickable={true}
