@@ -58,11 +58,6 @@ export const ChecklistSelector: React.FC<ChecklistSelectorProps> = ({
         </div>
       ) : (
         <>
-          {checklists.length === 0 && (
-            <p className="p-4 text-sm text-aws-font-color-gray">
-              {search?.trim() ? t("common.noMatch") : t("checklist.noChecklists")}
-            </p>
-          )}
           <div className="divide-y divide-light-gray">
             {checklists.map((checklist) => (
               <div
@@ -100,7 +95,9 @@ export const ChecklistSelector: React.FC<ChecklistSelectorProps> = ({
 
           {checklists.length === 0 && (
             <div className="p-4 text-center text-aws-font-color-gray">
-              {t("review.noChecklistsAvailable")}
+              {search?.trim()
+                ? t("common.noMatch")
+                : t("review.noChecklistsAvailable")}
             </div>
           )}
 
