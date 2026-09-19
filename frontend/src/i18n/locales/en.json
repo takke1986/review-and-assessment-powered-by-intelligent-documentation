@@ -398,7 +398,26 @@
     "noChildItems": "No child items",
     "progress": "{{completed}} of {{total}} items reviewed",
     "fileSizeLimit": "Up to 100MB for PDF, Word, Excel and PowerPoint; up to 20MB for images",
-    "fileLimitError": "You can review at most {{max}} files"
+    "fileLimitError": "You can review at most {{max}} files",
+    "export": {
+      "button": "Export results",
+      "empty": "There are no results to export",
+      "page": "p.{{page}}",
+      "column": {
+        "number": "No.",
+        "name": "Item",
+        "importance": "Importance",
+        "result": "Result",
+        "confidence": "Confidence",
+        "shortExplanation": "Summary",
+        "explanation": "Explanation",
+        "extractedText": "Extracted text",
+        "sources": "Sources",
+        "userOverride": "Overridden",
+        "userComment": "Comment"
+      },
+      "error": "Could not export the results"
+    }
   },
   "fileUploader": {
     "dropFiles": "Drop files here",

@@ -17,6 +17,7 @@ import Breadcrumb from "../../../components/Breadcrumb";
 import TotalReviewCostSummary from "../components/TotalReviewCostSummary";
 import Button from "../../../components/Button";
 import ReviewJobDocuments from "../components/ReviewJobDocuments";
+import ReviewResultExportButton from "../components/ReviewResultExportButton";
 import ImportanceFilter from "../../checklist/components/ImportanceFilter";
 import type { ImportanceFilterValue } from "../../checklist/types";
 
@@ -219,15 +220,22 @@ export default function ReviewDetailPage() {
             </p>
           )}
         </div>
-        {/* 不合格の項目を、差し替えた文書で審査し直す */}
         {job.status === REVIEW_JOB_STATUS.COMPLETED && (
-          <Button
-            to={`/review/create?source=${job.id}`}
-            variant="primary"
-            outline
-            className="self-start">
-            {t("review.rerunFailedItems")}
-          </Button>
+          <div className="flex flex-col items-stretch gap-2 self-start">
+            {/* 不合格の項目を、差し替えた文書で審査し直す */}
+            <Button
+              to={`/review/create?source=${job.id}`}
+              variant="primary"
+              outline>
+              {t("review.rerunFailedItems")}
+            </Button>
+            {/* 結果を表計算ソフトに持ち出す。報告や共有は画面の外で行われる */}
+            <ReviewResultExportButton
+              jobId={job.id}
+              jobName={job.name}
+              documents={job.documents}
+            />
+          </div>
         )}
       </div>
 

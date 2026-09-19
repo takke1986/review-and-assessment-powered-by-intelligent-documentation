@@ -398,7 +398,26 @@
     "noChildItems": "子項目はありません",
     "progress": "{{total}} 項目中 {{completed}} 項目の審査が完了",
     "fileSizeLimit": "PDF・Word・Excel・PowerPoint は最大100MB、画像は最大20MB",
-    "fileLimitError": "審査するファイルは最大{{max}}件です"
+    "fileLimitError": "審査するファイルは最大{{max}}件です",
+    "export": {
+      "button": "結果を書き出す",
+      "empty": "書き出せる結果がありません",
+      "page": "p.{{page}}",
+      "column": {
+        "number": "番号",
+        "name": "項目",
+        "importance": "重要度",
+        "result": "判定",
+        "confidence": "信頼度",
+        "shortExplanation": "要約",
+        "explanation": "説明",
+        "extractedText": "抜き出した箇所",
+        "sources": "参照元",
+        "userOverride": "手動で変更",
+        "userComment": "コメント"
+      },
+      "error": "結果を書き出せませんでした"
+    }
   },
   "fileUploader": {
     "dropFiles": "ファイルをドロップしてください",
