@@ -1,4 +1,5 @@
 import {
+  OVERRIDE_REASON,
   REVIEW_RESULT,
   ReviewResultDetail,
   ReviewResultDomain,
@@ -66,6 +67,8 @@ export const overrideReviewResult = async (params: {
   resultId: string;
   result: REVIEW_RESULT;
   userComment: string;
+  /** 覆した理由。傾向で「AI のどこが外れたか」を読むために使う */
+  overrideReason?: OVERRIDE_REASON;
   user?: RequestUser;
   deps?: {
     repo?: ReviewResultRepository;
@@ -94,6 +97,7 @@ export const overrideReviewResult = async (params: {
     current,
     result: params.result,
     userComment: params.userComment,
+    overrideReason: params.overrideReason,
   });
 
   await updateCheckResultCascade({

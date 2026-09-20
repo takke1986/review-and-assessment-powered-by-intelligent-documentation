@@ -41,6 +41,31 @@ export enum REVIEW_RESULT {
 }
 
 /**
+ * 判定を覆した理由。バックエンドの OVERRIDE_REASON と同じ値にする。
+ * 傾向で「AI のどこが外れたか」を読むために使う
+ */
+export enum OVERRIDE_REASON {
+  /** 基準の読み方が AI と違った */
+  CRITERIA_INTERPRETATION = "criteria_interpretation",
+  /** 文書には書いてあるが AI が見つけられなかった */
+  MISSED_IN_DOCUMENT = "missed_in_document",
+  /** そもそもこの文書では見なくてよい項目だった */
+  NOT_APPLICABLE = "not_applicable",
+  /** 項目の書き方が曖昧で、どちらとも取れる */
+  AMBIGUOUS_ITEM = "ambiguous_item",
+  OTHER = "other",
+}
+
+/** 選び方の順。よくあるものを上に置く */
+export const OVERRIDE_REASONS: OVERRIDE_REASON[] = [
+  OVERRIDE_REASON.CRITERIA_INTERPRETATION,
+  OVERRIDE_REASON.MISSED_IN_DOCUMENT,
+  OVERRIDE_REASON.AMBIGUOUS_ITEM,
+  OVERRIDE_REASON.NOT_APPLICABLE,
+  OVERRIDE_REASON.OTHER,
+];
+
+/**
  * Review file type enum
  */
 export enum REVIEW_FILE_TYPE {
@@ -105,6 +130,8 @@ export interface CreateReviewJobRequest {
 export interface OverrideReviewResultRequest {
   result: REVIEW_RESULT;
   userComment: string;
+  /** AI の判定と違えたときだけ送る */
+  overrideReason?: OVERRIDE_REASON;
 }
 
 // Response types
@@ -370,6 +397,10 @@ export interface ReviewResultEntity {
   extractedText?: string[];
   userComment?: string;
   userOverride: boolean;
+  /** AI が下した判定。上書きしても変わらない。古い結果には無い */
+  aiResult?: REVIEW_RESULT;
+  /** 覆した理由 */
+  overrideReason?: OVERRIDE_REASON;
   createdAt: Date;
   updatedAt: Date;
   sourceReferences?: SourceReference[];

@@ -95,6 +95,32 @@ export interface ReviewJobEntity {
 /**
  * ジョブ一覧表示用
  */
+/**
+ * 判定を覆した理由。
+ *
+ * 自由記述のコメントとは別に、集計できる形で持つ。並べたときに
+ * 「何を直せばいいか」が分かる粒度にしてある
+ */
+export const OVERRIDE_REASON = {
+  /** 基準の読み方が AI と違った。着眼点で埋められる */
+  CRITERIA_INTERPRETATION: "criteria_interpretation",
+  /** 文書には書いてあるが、AI が見つけられなかった／読み違えた */
+  MISSED_IN_DOCUMENT: "missed_in_document",
+  /** そもそもこの文書では見なくてよい項目だった */
+  NOT_APPLICABLE: "not_applicable",
+  /** 項目の書き方が曖昧で、どちらとも取れる */
+  AMBIGUOUS_ITEM: "ambiguous_item",
+  /** 上のどれでもない。コメントを読むしかない */
+  OTHER: "other",
+} as const;
+
+export type OVERRIDE_REASON =
+  (typeof OVERRIDE_REASON)[keyof typeof OVERRIDE_REASON];
+
+export const isOverrideReason = (value: unknown): value is OVERRIDE_REASON =>
+  typeof value === "string" &&
+  (Object.values(OVERRIDE_REASON) as string[]).includes(value);
+
 export interface ReviewJobSummary {
   id: string;
   name: string;
@@ -191,6 +217,10 @@ export interface PreviousReviewResult {
   explanation?: string;
   shortExplanation?: string;
   userOverride: boolean;
+  /** AI が下した判定。上書きしても変わらない。この変更より前の結果には無い */
+  aiResult?: REVIEW_RESULT;
+  /** 覆した理由 */
+  overrideReason?: OVERRIDE_REASON;
   userComment?: string;
 }
 
@@ -224,6 +254,10 @@ export interface ReviewResultEntity {
   extractedText?: string[];
   userComment?: string;
   userOverride: boolean;
+  /** AI が下した判定。上書きしても変わらない。この変更より前の結果には無い */
+  aiResult?: REVIEW_RESULT;
+  /** 覆した理由 */
+  overrideReason?: OVERRIDE_REASON;
   createdAt: Date;
   updatedAt: Date;
   sourceReferences?: SourceReference[];
@@ -352,6 +386,9 @@ export const ReviewResultDomain = (() => {
         extractedText: _parseExtractedText(prismaResult.extractedText),
         userComment: prismaResult.userComment ?? undefined,
         userOverride: prismaResult.userOverride,
+        aiResult: (prismaResult.aiResult as REVIEW_RESULT) ?? undefined,
+        overrideReason:
+          (prismaResult.overrideReason as OVERRIDE_REASON) ?? undefined,
         createdAt: prismaResult.createdAt,
         updatedAt: prismaResult.updatedAt,
         reviewMeta: prismaResult.reviewMeta as any,
@@ -396,13 +433,21 @@ export const ReviewResultDomain = (() => {
       current: ReviewResultDetail;
       result: REVIEW_RESULT;
       userComment: string;
+      overrideReason?: OVERRIDE_REASON;
     }): ReviewResultDetail => {
-      const { current, result, userComment } = params;
+      const { current, result, userComment, overrideReason } = params;
       return {
         ...current,
         result,
         userComment,
+        overrideReason,
         userOverride: true,
+        // AI の判定は上書きで変えない。まだ入っていない結果（この変更より
+        // 前に審査したもの）でも、まだ誰も上書きしていなければ、いまの
+        // result が AI の判定そのもの。そこだけは拾っておく
+        aiResult:
+          current.aiResult ??
+          (current.userOverride ? undefined : current.result),
         updatedAt: new Date(),
       };
     },
@@ -524,6 +569,11 @@ export const ReviewResultDomain = (() => {
         sourceReferences,
         externalSources: verificationDetails?.sourcesDetails || undefined,
         userOverride: false,
+        // AI が下した判定として控える。人が上書きしても、これは変わらない。
+        // 審査し直したときは、そのときの AI の判定で置き換わる
+        aiResult: reviewResult,
+        // 判定をやり直したので、前回覆された理由は持ち越さない
+        overrideReason: undefined,
         updatedAt: new Date(),
         reviewMeta: params.reviewMeta,
         inputTokens: params.inputTokens,

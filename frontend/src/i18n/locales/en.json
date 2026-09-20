@@ -428,6 +428,16 @@
       "all": "All time",
       "thisMonth": "This month",
       "last30Days": "Last 30 days"
+    },
+    "overrideReason": "Why the AI was wrong",
+    "overrideReasonHintTooStrict": "The AI failed this, and you are passing it. Saying why helps the trends screen show how to fix it.",
+    "overrideReasonHintMissed": "The AI passed this, and you are failing it. Saying why helps the trends screen show how to fix it.",
+    "overrideReasons": {
+      "criteria_interpretation": "It read the criteria differently (guidance can fix this)",
+      "missed_in_document": "It is in the document, but the AI did not find it",
+      "ambiguous_item": "The item is worded ambiguously",
+      "not_applicable": "This item did not apply to this document",
+      "other": "Something else (see the comment)"
     }
   },
   "fileUploader": {

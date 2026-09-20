@@ -343,8 +343,12 @@ export const updateCheckListItemReviewGuidance = async (params: {
     throw new ValidationError("Invalid setId");
   }
 
+  const next = guidance === "" ? null : guidance;
   await repo.updateCheckListItemReviewGuidance({
     itemId: params.itemId,
-    reviewGuidance: guidance === "" ? null : guidance,
+    reviewGuidance: next,
+    // 同じ文言で保存し直しても、書いた日は動かさない。
+    // 効果を測る起点になるので、実際に変えたときだけ更新する
+    changed: (item.reviewGuidance ?? null) !== next,
   });
 };

@@ -428,6 +428,16 @@
       "all": "全期間",
       "thisMonth": "今月",
       "last30Days": "過去30日"
+    },
+    "overrideReason": "AI の判定と違えた理由",
+    "overrideReasonHintTooStrict": "AI は不合格としましたが、合格に戻します。なぜ AI が誤ったかを選ぶと、傾向から直し方が分かります。",
+    "overrideReasonHintMissed": "AI は合格としましたが、不合格にします。見落としの原因を選ぶと、傾向から直し方が分かります。",
+    "overrideReasons": {
+      "criteria_interpretation": "基準の読み方が違った（着眼点で補える）",
+      "missed_in_document": "文書に書いてあるのに見つけられなかった",
+      "ambiguous_item": "項目の書き方が曖昧で、どちらとも取れる",
+      "not_applicable": "この文書では見なくてよい項目だった",
+      "other": "その他（コメントに書く）"
     }
   },
   "fileUploader": {

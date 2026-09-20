@@ -503,6 +503,10 @@ export const makePrismaReviewJobRepository = async (
               ? (JSON.stringify(result.extractedText) as any)
               : undefined,
             userComment: result.userComment,
+            // 再審査で引き継ぐ結果では、AI の判定と覆した理由も引き継ぐ。
+            // 引き継ぎは同じ判定の写しなので、履歴としても同じ形にしておく
+            aiResult: result.aiResult,
+            overrideReason: result.overrideReason,
             sourceReferences: result.sourceReferences
               ? JSON.stringify(result.sourceReferences)
               : undefined,
@@ -798,6 +802,10 @@ export const makePrismaReviewResultRepository = async (
           : undefined,
         userOverride: newResult.userOverride,
         userComment: newResult.userComment,
+        // undefined は Prisma では「変えない」なので、消したいときは null を渡す。
+        // 審査し直したら前回覆された理由は消えてほしい
+        aiResult: newResult.aiResult ?? null,
+        overrideReason: newResult.overrideReason ?? null,
         updatedAt: newResult.updatedAt,
         sourceReferences: newResult.sourceReferences
           ? JSON.stringify(newResult.sourceReferences)
@@ -833,6 +841,8 @@ export const makePrismaReviewResultRepository = async (
               : undefined,
             userOverride: result.userOverride,
             userComment: result.userComment,
+            aiResult: result.aiResult ?? null,
+            overrideReason: result.overrideReason ?? null,
             updatedAt: result.updatedAt,
             sourceReferences: result.sourceReferences
               ? JSON.stringify(result.sourceReferences)

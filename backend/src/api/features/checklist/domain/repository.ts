@@ -76,6 +76,8 @@ export interface CheckRepository {
   updateCheckListItemReviewGuidance(params: {
     itemId: string;
     reviewGuidance: string | null;
+    /** 中身が変わったときだけ、書いた日時を動かす */
+    changed: boolean;
   }): Promise<void>;
 }
 
@@ -806,11 +808,23 @@ export const makePrismaCheckRepository = async (
   const updateCheckListItemReviewGuidance = async (params: {
     itemId: string;
     reviewGuidance: string | null;
+    /**
+     * 中身が変わったときだけ日時を動かす。他の編集や、同じ文言の
+     * 上書き保存で動くと、「書いた後」の起点がずれて効果を測れなくなる
+     */
+    changed: boolean;
   }): Promise<void> => {
     await client.checkList.update({
       where: { id: params.itemId },
       data: {
         reviewGuidance: params.reviewGuidance,
+        ...(params.changed
+          ? {
+              // 消したときは起点も消す。着眼点が無いのに「書いた日」は残らない
+              reviewGuidanceUpdatedAt:
+                params.reviewGuidance === null ? null : new Date(),
+            }
+          : {}),
       },
     });
   };

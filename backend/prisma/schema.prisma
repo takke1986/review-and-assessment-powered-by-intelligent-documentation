@@ -78,6 +78,8 @@ model CheckList {
   feedbackSummaryUpdatedAt DateTime?          @map("feedback_summary_updated_at") @db.Timestamp(0)
   /// 審査のときに見てほしい観点。人が書く。空なら prompt に何も差し込まない
   reviewGuidance           String?            @map("review_guidance") @db.Text
+  /// 着眼点を書いた日時。書く前と後で覆された率を比べるために使う
+  reviewGuidanceUpdatedAt  DateTime?          @map("review_guidance_updated_at") @db.Timestamp(0)
   checkListSet             CheckListSet       @relation(fields: [checkListSetId], references: [id])
   document                 CheckListDocument? @relation(fields: [documentId], references: [id])
   parent                   CheckList?         @relation("CheckListToCheckList", fields: [parentId], references: [id])
@@ -180,6 +182,10 @@ model ReviewResult {
   extractedText       String?        @map("extracted_text") @db.Text
   userOverride        Boolean        @default(false) @map("user_override")
   userComment         String?        @map("user_comment") @db.Text
+  /// AI が下した判定。人が上書きしても変わらない。これがあると「AI が厳しすぎたのか見落としたのか」が分かる。この変更より前の結果には入らない
+  aiResult            String?        @map("ai_result") @db.VarChar(20)
+  /// 覆した理由。自由記述のコメントとは別に、集計できる形で持つ
+  overrideReason      String?        @map("override_reason") @db.VarChar(30)
   reviewMeta          Json?          @map("review_meta")
   inputTokens         Int?           @map("input_tokens")
   outputTokens        Int?           @map("output_tokens")

@@ -3,7 +3,12 @@
  */
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ReviewResultDetail, OverrideReviewResultRequest } from "../types";
+import {
+  ReviewResultDetail,
+  OverrideReviewResultRequest,
+  OVERRIDE_REASON,
+  OVERRIDE_REASONS,
+} from "../types";
 import { useUpdateReviewResult } from "../hooks/useReviewResultMutations";
 import { REVIEW_RESULT } from "../types";
 import Modal from "../../../components/Modal";
@@ -33,7 +38,21 @@ export default function ReviewResultOverrideModal({
   const [formData, setFormData] = useState<OverrideReviewResultRequest>({
     result: result.result || REVIEW_RESULT.FAIL,
     userComment: result.userComment || "",
+    overrideReason: result.overrideReason,
   });
+
+  /**
+   * AI が下した判定。
+   *
+   * 記録していなかった頃の結果には無いので、まだ誰も覆していなければ
+   * いまの判定が AI のもの、と補う（バックエンドと同じ決め方）
+   */
+  const aiVerdict =
+    result.aiResult ?? (result.userOverride ? undefined : result.result);
+
+  // AI と違う判定にするときだけ理由を聞く。同じなら覆していない
+  const isOverturning =
+    aiVerdict !== undefined && formData.result !== aiVerdict;
 
   // Radio button options
   const resultOptions = [
@@ -118,6 +137,35 @@ export default function ReviewResultOverrideModal({
             inline={true}
           />
         </div>
+
+        {/* 覆すときだけ理由を聞く。集められると、どの項目の何を直せばよいかが
+            傾向から読める。自由記述だけでは並べて数えられない */}
+        {isOverturning && (
+          <div className="border-b border-light-gray pb-4">
+            <h3 className="mb-1 font-medium text-aws-squid-ink-light">
+              {t("review.overrideReason")}
+            </h3>
+            <p className="mb-2 text-sm text-aws-font-color-gray">
+              {aiVerdict === REVIEW_RESULT.FAIL
+                ? t("review.overrideReasonHintTooStrict")
+                : t("review.overrideReasonHintMissed")}
+            </p>
+            <RadioGroup
+              name="overrideReason"
+              options={OVERRIDE_REASONS.map((value) => ({
+                value,
+                label: t(`review.overrideReasons.${value}`),
+              }))}
+              value={formData.overrideReason ?? ""}
+              onChange={(value) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  overrideReason: value as OVERRIDE_REASON,
+                }))
+              }
+            />
+          </div>
+        )}
 
         <div>
           <FormTextArea

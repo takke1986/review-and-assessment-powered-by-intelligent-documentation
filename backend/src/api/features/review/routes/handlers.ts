@@ -11,7 +11,11 @@ import {
   removeReviewJob,
 } from "../usecase/review-job";
 import { deleteS3Object } from "../../../core/s3";
-import { REVIEW_FILE_TYPE, REVIEW_RESULT } from "../domain/model/review";
+import {
+  isOverrideReason,
+  REVIEW_FILE_TYPE,
+  REVIEW_RESULT,
+} from "../domain/model/review";
 import {
   overrideReviewResult,
   getReviewResults,
@@ -305,6 +309,8 @@ export const getReviewResultItemsHandler = async (
 export interface OverrideReviewResultRequest {
   result: REVIEW_RESULT;
   userComment: string;
+  /** 覆した理由。古い画面からは送られてこない */
+  overrideReason?: string;
 }
 
 export const overrideReviewResultHandler = async (
@@ -315,13 +321,17 @@ export const overrideReviewResultHandler = async (
   reply: FastifyReply
 ): Promise<void> => {
   const { jobId, resultId } = request.params;
-  const { result, userComment } = request.body;
+  const { result, userComment, overrideReason } = request.body;
 
   await overrideReviewResult({
     reviewJobId: jobId,
     resultId,
     result,
     userComment,
+    // 知らない値は捨てる。集計の選択肢に化けたものが混じると読めなくなる
+    overrideReason: isOverrideReason(overrideReason)
+      ? overrideReason
+      : undefined,
     user: request.user,
   });
 
