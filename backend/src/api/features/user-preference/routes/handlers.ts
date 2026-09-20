@@ -1,4 +1,5 @@
 import { FastifyRequest, FastifyReply } from "fastify";
+import { departmentsOf } from "../../review/domain/service/departments";
 import {
   getUserPreference,
   updateLanguage,
@@ -25,7 +26,12 @@ export const getUserPreferenceHandler = async (
 
     reply.code(200).send({
       success: true,
-      data: preference,
+      data: {
+        ...preference,
+        // 所属部署も返す。画面がトークンから自分で読むと、サーバの
+        // 決め方とずれる。兼務のときに部署を選ばせるのに使う
+        departments: departmentsOf(request.user),
+      },
     });
   } catch (error) {
     console.error("Error getting user preference:", error);

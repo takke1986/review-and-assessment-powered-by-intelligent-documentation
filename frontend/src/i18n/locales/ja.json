@@ -480,7 +480,10 @@
     "searchPlaceholderJobs": "ジョブ名か、審査した文書の名前",
     "overriddenByOn": "{{who}} が変更（{{when}}）",
     "resumeReview": "続きから審査する",
-    "resumeSelectionHelp": "まだ審査が終わっていない項目を選んだ状態から始まります。済んだ項目は元のジョブの結果を引き継ぐので、もう一度費用はかかりません。"
+    "resumeSelectionHelp": "まだ審査が終わっていない項目を選んだ状態から始まります。済んだ項目は元のジョブの結果を引き継ぐので、もう一度費用はかかりません。",
+    "department": "この審査を行う部署",
+    "departmentHelp": "複数の部署に所属しているため、どの部署の仕事として記録するかを選んでください。選んだ部署の人が、この審査結果を見られます。",
+    "departmentRequired": "部署を選んでください"
   },
   "fileUploader": {
     "dropFiles": "ファイルをドロップしてください",

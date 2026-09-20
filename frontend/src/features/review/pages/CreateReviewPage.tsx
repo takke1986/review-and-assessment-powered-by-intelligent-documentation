@@ -9,6 +9,8 @@ import { useTranslation } from "react-i18next";
 import Button from "../../../components/Button";
 import PageHeader from "../../../components/PageHeader";
 import FormTextField from "../../../components/FormTextField";
+import RadioGroup from "../../../components/RadioGroup";
+import { useUserPreference } from "../../user-preference/hooks/useUserPreferenceQueries";
 import { FormTextArea } from "../../../components/FormTextArea";
 import { FileUploader } from "../../../components/FileUploader";
 import ChecklistSelector from "../components/ChecklistSelector";
@@ -50,6 +52,11 @@ export const CreateReviewPage: React.FC = () => {
     total: number;
   } | null>(null);
   const [jobName, setJobName] = useState("");
+  // どの部署の仕事として記録するか。所属が1つならサーバが決めるので、
+  // 選ばせるのは兼務の人だけ
+  const { preference } = useUserPreference();
+  const departments = preference?.departments ?? [];
+  const [departmentId, setDepartmentId] = useState("");
   // 再審査で何を直したかのメモ（任意）
   const [revisionNote, setRevisionNote] = useState("");
   const isRevisionNoteTooLong =
@@ -60,6 +67,7 @@ export const CreateReviewPage: React.FC = () => {
   const [errors, setErrors] = useState({
     name: "",
     files: "",
+    department: "",
   });
 
   // チェックリストセット一覧を取得（完成状態のみ）
@@ -186,6 +194,7 @@ export const CreateReviewPage: React.FC = () => {
     const newErrors = {
       name: "",
       files: "",
+      department: "",
     };
 
     if (!jobName.trim()) {
@@ -194,6 +203,12 @@ export const CreateReviewPage: React.FC = () => {
 
     if (documentCount === 0) {
       newErrors.files = t("review.fileRequired");
+    }
+
+    // 兼務の人が選ばないまま進むと、部署の付かない審査になり、
+    // 同僚の履歴に出てこない
+    if (departments.length > 1 && !departmentId) {
+      newErrors.department = t("review.departmentRequired");
     }
 
     setErrors(newErrors);
@@ -229,6 +244,8 @@ export const CreateReviewPage: React.FC = () => {
       await createReviewJob({
         name: jobName,
         checkListSetId,
+        // 兼務でないときは送らない。サーバが所属から決める
+        departmentId: departmentId || undefined,
         documents: documents,
         // 再審査では選んだ項目を必ず送る（省略すると元のジョブで不合格だった
         // 項目になる）。通常の審査では、すべて選んでいるときは送らず、
@@ -297,6 +314,28 @@ export const CreateReviewPage: React.FC = () => {
             required
             error={errors.name}
           />
+
+          {/* 兼務の人だけに出す。所属が1つならサーバが決めるので選ぶまでもなく、
+              欄があるだけ手間が増える */}
+          {departments.length > 1 && (
+            <div className="mb-4">
+              <RadioGroup
+                name="departmentId"
+                label={t("review.department")}
+                options={departments.map((value) => ({
+                  value,
+                  label: value,
+                }))}
+                value={departmentId}
+                onChange={setDepartmentId}
+                inline
+                error={errors.department}
+              />
+              <p className="mt-1 text-sm text-aws-font-color-gray">
+                {t("review.departmentHelp")}
+              </p>
+            </div>
+          )}
 
           {/* 再審査: 何を直したかを残しておくと、後から見返したときに分かる */}
           {sourceJobId && (

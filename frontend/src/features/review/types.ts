@@ -111,6 +111,11 @@ export interface CreateReviewJobRequest {
     replacesDocumentId?: string;
   }>;
   userId?: string;
+  /**
+   * この審査をどの部署の仕事として記録するか。兼務のときだけ送る。
+   * 所属が1つならサーバが決める
+   */
+  departmentId?: string;
   mcpServerName?: string;
   /** 審査するチェック項目。省略するとすべての項目を審査する */
   checkIds?: string[];
