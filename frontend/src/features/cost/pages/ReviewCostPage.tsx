@@ -162,13 +162,13 @@ export default function ReviewCostPage() {
                 <table className="min-w-full">
                   <thead>
                     <tr className="bg-aws-paper-light text-left">
-                      <th className="px-3 py-2 font-medium">
+                      <th className="whitespace-nowrap px-3 py-2 font-medium">
                         {t("review.checklist")}
                       </th>
-                      <th className="px-3 py-2 text-right font-medium">
+                      <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
                         {t("review.cost")}
                       </th>
-                      <th className="px-3 py-2 text-right font-medium">
+                      <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
                         {t("cost.jobCount")}
                       </th>
                     </tr>
@@ -178,11 +178,11 @@ export default function ReviewCostPage() {
                       <tr
                         key={checklist.checkListSetId}
                         className="border-b border-light-gray">
-                        <td className="px-3 py-2">{checklist.name}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">
+                        <td className="min-w-[10rem] px-3 py-2">{checklist.name}</td>
+                        <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
                           {money(checklist.totalCost)}
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums">
+                        <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
                           {checklist.jobCount}
                         </td>
                       </tr>
@@ -202,13 +202,13 @@ export default function ReviewCostPage() {
                 <table className="min-w-full">
                   <thead>
                     <tr className="bg-aws-paper-light text-left">
-                      <th className="px-3 py-2 font-medium">
+                      <th className="whitespace-nowrap px-3 py-2 font-medium">
                         {t("checklist.name")}
                       </th>
-                      <th className="px-3 py-2 font-medium">
+                      <th className="whitespace-nowrap px-3 py-2 font-medium">
                         {t("review.createdAt")}
                       </th>
-                      <th className="px-3 py-2 text-right font-medium">
+                      <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
                         {t("review.cost")}
                       </th>
                     </tr>
@@ -216,17 +216,17 @@ export default function ReviewCostPage() {
                   <tbody>
                     {summary.topJobs.map((job) => (
                       <tr key={job.id} className="border-b border-light-gray">
-                        <td className="px-3 py-2">
+                        <td className="min-w-[10rem] px-3 py-2">
                           <Link
                             to={`/review/${job.id}`}
                             className="text-aws-font-color-blue hover:underline">
                             {job.name}
                           </Link>
                         </td>
-                        <td className="px-3 py-2 text-aws-font-color-gray">
+                        <td className="whitespace-nowrap px-3 py-2 text-aws-font-color-gray">
                           {new Date(job.createdAt).toLocaleString()}
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums">
+                        <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
                           {money(job.totalCost)}
                         </td>
                       </tr>

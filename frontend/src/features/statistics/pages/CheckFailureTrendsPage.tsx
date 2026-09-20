@@ -297,8 +297,10 @@ export default function CheckFailureTrendsPage() {
         <p className="text-aws-font-color-gray">{t("trends.empty")}</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-light-gray bg-white">
-          {/* min-w-full。w-full だと表が画面幅に押し込まれ、横スクロールが
-              効かないまま桁が潰れる */}
+          {/* 日本語はどこでも改行できるので、放っておくとブラウザが
+              「1文字ずつ折り返せば収まる」と判断して桁が縦に潰れる。
+              短い列は折り返さず、長い文の列だけ最小幅を与えて読める幅で
+              折り返させる。結果として表は画面より広くなり、横に送れる */}
           <table className="min-w-full text-sm">
             <thead className="bg-aws-paper-light text-left">
               <tr>
@@ -313,7 +315,7 @@ export default function CheckFailureTrendsPage() {
                           : "descending"
                         : undefined
                     }
-                    className={`px-4 py-3 ${
+                    className={`whitespace-nowrap px-4 py-3 ${
                       column.alignRight ? "text-right" : ""
                     }`}>
                     <button
@@ -338,7 +340,7 @@ export default function CheckFailureTrendsPage() {
             <tbody>
               {sortedItems.map((item) => (
                 <tr key={item.checkId} className="border-t border-light-gray">
-                  <td className="px-4 py-3">
+                  <td className="min-w-[12rem] px-4 py-3">
                     {item.name}
                     {item.carriedOverCount > 0 && (
                       <span className="ml-2 rounded-full bg-light-gray px-2 py-1 text-xs text-aws-font-color-gray">
@@ -353,7 +355,7 @@ export default function CheckFailureTrendsPage() {
                       </p>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="whitespace-nowrap px-4 py-3">
                     <span
                       className={`whitespace-nowrap rounded-full px-2 py-1 text-xs ${
                         STATUS_VIEW[item.status].style
@@ -361,8 +363,8 @@ export default function CheckFailureTrendsPage() {
                       {t(STATUS_VIEW[item.status].label)}
                     </span>
                   </td>
-                  <td className="px-4 py-3">{action(item)}</td>
-                  <td className="px-4 py-3 text-right text-sm">
+                  <td className="min-w-[16rem] px-4 py-3">{action(item)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm">
                     {/* 向きが分からないと打ち手が決まらないので、数だけでなく
                         どちらに覆されたかを出す */}
                     {item.missedCount === 0 &&
@@ -385,17 +387,17 @@ export default function CheckFailureTrendsPage() {
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right font-bold">
+                  <td className="whitespace-nowrap px-4 py-3 text-right font-bold">
                     {item.reviewedCount === 0 ? "-" : percent(item.failRate)}
                   </td>
-                  <td className="px-4 py-3 text-right">{item.failedCount}</td>
-                  <td className="px-4 py-3 text-right">{item.reviewedCount}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="whitespace-nowrap px-4 py-3 text-right">{item.failedCount}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right">{item.reviewedCount}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right">
                     {item.averageConfidence === null
                       ? "-"
                       : percent(item.averageConfidence)}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="whitespace-nowrap px-4 py-3">
                     {item.lastFailedAt
                       ? new Date(item.lastFailedAt).toLocaleString()
                       : "-"}
