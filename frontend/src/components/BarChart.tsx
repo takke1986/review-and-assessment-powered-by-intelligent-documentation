@@ -33,6 +33,48 @@ export const CHART_COLORS = {
   gray: "#9ca3af",
 } as const;
 
+/**
+ * 名前が長いと軸ばかりが幅を取り、携帯では棒が潰れる。
+ * 全文は吹き出しと、すぐ下の表で読めるので、ここは短くてよい
+ */
+const LABEL_LIMIT = 12;
+
+export const shortenLabel = (label: string): string =>
+  label.length > LABEL_LIMIT ? `${label.slice(0, LABEL_LIMIT)}…` : label;
+
+/**
+ * 軸の設定を、棒の向きから決める。
+ *
+ * 横棒にすると種別の軸は y、数値の軸は x になる。ここを取り違えて
+ * 数値軸の指定（beginAtZero）を種別の軸に付けると、chart.js はその軸を
+ * 数値と解釈し、名前ではなく添字（0, 1, 2…）を並べてしまう
+ */
+export function buildScales(
+  horizontal: boolean,
+  formatValue?: (value: number) => string
+) {
+  const valueAxis = {
+    type: "linear" as const,
+    beginAtZero: true,
+    grid: { display: true },
+    ticks: formatValue
+      ? { callback: (value: string | number) => formatValue(Number(value)) }
+      : undefined,
+  };
+  const categoryAxis = {
+    type: "category" as const,
+    grid: { display: false },
+    ticks: {
+      callback(this: { getLabelForValue(value: number): string }, value: any) {
+        return shortenLabel(this.getLabelForValue(Number(value)));
+      },
+    },
+  };
+  return horizontal
+    ? { x: valueAxis, y: categoryAxis }
+    : { x: categoryAxis, y: valueAxis };
+}
+
 interface BarChartProps {
   labels: string[];
   datasets: Array<ChartDataset<"bar", number[]>>;
@@ -90,21 +132,7 @@ export default function BarChart({
               : undefined,
           },
         },
-        scales: {
-          x: {
-            grid: { display: horizontal },
-            ticks: horizontal && formatValue
-              ? { callback: (value) => formatValue(Number(value)) }
-              : undefined,
-          },
-          y: {
-            grid: { display: !horizontal },
-            beginAtZero: true,
-            ticks: !horizontal && formatValue
-              ? { callback: (value) => formatValue(Number(value)) }
-              : undefined,
-          },
-        },
+        scales: buildScales(horizontal, formatValue),
       },
     });
     return () => {
