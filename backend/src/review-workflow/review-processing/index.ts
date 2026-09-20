@@ -9,6 +9,7 @@ import {
   REVIEW_RESULT_STATUS,
 } from "../../api/features/review/domain/model/review";
 import { updateCheckResultCascade } from "../../api/features/review/domain/service/review-result-cascade-update";
+import { describeUnjudged } from "../../api/features/review/domain/service/review-completeness";
 import { selectItemsToReview } from "./select-items";
 
 /**
@@ -154,7 +155,16 @@ export async function finalizeReview(
       });
     }
 
-    // 4. ジョブのステータスを完了に更新
+    // 4. 判定の付いていない項目が残っていないか確かめる。
+    // 残ったまま「完了」にすると、人は全項目を見たつもりで書類を通す
+    const unjudged = describeUnjudged(results);
+    if (unjudged) {
+      throw new Error(
+        `Refusing to complete the review: some check items have no verdict: ${unjudged}`
+      );
+    }
+
+    // 5. ジョブのステータスを完了に更新
     await reviewJobRepository.updateJobStatus({
       reviewJobId,
       status: REVIEW_JOB_STATUS.COMPLETED,

@@ -139,6 +139,7 @@ Strands エージェント（`review-item-processor` コンテナイメージと
 | 中止できるか、中止を上書きさせない | 同 `review-job-cancel.ts` |
 | もう一度審査を流せるか | 同 `review-again.ts` |
 | 再審査された古いジョブか | 同 `superseded-by-rerun.ts` |
+| 「完了」と呼んでよいか（判定の付いていない項目が残っていないか） | 同 `review-completeness.ts` |
 | チェック項目の状態（着眼点を書くべきか等） | `backend/src/api/features/statistics/service/check-trend-status.ts` |
 | 着眼点を書いた効果 | 同 `guidance-effect.ts` |
 | 費用の内訳 | `backend/src/api/features/review/domain/service/review-cost-summary.ts` |
