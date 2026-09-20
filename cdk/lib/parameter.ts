@@ -111,7 +111,11 @@ export const parameters = {
   // Map State並行処理設定
   // 並行処理数はサービスの負荷とスロットリングに影響します
   // ---------------------------------------------------
-  // reviewMapConcurrency: 1, // レビュープロセッサのMap State並行処理数（デフォルト：1）
+  // 審査の項目を何件ずつ並行して見るか。1 だと 10 項目の審査に約4分かかる
+  // （1項目あたり約25秒）。4 にすると約1分に縮む。出した人の待ち時間に
+  // 直に効くので、全体の処理量より先にここを上げる。
+  // Bedrock の上限は1分あたり1万リクエストなので、この程度では当たらない
+  reviewMapConcurrency: 4,
   // checklistInlineMapConcurrency: 1, // チェックリストプロセッサのインラインMap State並行処理数（デフォルト：1）
   // AgentCore Code Interpreter設定
   // ---------------------------------------------------
@@ -125,7 +129,9 @@ export const parameters = {
   // feedbackAggregatorScheduleExpression: "cron(0 10 * * ? *)", // 毎日10:00 UTC
   // Review queue processor settings
   // (If not set here, defaults from parameter-schema.ts are used.)
-  // reviewMaxConcurrency: 2, // Max concurrent Step Functions executions
+  // 同時に走らせる審査の数。2 のままだと1時間に約30件しか捌けず、
+  // 33人が午前に出すと最後の人は1時間以上待つ。5 なら約7分で捌ける
+  reviewMaxConcurrency: 5,
   // reviewQueueMaxDepth: 10, // Max queue depth for global concurrency checks
   // reviewQueueMaxQueueCountMs: 86400000, // Max queue wait time in ms before error handling
   // reviewQueueLogLevel: "WARNING", // Review queue lambda log level

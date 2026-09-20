@@ -238,7 +238,9 @@ export class RapidStack extends cdk.Stack {
       databaseName: "rapid",
       // costSchedule: 使わない時間帯は 0 ACU で自動停止。使う時間帯はスケジュールで 0.5 にする
       minCapacity: costSchedule ? 0 : 0.5,
-      maxCapacity: 1,
+      // 審査を並行して走らせるぶん、接続も増える。上限に当たると審査が
+      // 落ちるので、1 ACU では余裕がない
+      maxCapacity: 2,
       autoPause: true,
       autoPauseSeconds: 300,
       backtrack: !costSchedule,

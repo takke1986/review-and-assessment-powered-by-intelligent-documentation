@@ -49,25 +49,10 @@ export default function ReviewJobActions({
           </Button>
         )}
 
-        {/* 社内への公開。見られるだけで、直せるのは作成者だけ */}
-        {canEdit && (
-          <label className="flex items-start gap-2 rounded-lg border border-light-gray bg-white p-3 text-sm">
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={job.sharedWithOrg === true}
-              disabled={actions.isWorking}
-              onChange={(event) => actions.setSharing(event.target.checked)}
-            />
-            <span>
-              <span className="font-medium">{t("review.shareWithOrg")}</span>
-              <span className="mt-0.5 block text-aws-font-color-gray">
-                {t("review.shareHint")}
-              </span>
-            </span>
-          </label>
-        )}
-
+        {/* 社内への公開は画面から外した。承認も他部署への受け渡しも製品の
+            外で運用するので使い道がなく、申込書の個人情報を全員に見せられる
+            操作が残っているほうが危ない。
+            仕組み（列と API）は残してあるので、要るようになったら戻せる */}
         {!canEdit && (
           <p className="rounded-lg border border-light-gray bg-aws-paper-light p-3 text-sm text-aws-font-color-gray">
             {t("review.sharedByOther")}
