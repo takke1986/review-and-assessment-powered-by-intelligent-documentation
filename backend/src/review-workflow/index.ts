@@ -29,6 +29,7 @@ export const handler = async (event: any): Promise<any> => {
 async function handlePrepareReview(event: any) {
   return await prepareReview({
     reviewJobId: event.reviewJobId,
+    executionArn: event.executionArn,
   });
 }
 

@@ -92,6 +92,10 @@ export interface ReviewJobRepository {
     status: REVIEW_JOB_STATUS;
     errorDetail?: string;
   }): Promise<void>;
+  updateJobExecution(params: {
+    reviewJobId: string;
+    executionArn: string;
+  }): Promise<void>;
   updateJobSharing(params: {
     reviewJobId: string;
     sharedWithOrg: boolean;
@@ -447,6 +451,7 @@ export const makePrismaReviewJobRepository = async (
       documents: job.documents.map(toReviewJobDocument),
       userId: job.userId || undefined,
       sharedWithOrg: job.sharedWithOrg,
+      executionArn: job.executionArn ?? undefined,
       createdAt: job.createdAt,
       updatedAt: job.updatedAt,
       completedAt: job.completedAt || undefined,
@@ -581,13 +586,36 @@ export const makePrismaReviewJobRepository = async (
     errorDetail?: string;
   }): Promise<void> => {
     const { reviewJobId, status, errorDetail } = params;
-    await client.reviewJob.update({
-      where: { id: reviewJobId },
+    // 中止は人が決めたことなので、あとから届いた自動更新より強い。
+    // 条件付きで書き換えることで、読んでから書くまでの隙間で
+    // 中止が入っても取りこぼさない
+    const updated = await client.reviewJob.updateMany({
+      where: {
+        id: reviewJobId,
+        ...(status === REVIEW_JOB_STATUS.CANCELLED
+          ? {}
+          : { status: { not: REVIEW_JOB_STATUS.CANCELLED } }),
+      },
       data: {
         status,
         errorDetail,
         updatedAt: new Date(),
       },
+    });
+    if (updated.count === 0) {
+      console.info(
+        `Left the review job as it is; it was cancelled: ${reviewJobId}`
+      );
+    }
+  };
+
+  const updateJobExecution = async (params: {
+    reviewJobId: string;
+    executionArn: string;
+  }): Promise<void> => {
+    await client.reviewJob.update({
+      where: { id: params.reviewJobId },
+      data: { executionArn: params.executionArn },
     });
   };
 
@@ -613,6 +641,7 @@ export const makePrismaReviewJobRepository = async (
   return {
     findAllReviewJobs,
     summarizeReviewCost,
+    updateJobExecution,
     updateJobSharing,
     findReviewJobById,
     createReviewJob,

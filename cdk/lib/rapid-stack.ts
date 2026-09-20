@@ -1,4 +1,5 @@
 import * as cdk from "aws-cdk-lib";
+import * as iam from "aws-cdk-lib/aws-iam";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as sfn from "aws-cdk-lib/aws-stepfunctions";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
@@ -417,6 +418,24 @@ export class RapidStack extends cdk.Stack {
     // StateMachine実行権限付与
     documentProcessor.stateMachine.grantStartExecution(api.apiLambda);
     reviewProcessor.stateMachine.grantStartExecution(api.apiLambda);
+    // 審査を途中で止められるようにする。止める相手は実行そのものなので、
+    // ステートマシンではなくその配下の実行に対する許可が要る
+    api.apiLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["states:StopExecution"],
+        resources: [
+          cdk.Arn.format(
+            {
+              service: "states",
+              resource: "execution",
+              resourceName: `${reviewProcessor.stateMachine.stateMachineName}:*`,
+              arnFormat: cdk.ArnFormat.COLON_RESOURCE_NAME,
+            },
+            this
+          ),
+        ],
+      })
+    );
 
     // SQS permissions for API Lambda
     ambiguityProcessor.queue.grantSendMessages(api.apiLambda);

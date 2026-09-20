@@ -1,7 +1,11 @@
 /**
  * Step Functions関連のユーティリティ
  */
-import { SFNClient, StartExecutionCommand } from "@aws-sdk/client-sfn";
+import {
+  SFNClient,
+  StartExecutionCommand,
+  StopExecutionCommand,
+} from "@aws-sdk/client-sfn";
 import { ApplicationError } from "./errors";
 
 // SFNクライアントのシングルトンインスタンス
@@ -45,4 +49,26 @@ export async function startStateMachineExecution(
   }
 
   return response.executionArn || "";
+}
+
+/**
+ * 走っている実行を止める。
+ *
+ * すでに終わっていたり、識別子が古かったりすると AWS は例外を返すが、
+ * 利用者から見れば「もう止まっている」ので、そこは成功として扱う
+ */
+export async function stopStateMachineExecution(
+  executionArn: string,
+  cause: string
+): Promise<void> {
+  try {
+    await getSfnClient().send(
+      new StopExecutionCommand({ executionArn, cause })
+    );
+  } catch (error) {
+    console.info(
+      `Could not stop the execution; treating it as already stopped: ${executionArn}`,
+      error
+    );
+  }
 }

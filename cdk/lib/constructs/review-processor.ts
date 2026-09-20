@@ -219,6 +219,8 @@ export class ReviewProcessor extends Construct {
       payload: sfn.TaskInput.fromObject({
         action: "prepareReview",
         reviewJobId: sfn.JsonPath.stringAt("$.reviewJobId"),
+        // 走り出したあとで止められるよう、実行の識別子を控えさせる
+        executionArn: sfn.JsonPath.stringAt("$$.Execution.Id"),
       }),
       resultPath: "$.prepareResult",
       resultSelector: {

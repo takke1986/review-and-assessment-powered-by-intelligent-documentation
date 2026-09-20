@@ -14,6 +14,8 @@ import { selectItemsToReview } from "./select-items";
  */
 interface PrepareReviewParams {
   reviewJobId: string;
+  /** この審査を動かしている実行。中止するときに使う */
+  executionArn?: string;
 }
 
 /**
@@ -29,11 +31,29 @@ interface FinalizeReviewParams {
  * チェックリスト項目を取得し、処理項目を準備する
  */
 export async function prepareReview(params: PrepareReviewParams): Promise<any> {
-  const { reviewJobId } = params;
+  const { reviewJobId, executionArn } = params;
   const reviewJobRepository = await makePrismaReviewJobRepository();
   const reviewResultRepository = await makePrismaReviewResultRepository();
 
   try {
+    // 待ち行列にいる間に止められていたら、ここで終わる。
+    // 何も見ずに「処理中」に書き換えると、止めたはずのものが動き出す
+    const current = await reviewJobRepository.findReviewJobById({
+      reviewJobId,
+    });
+    if (current.status === REVIEW_JOB_STATUS.CANCELLED) {
+      console.log(`Review job was cancelled before it started: ${reviewJobId}`);
+      return { reviewJobId, cancelled: true, checkItems: [] };
+    }
+
+    // 走り出してから止められるように、実行の識別子を控える
+    if (executionArn) {
+      await reviewJobRepository.updateJobExecution({
+        reviewJobId,
+        executionArn,
+      });
+    }
+
     // ジョブのステータスを処理中に更新
     await reviewJobRepository.updateJobStatus({
       reviewJobId,

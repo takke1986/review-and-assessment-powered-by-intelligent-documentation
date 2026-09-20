@@ -37,6 +37,8 @@ import { maxFileSizeFor } from "../../../constants/index";
 import type { RequestUser } from "../../../core/middleware/authorization";
 import { assertHasOwnerAccessOrThrow } from "../../../core/middleware/authorization";
 import { assertCanViewOrThrow } from "../domain/service/review-job-visibility";
+import { canCancel } from "../domain/service/review-job-cancel";
+import { stopStateMachineExecution } from "../../../core/sfn";
 
 export const computeGlobalConcurrency = async (): Promise<{
   isLimit: boolean;
@@ -127,6 +129,44 @@ export const getReviewCostSummary = async (params: {
     tzOffsetMinutes: params.tzOffsetMinutes,
     ownerUserId,
   });
+};
+
+/**
+ * 審査を途中で止める。
+ *
+ * 文書を間違えて始めても、これまでは終わるまで待って費用も払うしかなかった。
+ *
+ * 走っているものは実行ごと止める。まだ待ち行列にいるものは止める相手が
+ * いないので、状態だけ中止にしておき、始まるときに気づかせる
+ */
+export const cancelReviewJob = async (params: {
+  reviewJobId: string;
+  user?: RequestUser;
+  deps?: { repo?: ReviewJobRepository };
+}): Promise<void> => {
+  const repo = params.deps?.repo || (await makePrismaReviewJobRepository());
+  const job = await repo.findReviewJobById({ reviewJobId: params.reviewJobId });
+  assertHasOwnerAccessOrThrow(params.user, job.userId, {
+    api: "cancelReviewJob",
+    resourceId: job.id,
+    logger: console,
+  });
+
+  if (!canCancel(job.status)) {
+    throw new ValidationError(
+      `This review job is not running, so it cannot be cancelled: ${job.status}`
+    );
+  }
+
+  // 先に状態を書く。止めるのに失敗しても、始まるときに気づいて止まる
+  await repo.updateJobStatus({
+    reviewJobId: params.reviewJobId,
+    status: REVIEW_JOB_STATUS.CANCELLED,
+  });
+
+  if (job.executionArn) {
+    await stopStateMachineExecution(job.executionArn, "Cancelled by the user");
+  }
 };
 
 /**

@@ -149,6 +149,8 @@ model ReviewJob {
   createdAt         DateTime         @map("created_at") @db.Timestamp(0)
   updatedAt         DateTime         @map("updated_at") @db.Timestamp(0)
   completedAt       DateTime?        @map("completed_at") @db.Timestamp(0)
+  /// 走っている審査の実行。中止するときに使う。待ち行列にいる間は入らない
+  executionArn      String?          @map("execution_arn") @db.VarChar(255)
   /// 社内に公開したジョブ。公開しても見られるだけで、判定の変更と削除は作成者のまま
   sharedWithOrg     Boolean          @default(false) @map("shared_with_org")
   userId            String?          @map("user_id") @db.VarChar(50)

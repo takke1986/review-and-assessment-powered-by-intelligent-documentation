@@ -13,6 +13,8 @@ export enum REVIEW_JOB_STATUS {
   PROCESSING = "processing",
   COMPLETED = "completed",
   FAILED = "failed",
+  /** 人が途中で止めた。失敗とは分けて数える */
+  CANCELLED = "cancelled",
 }
 
 /**
@@ -158,6 +160,8 @@ export interface ReviewJobDetail {
   status: REVIEW_JOB_STATUS;
   /** 社内に公開したジョブ。見られるだけで、直せるのは作成者だけ */
   sharedWithOrg?: boolean;
+  /** 走っている審査の実行。中止に使う。待ち行列にいる間は入らない */
+  executionArn?: string;
   errorDetail?: string;
   hasError: boolean;
   checkList: CheckListSetEntity;
