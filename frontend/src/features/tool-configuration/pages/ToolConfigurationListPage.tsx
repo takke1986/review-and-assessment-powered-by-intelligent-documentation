@@ -50,7 +50,7 @@ export default function ToolConfigurationListPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <h1 className="text-3xl font-bold">{t("toolConfiguration.title")}</h1>
         <Button onClick={() => navigate("/tool-configurations/new")}>
           <HiPlus className="mr-2 h-5 w-5" />

@@ -234,9 +234,10 @@ export default function ReviewResultItem({
         variant={getCardVariant()}
         emphasize={isBelowThreshold}
       >
+        {/* 開閉の印と中身の2列。信頼度は上段に移したので、右端の列は空だった */}
         <div
           id={`result-item-${result.id}`}
-          className="grid grid-cols-[auto_1fr_auto] gap-4">
+          className="grid grid-cols-[auto_1fr] gap-2 sm:gap-4">
           {/* Expand/collapse button - 1st column */}
           <div className="pt-1">
             {hasChildren && (
@@ -260,10 +261,12 @@ export default function ReviewResultItem({
           </div>
 
           {/* Item information - 2nd column */}
-          <div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="font-medium text-aws-squid-ink-light">
+          {/* min-w-0 が無いと、中身が長いときに列が縮まず画面からはみ出す */}
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {/* 項目名とバッジ。携帯では1行に収まらないので折り返す */}
+              <div className="flex min-w-0 flex-wrap items-center gap-y-1">
+                <div className="break-words font-medium text-aws-squid-ink-light">
                   {result.checkList.name}
                 </div>
                 <div className="ml-2">
@@ -597,10 +600,6 @@ export default function ReviewResultItem({
               )}
           </div>
 
-          {/* Confidence score and override button - 3rd column */}
-          <div className="flex flex-col items-end space-y-2 self-start">
-            {/* 信頼度スコアは上段に移動したため、ここでは表示しない */}
-          </div>
         </div>
       </ResultCard>
 

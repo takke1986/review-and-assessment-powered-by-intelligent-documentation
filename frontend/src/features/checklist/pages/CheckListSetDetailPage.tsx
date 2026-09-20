@@ -196,7 +196,7 @@ export function CheckListSetDetailPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <Breadcrumb to="/checklist" label={t("checklist.backToList")} />
           <h1 className="flex items-center text-3xl font-bold text-aws-squid-ink-light">
@@ -283,7 +283,7 @@ export function CheckListSetDetailPage() {
           </div>
         ) : (
           <>
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-4">
                 {checklistSet && checklistSet.isEditable && (
                   <SegmentedControl

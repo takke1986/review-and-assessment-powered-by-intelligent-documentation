@@ -295,7 +295,9 @@ export default function CheckFailureTrendsPage() {
         <p className="text-aws-font-color-gray">{t("trends.empty")}</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-light-gray bg-white">
-          <table className="w-full text-sm">
+          {/* min-w-full。w-full だと表が画面幅に押し込まれ、横スクロールが
+              効かないまま桁が潰れる */}
+          <table className="min-w-full text-sm">
             <thead className="bg-aws-paper-light text-left">
               <tr>
                 {SORTABLE_COLUMNS.map((column) => (

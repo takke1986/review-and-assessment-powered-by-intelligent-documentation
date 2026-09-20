@@ -113,12 +113,12 @@ export default function ReviewDetailPage() {
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <Breadcrumb to="/review" label={t("review.backToList")} />
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h1 className="text-2xl font-bold text-aws-squid-ink-light">
               {job.name}
             </h1>
           </div>
-          <div className="mt-3 flex items-center justify-between">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
             {/* 合計料金表示 */}
             {job.totalCost && (
               <TotalReviewCostSummary

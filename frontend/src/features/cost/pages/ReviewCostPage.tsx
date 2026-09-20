@@ -159,7 +159,7 @@ export default function ReviewCostPage() {
                 </p>
                 {/* 狭い画面でははみ出すので、表だけ横に送れるようにする */}
                 <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="min-w-full">
                   <thead>
                     <tr className="bg-aws-paper-light text-left">
                       <th className="px-3 py-2 font-medium">
@@ -199,7 +199,7 @@ export default function ReviewCostPage() {
                 </h2>
                 {/* 狭い画面でははみ出すので、表だけ横に送れるようにする */}
                 <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="min-w-full">
                   <thead>
                     <tr className="bg-aws-paper-light text-left">
                       <th className="px-3 py-2 font-medium">

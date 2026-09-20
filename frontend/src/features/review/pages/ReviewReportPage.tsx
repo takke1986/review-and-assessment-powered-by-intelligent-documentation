@@ -88,7 +88,7 @@ export default function ReviewReportPage() {
   return (
     <div className="mx-auto max-w-4xl bg-white p-4 text-aws-squid-ink-light sm:p-8">
       {/* 印刷には出さない操作の帯 */}
-      <div className="mb-6 flex items-center justify-between print:hidden">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 print:hidden">
         <Breadcrumb to={`/review/${job.id}`} label={t("review.backToDetail")} />
         <Button
           variant="primary"
