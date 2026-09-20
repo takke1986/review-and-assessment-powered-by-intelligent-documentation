@@ -22,6 +22,8 @@ interface ReviewResultTreeNodeProps {
   autoExpand?: boolean;
   filter: FilterType;
   importanceFilter?: ImportanceFilterValue;
+  /** 再審査された古いジョブでは、判定を変えられない */
+  isSuperseded: boolean;
   documents: Array<{
     id: string;
     filename: string;
@@ -39,6 +41,7 @@ export default function ReviewResultTreeNode({
   autoExpand = false,
   filter,
   importanceFilter = "all",
+  isSuperseded,
   documents,
 }: ReviewResultTreeNodeProps) {
   const { t } = useTranslation();
@@ -77,6 +80,7 @@ export default function ReviewResultTreeNode({
         confidenceThreshold={confidenceThreshold}
         isLoadingChildren={shouldLoadChildren && isLoadingChildren}
         documents={documents}
+        isSuperseded={isSuperseded}
       />
 
       {/* 子項目を表示（展開時のみ）。
@@ -104,6 +108,7 @@ export default function ReviewResultTreeNode({
                 filter={filter}
                 importanceFilter={importanceFilter}
                 documents={documents}
+                isSuperseded={isSuperseded}
               />
             ))
           ) : (

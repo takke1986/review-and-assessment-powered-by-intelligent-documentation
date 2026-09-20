@@ -6,6 +6,7 @@ import {
   FilterType,
 } from "../hooks/useReviewResultQueries";
 import { useTranslation } from "react-i18next";
+import { isSupersededByRerun } from "../supersededByRerun";
 import { useReviewJobDetail } from "../hooks/useReviewJobQueries";
 import ReviewResultTreeNode from "./ReviewResultTreeNode";
 import { TreeSkeleton } from "../../../components/Skeleton";
@@ -77,6 +78,7 @@ export default function ReviewResultTree({
           filter={filter}
           importanceFilter={importanceFilter}
           documents={job?.documents || []}
+          isSuperseded={isSupersededByRerun(job?.rerunJobs)}
         />
       ))}
     </div>

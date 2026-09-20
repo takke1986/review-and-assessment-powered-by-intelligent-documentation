@@ -11,6 +11,7 @@ import {
   makePrismaReviewJobRepository,
 } from "../domain/repository";
 import { updateCheckResultCascade } from "../domain/service/review-result-cascade-update";
+import { isSupersededByRerun } from "../domain/service/superseded-by-rerun";
 import {
   assertHasOwnerAccessOrThrow,
   RequestUser,
@@ -92,6 +93,15 @@ export const overrideReviewResult = async (params: {
     resourceId: job.id,
     logger: console,
   });
+
+  // 再審査されたジョブの判定は変えられない。変えても新しいジョブには
+  // 伝わらず、同じ項目が食い違って見えるだけになる。
+  // 画面でもボタンを隠すが、API を直に叩かれても通らないようにする
+  if (isSupersededByRerun(job.rerunJobs)) {
+    throw new ValidationError(
+      "This review job has been re-reviewed. Change the verdict on the newest job instead."
+    );
+  }
 
   const updated = ReviewResultDomain.fromOverrideRequest({
     current,

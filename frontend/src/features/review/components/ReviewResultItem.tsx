@@ -40,6 +40,8 @@ interface ReviewResultItemProps {
   confidenceThreshold: number;
   isLoadingChildren?: boolean;
   documents: ReviewJobDocument[];
+  /** 再審査された古いジョブでは、判定を変えられない */
+  isSuperseded?: boolean;
 }
 
 export default function ReviewResultItem({
@@ -50,6 +52,7 @@ export default function ReviewResultItem({
   confidenceThreshold,
   isLoadingChildren,
   documents,
+  isSuperseded = false,
 }: ReviewResultItemProps) {
   const { t } = useTranslation();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -308,8 +311,11 @@ export default function ReviewResultItem({
                     : t("review.showDetails", "Show Details")}
                 </Button>
 
-                {/* 上書きボタンを同じ行に配置 */}
+                {/* 上書きボタンを同じ行に配置。
+                    再審査された古いジョブでは出さない。直しても新しい方には
+                    伝わらず、同じ項目が食い違って見えるだけになる */}
                 {!hasChildren &&
+                  !isSuperseded &&
                   result.status === REVIEW_RESULT_STATUS.COMPLETED && (
                     <Button
                       onClick={() => setIsModalOpen(true)}

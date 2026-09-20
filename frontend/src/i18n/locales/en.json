@@ -448,7 +448,8 @@
       "ambiguous_item": "The item is worded ambiguously",
       "not_applicable": "This item did not apply to this document",
       "other": "Something else (see the comment)"
-    }
+    },
+    "supersededByRerun": "This job has been re-reviewed, so its verdicts cannot be changed. Change them on the newest job:"
   },
   "fileUploader": {
     "dropFiles": "Drop files here",

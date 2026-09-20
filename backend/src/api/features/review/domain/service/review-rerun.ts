@@ -87,6 +87,12 @@ export const createRerunResults = (
         extractedText: previous.extractedText,
         userOverride: previous.userOverride,
         userComment: previous.userComment,
+        // 引き継ぐのは同じ判定なので、AI が何と言ったかと、人がなぜ覆したかも
+        // そのまま持っていく。ここが抜けると、引き継いだ結果をもう一度覆した
+        // ときに向きが分からなくなる（いまの判定が人のものか AI のものか
+        // 区別できないため）
+        aiResult: previous.aiResult,
+        overrideReason: previous.overrideReason,
         sourceReferences: previous.sourceReferences,
         externalSources: previous.externalSources,
         previousResultId: previous.id,

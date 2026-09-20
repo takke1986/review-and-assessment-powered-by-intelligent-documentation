@@ -7,6 +7,7 @@ import ReviewResultFilter from "../components/ReviewResultFilter";
 import { FilterType } from "../hooks/useReviewResultQueries";
 import { useReviewJobDetail } from "../hooks/useReviewJobQueries";
 import { useJobCompletionNotice } from "../hooks/useJobCompletionNotice";
+import { isSupersededByRerun } from "../supersededByRerun";
 import { ErrorAlert } from "../../../components/ErrorAlert";
 import Slider from "../../../components/Slider";
 import { DetailSkeleton } from "../../../components/Skeleton";
@@ -40,6 +41,9 @@ export default function ReviewDetailPage() {
 
   // 開いているジョブが終わったら知らせる。別のタブに移っていても届く
   useJobCompletionNotice(useMemo(() => (job ? [job] : []), [job]));
+
+  // 再審査されたジョブの判定は変えられない
+  const isSuperseded = isSupersededByRerun(job?.rerunJobs);
 
   // 実行中は、項目の審査が終わるたびに結果のツリーも読み直す。
   // 最後に親の判定がまとまるので、ジョブの状態が変わったときも読み直す
@@ -264,6 +268,18 @@ export default function ReviewDetailPage() {
             <h2 className="text-xl font-medium text-aws-squid-ink-light">
               {t("review.results")}
             </h2>
+            {/* 再審査されたジョブでは判定を変えられない。ボタンが無い理由を
+                書かないと、権限の問題だと思われる */}
+            {isSuperseded && job.rerunJobs?.[0] && (
+              <p className="mt-1 text-sm text-aws-font-color-gray">
+                {t("review.supersededByRerun")}{" "}
+                <Link
+                  to={`/review/${job.rerunJobs[0].id}`}
+                  className="text-aws-font-color-blue hover:underline">
+                  {job.rerunJobs[0].name}
+                </Link>
+              </p>
+            )}
             {/* 項目を選んで作ったジョブ。選ばなかった項目は結果に出ない */}
             {job.checkItemCounts &&
               job.checkItemCounts.reviewed < job.checkItemCounts.total && (

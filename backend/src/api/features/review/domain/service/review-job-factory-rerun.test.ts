@@ -4,10 +4,12 @@ import { createRerunResults, failedLeafCheckIds } from "./review-rerun";
 import { ValidationError } from "../../../../core/errors";
 import type { CheckRepository } from "../../../checklist/domain/repository";
 import {
+  OVERRIDE_REASON,
   REVIEW_FILE_TYPE,
   REVIEW_RESULT,
   REVIEW_RESULT_STATUS,
   ReviewResultDetail,
+  ReviewResultDomain,
   ReviewResultEntity,
 } from "../model/review";
 
@@ -226,5 +228,66 @@ describe("createInitialReviewJobModel with a source job", () => {
     expect(job.sourceReviewJobId).toBe("source-job");
     expect(job.results.every((r) => r.reviewJobId === job.id)).toBe(true);
     expect(pendingIds(job.results)).toEqual(["A", "A2", "B", "B1", "B1a"]);
+  });
+});
+
+describe("再審査での、覆された記録の扱い", () => {
+  const overridden = previous("C", REVIEW_RESULT.PASS, {
+    userOverride: true,
+    userComment: "角印でも可",
+    aiResult: REVIEW_RESULT.FAIL,
+    overrideReason: OVERRIDE_REASON.CRITERIA_INTERPRETATION,
+  });
+
+  it("引き継ぐ結果は、AI の判定と覆した理由も持っていく", () => {
+    // C は審査し直さない（A1 だけを選ぶ）ので引き継がれる
+    const results = createRerunResults(
+      "new-job",
+      items,
+      [...sourceResults.filter((r) => r.checkId !== "C"), overridden],
+      ["A1"]
+    );
+
+    const carried = results.find((r) => r.checkId === "C")!;
+    expect(carried.carriedOver).toBe(true);
+    expect(carried.aiResult).toBe(REVIEW_RESULT.FAIL);
+    expect(carried.overrideReason).toBe(OVERRIDE_REASON.CRITERIA_INTERPRETATION);
+    // 人が覆したという事実そのものも残る
+    expect(carried.userOverride).toBe(true);
+  });
+
+  it("引き継いだ結果をもう一度覆しても、AI の判定は最初のまま", () => {
+    const results = createRerunResults(
+      "new-job",
+      items,
+      [...sourceResults.filter((r) => r.checkId !== "C"), overridden],
+      ["A1"]
+    );
+    const carried = results.find((r) => r.checkId === "C")!;
+
+    const again = ReviewResultDomain.fromOverrideRequest({
+      current: { ...carried, checkList: overridden.checkList, hasChildren: false },
+      result: REVIEW_RESULT.FAIL,
+      userComment: "やはり不合格",
+    });
+
+    // ここが引き継がれていないと、いまの判定（人のもの）を AI の判定として
+    // 拾ってしまい、向きが逆に記録される
+    expect(again.aiResult).toBe(REVIEW_RESULT.FAIL);
+  });
+
+  it("審査し直す項目では、前回の理由を持ち越さない", () => {
+    const results = createRerunResults(
+      "new-job",
+      items,
+      [...sourceResults.filter((r) => r.checkId !== "C"), overridden],
+      ["C"]
+    );
+
+    const rejudged = results.find((r) => r.checkId === "C")!;
+    expect(rejudged.carriedOver).toBeFalsy();
+    expect(rejudged.overrideReason).toBeUndefined();
+    expect(rejudged.aiResult).toBeUndefined();
+    expect(rejudged.userOverride).toBe(false);
   });
 });
