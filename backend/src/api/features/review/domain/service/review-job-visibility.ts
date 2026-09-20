@@ -41,7 +41,12 @@ export const toViewer = (user: RequestUser | undefined): Viewer | undefined =>
 /**
  * 一覧の絞り込み条件。
  *
- * 管理者は全件。それ以外は自分のものと、公開されたものだけ
+ * 管理者は全件。それ以外は自分が開始した審査と、自分の部署の審査だけ。
+ *
+ * 「自分が開始した審査」を条件に残すのは、部署が付かない審査があるため。
+ * どの部署にも属していない人が回した審査、部署機能より前の審査には
+ * departmentId が入らない（後から埋まらない）。部署だけを条件にすると、
+ * それらが作った本人からも見えなくなる
  */
 export const visibilityFilter = (
   viewer: Viewer | undefined
