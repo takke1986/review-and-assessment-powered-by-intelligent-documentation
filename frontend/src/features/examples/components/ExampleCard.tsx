@@ -23,15 +23,19 @@ export default function ExampleCard({ example }: ExampleCardProps) {
     <div className="bg-white dark:bg-aws-squid-ink-dark rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
       {/* タイトルとタグ */}
       <div className="mb-3">
-        <div className="flex items-center justify-between mb-2">
+        {/* 題名が長いと印が潰れ、丸い枠の中で文字が折り返す。
+            折り返しを許し、印は縮めない */}
+        <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
           <h3 className="text-lg font-semibold text-aws-font-color-light dark:text-aws-font-color-white-dark">
             {example.name}
           </h3>
           {hasSetup && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex shrink-0 items-center gap-1.5">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800">
                 <span>⚙️</span>
-                <span>{t("examples.setupRequired")}</span>
+                <span className="whitespace-nowrap">
+                  {t("examples.setupRequired")}
+                </span>
                 {example.githubUrl && (
                   <a
                     href={example.githubUrl}

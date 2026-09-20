@@ -275,11 +275,13 @@ export default function CheckFailureTrendsPage() {
           <h2 className="mb-2 font-medium text-aws-squid-ink-light">
             {t("trends.action")}
           </h2>
-          <ol className="list-inside list-decimal space-y-1 text-sm">
+          {/* list-outside にして、折り返した行が番号の下に潜らないようにする。
+              打ち手の文は長いので、項目名と地続きにせず行を分ける */}
+          <ol className="list-outside list-decimal space-y-2 pl-5 text-sm">
             {todo.map((item) => (
               <li key={item.checkId}>
                 <span className="font-medium">{item.name}</span>
-                <span className="ml-2 text-aws-font-color-gray">
+                <span className="mt-0.5 block text-aws-font-color-gray">
                   {t(STATUS_VIEW[item.status].label)} /{" "}
                   {t(STATUS_VIEW[item.status].action)}
                 </span>
