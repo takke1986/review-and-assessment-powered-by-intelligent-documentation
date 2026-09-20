@@ -42,7 +42,10 @@ echo "CDKデプロイ開始..."
 cd cdk
 npm ci
 npm run build
-cdk deploy --all --require-approval never
+# npx を通してこのリポジトリの CDK CLI を使う。グローバルに入っている
+# 古い cdk だと "Cloud assembly schema version mismatch" で止まり、
+# しかもそれが最後まで気づきにくい
+npx cdk deploy --all --require-approval never
 
 # マイグレーション自動実行の確認（バックアップとして手動実行も可能）
 echo "データベースマイグレーションの確認..."
