@@ -238,8 +238,9 @@ export class RapidStack extends cdk.Stack {
       databaseName: "rapid",
       // costSchedule: 使わない時間帯は 0 ACU で自動停止。使う時間帯はスケジュールで 0.5 にする
       minCapacity: costSchedule ? 0 : 0.5,
-      // 審査を並行して走らせるぶん、接続も増える。上限に当たると審査が
-      // 落ちるので、1 ACU では余裕がない
+      // 審査を並行して走らせるぶん、接続も増える。Serverless v2 は使った
+      // 分だけの課金なので、上限を上げても普段の料金は変わらない。上限に
+      // 当たると審査が落ちるほうが痛い
       maxCapacity: 2,
       autoPause: true,
       autoPauseSeconds: 300,
