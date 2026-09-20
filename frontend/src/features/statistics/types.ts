@@ -4,6 +4,10 @@ import { ApiResponse } from "../../types/api";
 export const CHECK_TREND_STATUS = {
   NOT_REVIEWED_RECENTLY: "not_reviewed_recently",
   INSUFFICIENT_DATA: "insufficient_data",
+  /** AI が合格にしたものを人が不合格に直している。見落としている */
+  MISSES_THINGS: "misses_things",
+  /** AI が不合格にしたものを人が合格に戻している。厳しすぎる */
+  TOO_STRICT: "too_strict",
   NEEDS_GUIDANCE: "needs_guidance",
   OPERATIONAL_ISSUE: "operational_issue",
   STABLE: "stable",
@@ -25,6 +29,16 @@ export interface CheckFailureTrendItem {
   lastFailedReviewJobId: string | null;
   /** 再審査で引き継いだ回数。審査し直していないことを示す */
   carriedOverCount: number;
+  /** AI が合格にしたものを人が不合格に直した回数 */
+  missedCount: number;
+  /** AI が不合格にしたものを人が合格に戻した回数 */
+  overturnedToPassCount: number;
+  /** 着眼点を書いたあと、覆されにくくなったか。着眼点が無ければ null */
+  guidanceEffect: {
+    writtenAt: string;
+    before: { reviewed: number; overturned: number };
+    after: { reviewed: number; overturned: number };
+  } | null;
   /** 次に何をすべきかを示す状態 */
   status: CHECK_TREND_STATUS;
 }

@@ -15,6 +15,19 @@ const STATUS_VIEW: Record<
   CHECK_TREND_STATUS,
   { style: string; label: string; action: string; actionable: boolean }
 > = {
+  [CHECK_TREND_STATUS.MISSES_THINGS]: {
+    // 見落としが一番危ない。目で拾えるよう、ほかより強い色にする
+    style: "bg-red/10 text-red",
+    label: "trends.statusMissesThings",
+    action: "trends.actionMissesThings",
+    actionable: true,
+  },
+  [CHECK_TREND_STATUS.TOO_STRICT]: {
+    style: "bg-yellow-100 text-yellow-800",
+    label: "trends.statusTooStrict",
+    action: "trends.actionTooStrict",
+    actionable: true,
+  },
   [CHECK_TREND_STATUS.NEEDS_GUIDANCE]: {
     style: "bg-yellow-100 text-yellow-800",
     label: "trends.statusNeedsGuidance",
@@ -52,6 +65,7 @@ const SORTABLE_COLUMNS = [
   { key: "name", label: "trends.item", alignRight: false },
   { key: "status", label: "trends.status", alignRight: false },
   { key: "action", label: "trends.action", alignRight: false },
+  { key: "overturned", label: "trends.overturned", alignRight: true },
   { key: "failRate", label: "trends.failRate", alignRight: true },
   { key: "failedCount", label: "trends.failed", alignRight: true },
   { key: "reviewedCount", label: "trends.reviewed", alignRight: true },
@@ -99,6 +113,9 @@ export default function CheckFailureTrendsPage() {
           return item.reviewedCount;
         case "averageConfidence":
           return item.averageConfidence;
+        case "overturned":
+          // 見落としのほうが重いので、並べたときに上に来るよう重みを付ける
+          return item.missedCount * 100 + item.overturnedToPassCount;
         case "lastFailedAt":
           return item.lastFailedAt
             ? new Date(item.lastFailedAt).getTime()
@@ -125,16 +142,60 @@ export default function CheckFailureTrendsPage() {
     () =>
       items
         .filter((item) => STATUS_VIEW[item.status].actionable)
-        .sort((a, b) => b.failedCount - a.failedCount)
+        // 見落としが最優先。そのまま通っていたら見逃していたものなので
+        .sort(
+          (a, b) =>
+            b.missedCount - a.missedCount ||
+            b.overturnedToPassCount - a.overturnedToPassCount ||
+            b.failedCount - a.failedCount
+        )
         .slice(0, 3),
     [items]
   );
 
   const percent = (rate: number) => `${Math.round(rate * 100)}%`;
+
+  /**
+   * 着眼点の効果をひとことにする。
+   *
+   * 書いたあと審査していなければ「まだ分からない」と言う。0件を「効いた」と
+   * 見せると、次に覆されたときに信用されなくなる
+   */
+  const guidanceEffectLabel = (
+    effect: NonNullable<CheckFailureTrendItem["guidanceEffect"]>
+  ) => {
+    const written = new Date(effect.writtenAt).toLocaleDateString();
+    if (effect.after.reviewed === 0) {
+      return t("trends.guidanceNotYetTested", { written });
+    }
+    if (effect.after.overturned === 0) {
+      return t("trends.guidanceWorking", {
+        written,
+        reviewed: effect.after.reviewed,
+      });
+    }
+    return t("trends.guidanceStillOverturned", {
+      written,
+      overturned: effect.after.overturned,
+      reviewed: effect.after.reviewed,
+    });
+  };
   const selectedSet = sets.find((set) => set.id === setId);
 
   // 行き先は状態で変わる。着眼点を書くならその項目、実務の問題なら落ちた審査の結果
   const destination = (item: CheckFailureTrendItem) => {
+    // 覆されている項目は、どちらの向きでも着眼点で埋められる。
+    // 厳しすぎるなら許容範囲を、見落とすなら見るべき箇所を書く
+    if (
+      (item.status === CHECK_TREND_STATUS.MISSES_THINGS ||
+        item.status === CHECK_TREND_STATUS.TOO_STRICT) &&
+      setId
+    ) {
+      return {
+        to: `/checklist/${setId}?item=${item.checkId}`,
+        label: t("trends.openGuidance"),
+      };
+    }
     if (item.status === CHECK_TREND_STATUS.NEEDS_GUIDANCE && setId) {
       return {
         to: `/checklist/${setId}?item=${item.checkId}`,
@@ -280,6 +341,13 @@ export default function CheckFailureTrendsPage() {
                         {t("trends.carriedOver")} {item.carriedOverCount}
                       </span>
                     )}
+                    {/* 着眼点を書いた効果。ここが見えないと、書いた側に
+                        効いたかどうかが返らず、次を書く気にならない */}
+                    {item.guidanceEffect && (
+                      <p className="mt-1 text-xs text-aws-font-color-gray">
+                        {guidanceEffectLabel(item.guidanceEffect)}
+                      </p>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -290,6 +358,29 @@ export default function CheckFailureTrendsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3">{action(item)}</td>
+                  <td className="px-4 py-3 text-right text-sm">
+                    {/* 向きが分からないと打ち手が決まらないので、数だけでなく
+                        どちらに覆されたかを出す */}
+                    {item.missedCount === 0 &&
+                    item.overturnedToPassCount === 0 ? (
+                      "-"
+                    ) : (
+                      <div className="flex flex-col items-end gap-0.5">
+                        {item.missedCount > 0 && (
+                          <span className="whitespace-nowrap text-red">
+                            {t("trends.missed", { count: item.missedCount })}
+                          </span>
+                        )}
+                        {item.overturnedToPassCount > 0 && (
+                          <span className="whitespace-nowrap text-aws-font-color-gray">
+                            {t("trends.overturnedToPass", {
+                              count: item.overturnedToPassCount,
+                            })}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right font-bold">
                     {item.reviewedCount === 0 ? "-" : percent(item.failRate)}
                   </td>

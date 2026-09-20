@@ -26,7 +26,17 @@
     "noMatch": "No checklist matches",
     "carriedOver": "Carried over",
     "openGuidance": "Write what to look at",
-    "openResults": "Open the results"
+    "openResults": "Open the results",
+    "statusMissesThings": "Misses things",
+    "statusTooStrict": "Too strict",
+    "actionMissesThings": "People keep failing what the AI passed. Write what must be checked into the guidance.",
+    "actionTooStrict": "People keep passing what the AI failed. Write what is acceptable into the guidance.",
+    "overturned": "Overturned",
+    "missed": "missed {{count}}",
+    "overturnedToPass": "passed back {{count}}",
+    "guidanceNotYetTested": "Guidance written {{written}}. Not reviewed since.",
+    "guidanceWorking": "Guidance written {{written}}. None overturned in {{reviewed}} reviews since.",
+    "guidanceStillOverturned": "Guidance written {{written}}. Still {{overturned}} of {{reviewed}} overturned since."
   },
   "common": {
     "appName": "Review & Assessment Powered by Intelligent Documentation",

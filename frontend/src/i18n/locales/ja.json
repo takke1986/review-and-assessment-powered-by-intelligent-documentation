@@ -26,7 +26,17 @@
     "noMatch": "該当するチェックリストがありません",
     "carriedOver": "引き継ぎ",
     "openGuidance": "着眼点を書く",
-    "openResults": "審査結果を見る"
+    "openResults": "審査結果を見る",
+    "statusMissesThings": "見落としている",
+    "statusTooStrict": "厳しすぎる",
+    "actionMissesThings": "AI が合格にしたものを人が不合格に直しています。着眼点に「必ず見る箇所」を書いてください。",
+    "actionTooStrict": "AI が不合格にしたものを人が合格に戻しています。着眼点に「ここまでは許容する」を書いてください。",
+    "overturned": "人が覆した",
+    "missed": "見落とし {{count}}",
+    "overturnedToPass": "戻した {{count}}",
+    "guidanceNotYetTested": "着眼点を {{written}} に記入。まだ審査していません",
+    "guidanceWorking": "{{written}} に着眼点を記入。以降 {{reviewed}} 件で覆されていません",
+    "guidanceStillOverturned": "{{written}} に着眼点を記入。以降も {{reviewed}} 件中 {{overturned}} 件が覆されています"
   },
   "common": {
     "appName": "Review & Assessment Powered by Intelligent Documentation",
