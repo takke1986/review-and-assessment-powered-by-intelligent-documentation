@@ -29,7 +29,7 @@ RAPID runs on AWS serverless services (Amazon CloudFront, API Gateway + Lambda, 
 
 ## Key Features
 
-- **AI checklist extraction** – Converts regulations, guidelines, specifications, and the like into a checklist.
+- **AI checklist extraction** – Converts regulations, guidelines, specifications, and the like into a checklist. Besides PDF, it reads **Excel, Word, PowerPoint and plain text (.txt / .md / .csv)**. Office files are XML inside, so they are read as text without being rendered to images, and no cell value or formula is lost.
 - **AI document review** – Judges each checklist item as Pass / Fail and presents a confidence score, the AI's rationale, and the documents it referenced.
 - **Per-checklist-item model selection** – Assigns any generative AI model to each checklist item, so you can spend higher-cost models only on the difficult checks.
 - **Agent tools** – Equips a checklist item with **Amazon Bedrock Knowledge Bases** (RAG), the **AgentCore Code Interpreter** (code execution for calculations and validation), and **MCP (Model Context Protocol)** servers when the check needs knowledge from external tools.
@@ -37,6 +37,17 @@ RAPID runs on AWS serverless services (Amazon CloudFront, API Gateway + Lambda, 
 - **Example use cases gallery** – Ships with industry sample scenarios (real estate, IT, manufacturing, healthcare, corporate governance, and more), so you can try RAPID's document review right away.
 - **Closed / private network deployment** – Runs RAPID without exposing it to the internet. Combined with **AWS Site-to-Site VPN** or **AWS Direct Connect**, you can use RAPID from your on-premises network over fully private connectivity. See [Closed / Private Network Deployment](#closed--private-network-deployment).
 - **Concurrency control** – Keeps reviews within Amazon Bedrock's quotas by controlling how many run concurrently.
+
+### Running reviews day to day
+
+- **Overturning a verdict, and the record of it** – People can overturn the AI. When they do, RAPID keeps **what the AI decided, who overturned it and when, and why** (the criteria were read differently, it is in the document but the AI did not find it, the item is ambiguous, and so on), so the decision can be traced later.
+- **Trends and guidance** – Per check item, RAPID counts how often people overturned the AI and tells **"the AI is too strict"** apart from **"the AI misses things"**. Writing guidance on an item takes effect from the next review, and the screen shows **how the overturn rate changed before and after it was written**.
+- **Cancelling and carrying on** – A running review can be stopped. A cancelled or failed review can be **carried on from where it stopped**, keeping what already finished, so neither the money nor the time is thrown away.
+- **Re-review** – Failed items can be reviewed again with replacement documents; results for the documents you kept are carried over.
+- **Getting the results out** – Three ways: a **printable report** (save as PDF from the browser; meant to be handed to a customer, so it carries no internal URL), **copy as prose** (to hand to a generative AI that drafts the email), and **CSV** (to sort and total in a spreadsheet). All three use the same order and the same item numbers, so paper and file line up.
+- **Finish notification** – A toast when a review ends, plus an OS notification when you are looking at another tab or another application.
+- **What it costs** – Beyond the cost of a single review: the **total for a period, the trend by month, the breakdown by checklist, and the most expensive reviews**. Knowing which reviews cost the most is what leads to trimming items or changing the model.
+- **History by department** – Reviews are tied to a department, and people in that department can see its history. Someone in more than one department chooses which one a review is for. Membership comes from the identity provider (Cognito groups, or attributes when federated over SAML).
 
 <details>
 <summary><strong>Screenshots of the main screens</strong> (click to expand)</summary>

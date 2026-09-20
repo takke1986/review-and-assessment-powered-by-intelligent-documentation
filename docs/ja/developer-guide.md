@@ -12,6 +12,8 @@
 
 * [処理ワークフロー](#処理ワークフローaws-step-functions)
 
+* [判断の決まりはどこにあるか](#判断の決まりはどこにあるか)
+
 * [プロジェクト構成](#プロジェクト構成)
 
 * [技術スタック](#技術スタック)
@@ -83,8 +85,10 @@ RAPID は **2 つの CDK スタック**としてデプロイされます。
 
 アップロードされたドキュメントからチェックリストを作成する際に起動します。
 
-1. ドキュメントをページに分割します。
-2. インライン **Map** がページごとに並列でチェック項目の抽出を実行します。
+1. ファイルの種類で分かれます。
+   - **PDF** はページ画像に分割します。
+   - **Office（.xlsx / .docx / .pptx）とテキスト（.txt / .md / .csv）** は、Python の Lambda（`review-item-processor/checklist_office_converter.py`）で Markdown に変換し、シートやスライドの切れ目でページに分けます。変換器（`office_documents/`）は審査側と同じものを使っており、同じファイルが経路によって違って見えないようにしています。
+2. インライン **Map** がページごとに並列でチェック項目の抽出を実行します。PDF は document ブロック、変換したページはテキストとしてモデルに渡します。
 3. 結果をチェックリストへ集約します。
 4. データベースへ保存します。
 
@@ -94,8 +98,11 @@ RAPID は **2 つの CDK スタック**としてデプロイされます。
 
 審査ジョブの実行時に起動します。
 
-1. チェックリスト項目に対して **Map** を実行します（前処理 → **AgentCore Runtime**（Strands エージェント）呼び出し → 後処理）。
-2. 審査を完了します。
+1. 準備処理が、実行の識別子をジョブに控えます（中止に使います）。待ち行列にいる間に中止されていれば、ここで終わります。
+2. チェックリスト項目に対して **Map** を実行します（前処理 → **AgentCore Runtime**（Strands エージェント）呼び出し → 後処理）。
+3. 審査を完了します。
+
+中止は、控えた識別子で実行を止め、ジョブの状態を `cancelled` にします。状態の書き換えは条件付きで、あとから届いた「処理中」や「完了」が中止を上書きしないようにしています。
 
 各チェック項目を審査しているエージェントは、合格／不合格、信頼度スコア、判断理由、参考情報、（使用している場合は）ツール実行の記録を返します。並行数は `reviewMapConcurrency` で制御します。
 
@@ -117,6 +124,36 @@ Strands エージェント（`review-item-processor` コンテナイメージと
 
 評価には 2 つの経路があります。ファイル読み込みツールを使う経路と、Bedrock の **Citations API**（PDF + Claude）を使って結果を該当ページに紐付ける document-block 経路です。
 
+
+## 判断の決まりはどこにあるか
+
+「誰に見せるか」「何をさせないか」といった判断は、画面とサーバの両方に散らすと
+食い違います。食い違いは「ボタンは出るのに押すと弾かれる」「一覧には出るのに
+開けない」という形で出て、気づきにくい。そこで**判断は 1 か所に集め、単体で
+試せる純粋な関数**にしてあります。いずれも隣に同名のテストがあります。
+
+| 決まり | 置き場所 |
+|---|---|
+| 誰がどのジョブを見られるか／直せるか | `backend/src/api/features/review/domain/service/review-job-visibility.ts` |
+| 所属部署の読み取り、どの部署の仕事か | 同ディレクトリ `departments.ts` |
+| 中止できるか、中止を上書きさせない | 同 `review-job-cancel.ts` |
+| もう一度審査を流せるか | 同 `review-again.ts` |
+| 再審査された古いジョブか | 同 `superseded-by-rerun.ts` |
+| チェック項目の状態（着眼点を書くべきか等） | `backend/src/api/features/statistics/service/check-trend-status.ts` |
+| 着眼点を書いた効果 | 同 `guidance-effect.ts` |
+| 費用の内訳 | `backend/src/api/features/review/domain/service/review-cost-summary.ts` |
+
+画面側にも同じ決め方を置いている箇所があります（`frontend/src/features/review/reviewJobRules.ts`）。
+これは「押せないボタンを出さない」ためで、**権限の判断をサーバに代わって行うもの
+ではありません**。持ち主かどうかはサーバが `canEdit` として返し、画面はその返事に
+従います。
+
+### 出力の形
+
+審査結果の持ち出し（印刷・CSV・文章）は、並び順と通し番号を
+`frontend/src/features/review/utils/reviewReportModel.ts` に集めています。
+別々に組み立てると、同じ審査なのに出力先で番号が食い違い、紙とファイルを
+突き合わせたときに話が合わなくなります。
 
 ## プロジェクト構成
 
@@ -142,6 +179,11 @@ Strands エージェント（`review-item-processor` コンテナイメージと
 │   └── src/features/<feature>    # checklist, review, tool-configuration,
 │                                 # prompt-template, user-preference, examples
 └── review-item-processor/   # Python Strands エージェント（AgentCore Runtime イメージ）
+    ├── office_documents/         # Office ファイルを Markdown にする変換器
+    │                             # 審査とチェックリスト作成の両方が使う
+    └── checklist_office_converter.py
+                                  # 上を包む Lambda。チェックリスト作成の
+                                  # ワークフローから呼ばれる
 ```
 
 ## 技術スタック
