@@ -483,7 +483,8 @@
     "resumeSelectionHelp": "まだ審査が終わっていない項目を選んだ状態から始まります。済んだ項目は元のジョブの結果を引き継ぐので、もう一度費用はかかりません。",
     "department": "この審査を行う部署",
     "departmentHelp": "複数の部署に所属しているため、どの部署の仕事として記録するかを選んでください。選んだ部署の人が、この審査結果を見られます。",
-    "departmentRequired": "部署を選んでください"
+    "departmentRequired": "部署を選んでください",
+    "filterByDepartment": "部署で絞り込み中"
   },
   "fileUploader": {
     "dropFiles": "ファイルをドロップしてください",
@@ -672,6 +673,8 @@
     "topJobs": "費用の高い審査",
     "empty": "この期間に審査はありません。",
     "loadError": "費用を読み込めませんでした",
-    "loadErrorMessage": "時間をおいて、もう一度お試しください。"
+    "loadErrorMessage": "時間をおいて、もう一度お試しください。",
+    "byDepartment": "部署別",
+    "byDepartmentHint": "どの部署が使っているかが分かると、費用の負担や利用の偏りを話せます。"
   }
 }

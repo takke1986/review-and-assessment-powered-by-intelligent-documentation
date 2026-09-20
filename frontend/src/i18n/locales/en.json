@@ -483,7 +483,8 @@
     "resumeSelectionHelp": "Starts with the items that were not reviewed. What already finished is carried over, so you do not pay for it twice.",
     "department": "Department for this review",
     "departmentHelp": "You belong to more than one department, so choose which one this review is for. People in that department can see the results.",
-    "departmentRequired": "Please choose a department"
+    "departmentRequired": "Please choose a department",
+    "filterByDepartment": "Filtered by department"
   },
   "fileUploader": {
     "dropFiles": "Drop files here",
@@ -672,6 +673,8 @@
     "topJobs": "Most expensive reviews",
     "empty": "There were no reviews in this period.",
     "loadError": "Could not load the costs",
-    "loadErrorMessage": "Please try again in a moment."
+    "loadErrorMessage": "Please try again in a moment.",
+    "byDepartment": "By department",
+    "byDepartmentHint": "Knowing which departments use it opens the conversation about who bears the cost."
   }
 }

@@ -147,6 +147,73 @@ export default function ReviewCostPage() {
                 </ul>
               </section>
 
+              {/* どの部署が使っているか。部署を使っていなければ出さない */}
+              {summary.byDepartment.length > 0 && (
+                <section className="min-w-0 rounded-lg border border-light-gray bg-white p-4 shadow-sm sm:p-6">
+                  <h2 className="mb-1 text-xl font-medium text-aws-squid-ink-light">
+                    {t("cost.byDepartment")}
+                  </h2>
+                  <p className="mb-4 text-sm text-aws-font-color-gray">
+                    {t("cost.byDepartmentHint")}
+                  </p>
+                  <BarChart
+                    horizontal
+                    height={Math.max(140, summary.byDepartment.length * 42)}
+                    ariaLabel={t("cost.byDepartment")}
+                    labels={summary.byDepartment.map((d) => d.departmentId)}
+                    datasets={[
+                      {
+                        label: t("review.cost"),
+                        data: summary.byDepartment.map((d) => d.totalCost),
+                        backgroundColor: CHART_COLORS.blue,
+                      },
+                    ]}
+                    formatValue={money}
+                  />
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead>
+                        <tr className="bg-aws-paper-light text-left">
+                          <th className="whitespace-nowrap px-3 py-2 font-medium">
+                            {t("review.department")}
+                          </th>
+                          <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
+                            {t("review.cost")}
+                          </th>
+                          <th className="whitespace-nowrap px-3 py-2 text-right font-medium">
+                            {t("cost.jobCount")}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {summary.byDepartment.map((department) => (
+                          <tr
+                            key={department.departmentId}
+                            className="border-b border-light-gray">
+                            <td className="min-w-[10rem] px-3 py-2">
+                              {/* 「この部署が高い」で終わらせず、履歴まで辿れるように */}
+                              <Link
+                                to={`/review?departmentId=${encodeURIComponent(
+                                  department.departmentId
+                                )}`}
+                                className="text-aws-font-color-blue hover:underline">
+                                {department.departmentId}
+                              </Link>
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
+                              {money(department.totalCost)}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
+                              {department.jobCount}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+
               {/* どのチェックリストに掛かっているか */}
               <section className="min-w-0 rounded-lg border border-light-gray bg-white p-4 shadow-sm sm:p-6">
                 <h2 className="mb-1 text-xl font-medium text-aws-squid-ink-light">

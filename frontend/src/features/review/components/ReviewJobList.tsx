@@ -150,6 +150,18 @@ export const ReviewJobList: React.FC<ReviewJobListProps> = ({
       ),
     },
     {
+      key: "departmentId",
+      header: t("review.department"),
+      sortable: true,
+      render: (job) => (
+        <div className="whitespace-nowrap text-sm text-aws-font-color-gray">
+          {/* 部署を使わない運用では空。同じ部署の審査が一覧に混ざるので、
+              どこの仕事か分からないと読めない */}
+          {job.departmentId ?? "-"}
+        </div>
+      ),
+    },
+    {
       key: "totalCost",
       header: t("review.cost"),
       sortable: true,

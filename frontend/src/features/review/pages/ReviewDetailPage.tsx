@@ -131,6 +131,12 @@ export default function ReviewDetailPage() {
           <p className="text-aws-font-color-gray">
             {t("review.checklist")}: {job.checkList.name}
           </p>
+          {/* 同じ部署の審査は他の人にも見えるので、どこの仕事か分かるように出す */}
+          {job.departmentId && (
+            <p className="text-aws-font-color-gray">
+              {t("review.department")}: {job.departmentId}
+            </p>
+          )}
           {/* 再審査でつながったジョブ */}
           {job.sourceReviewJob && (
             <p className="text-aws-font-color-gray">

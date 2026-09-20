@@ -19,9 +19,9 @@ export const ReviewListPage: React.FC = () => {
   const [itemsPerPage] = useState(10);
   const [search, setSearch] = useState("");
   // 費用の内訳から「この審査が高い」で飛んでくる
-  const checkListSetId = new URLSearchParams(location.search).get(
-    "checkListSetId"
-  );
+  const query = new URLSearchParams(location.search);
+  const checkListSetId = query.get("checkListSetId");
+  const departmentId = query.get("departmentId");
 
   const { sortBy, sortOrder, handleSortChange } = useTableSort({
     defaultSortBy: "id",
@@ -42,7 +42,8 @@ export const ReviewListPage: React.FC = () => {
     sortOrder,
     undefined,
     search,
-    checkListSetId ?? undefined
+    checkListSetId ?? undefined,
+    departmentId ?? undefined
   );
 
   // 一覧を開いたままにしておけば、どのジョブが終わっても気づける
@@ -94,11 +95,14 @@ export const ReviewListPage: React.FC = () => {
 
       {/* 絞り込んで来たことが分かるようにする。黙って一部だけ出すと
           「ジョブが消えた」と見える */}
-      {checkListSetId && (
+      {(checkListSetId || departmentId) && (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-light-gray bg-aws-paper-light px-4 py-2 text-sm">
           <span className="text-aws-font-color-gray">
-            {t("review.filterByChecklist")}
-            {reviewJobs[0] ? `: ${reviewJobs[0].checkListSet.name}` : ""}
+            {departmentId
+              ? `${t("review.filterByDepartment")}: ${departmentId}`
+              : `${t("review.filterByChecklist")}${
+                  reviewJobs[0] ? `: ${reviewJobs[0].checkListSet.name}` : ""
+                }`}
           </span>
           <Link
             to="/review"

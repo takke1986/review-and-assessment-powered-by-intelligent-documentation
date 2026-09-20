@@ -14,6 +14,12 @@ export interface ReviewCostSummary {
   };
   /** 古い順 */
   byMonth: Array<{ month: string; totalCost: number; jobCount: number }>;
+  /** 部署ごと。高い順。部署の付いていない審査は入らない */
+  byDepartment: Array<{
+    departmentId: string;
+    totalCost: number;
+    jobCount: number;
+  }>;
   /** 高い順 */
   byChecklist: Array<{
     checkListSetId: string;

@@ -66,6 +66,7 @@ export const getAllReviewJobsHandler = async (
     "status",
     "checkListSet",
     "totalCost",
+    "departmentId",
   ];
   const validSortBy = validSortFields.includes(sortBy) ? sortBy : "id";
 

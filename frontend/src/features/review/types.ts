@@ -279,6 +279,8 @@ export interface ReviewJobSummary {
   userId?: string;
   /** 社内に公開したジョブ。見られるだけで、直せるのは作成者だけ */
   sharedWithOrg?: boolean;
+  /** この審査がどの部署の仕事か。部署を使わない運用では無い */
+  departmentId?: string;
   /** 実行中や失敗したジョブには入らない */
   totalCost?: number;
   documents: Array<{
@@ -306,6 +308,8 @@ export interface ReviewJobDetail {
   status: REVIEW_JOB_STATUS;
   /** 社内に公開したジョブ。見られるだけで、直せるのは作成者だけ */
   sharedWithOrg?: boolean;
+  /** この審査がどの部署の仕事か。部署を使わない運用では無い */
+  departmentId?: string;
   /**
    * このジョブを直せるか（判定の変更・再審査・中止・削除）。
    * 持ち主かどうかはサーバが答える。画面側で判定すると規則がずれる

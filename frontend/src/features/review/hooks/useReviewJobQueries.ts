@@ -19,7 +19,8 @@ export const getReviewJobsKey = (
   sortOrder?: "asc" | "desc",
   status?: string,
   search?: string,
-  checkListSetId?: string
+  checkListSetId?: string,
+  departmentId?: string
 ) => {
   const params = new URLSearchParams({
     page: page.toString(),
@@ -32,6 +33,8 @@ export const getReviewJobsKey = (
   if (search?.trim()) params.append("search", search.trim());
   // 費用の内訳から「この審査が高い」で飛んできたときに使う
   if (checkListSetId) params.append("checkListSetId", checkListSetId);
+  // 費用の部署別から「この部署の履歴」で飛んできたときに使う
+  if (departmentId) params.append("departmentId", departmentId);
   return `/review-jobs?${params.toString()}`;
 };
 
@@ -51,7 +54,8 @@ export function useReviewJobs(
   sortOrder?: "asc" | "desc",
   status?: string,
   search?: string,
-  checkListSetId?: string
+  checkListSetId?: string,
+  departmentId?: string
 ) {
   const url = getReviewJobsKey(
     page,
@@ -60,7 +64,8 @@ export function useReviewJobs(
     sortOrder,
     status,
     search,
-    checkListSetId
+    checkListSetId,
+    departmentId
   );
   const {
     data: result,
