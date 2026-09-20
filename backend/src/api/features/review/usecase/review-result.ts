@@ -5,15 +5,19 @@ import {
   ReviewResultDomain,
 } from "../domain/model/review";
 import {
-  ReviewResultRepository,
-  makePrismaReviewResultRepository,
   ReviewJobRepository,
   makePrismaReviewJobRepository,
 } from "../domain/repository";
+import {
+  ReviewResultRepository,
+  makePrismaReviewResultRepository,
+} from "../domain/review-result-repository";
 import { updateCheckResultCascade } from "../domain/service/review-result-cascade-update";
 import { isSupersededByRerun } from "../domain/service/superseded-by-rerun";
-import { assertCanViewOrThrow } from "../domain/service/review-job-visibility";
-import { departmentsOf } from "../domain/service/departments";
+import {
+  assertCanViewOrThrow,
+  toViewer,
+} from "../domain/service/review-job-visibility";
 import {
   assertHasOwnerAccessOrThrow,
   RequestUser,
@@ -43,13 +47,10 @@ export const getReviewResults = async (params: {
     reviewJobId: params.reviewJobId,
   });
   // 公開されたジョブの結果も読める。覆せるのは作成者だけ
-  assertCanViewOrThrow(
-    params.user
-      ? { ...params.user, departments: departmentsOf(params.user) }
-      : undefined,
-    job,
-    { api: "getReviewResults", logger: console }
-  );
+  assertCanViewOrThrow(toViewer(params.user), job, {
+    api: "getReviewResults",
+    logger: console,
+  });
 
   const importance = params.importance
     ? parseCheckItemImportance(params.importance)

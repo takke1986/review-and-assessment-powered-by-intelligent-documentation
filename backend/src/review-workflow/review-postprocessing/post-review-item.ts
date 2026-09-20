@@ -1,7 +1,9 @@
 import {
   makePrismaReviewJobRepository,
-  makePrismaReviewResultRepository,
 } from "../../api/features/review/domain/repository";
+import {
+  makePrismaReviewResultRepository,
+} from "../../api/features/review/domain/review-result-repository";
 import {
   REVIEW_FILE_TYPE,
   ReviewResultDomain,

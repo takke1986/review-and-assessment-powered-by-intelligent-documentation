@@ -20,7 +20,7 @@ const loadRepository = async (client: ReturnType<typeof makeClient>) => {
   vi.doMock("../../../core/db", () => ({
     getPrismaClient: async () => client,
   }));
-  const module = await import("./repository");
+  const module = await import("./review-result-repository");
   return module.makePrismaReviewResultRepository(client as never);
 };
 

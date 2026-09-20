@@ -9,10 +9,12 @@ import { PaginatedResponse } from "../../../common/types";
 import {
   ReviewCostSummary,
   ReviewJobRepository,
-  ReviewResultRepository,
   makePrismaReviewJobRepository,
-  makePrismaReviewResultRepository,
 } from "../domain/repository";
+import {
+  ReviewResultRepository,
+  makePrismaReviewResultRepository,
+} from "../domain/review-result-repository";
 import { ulid } from "ulid";
 import { getPresignedUrl, getS3ObjectSize } from "../../../core/s3";
 import {
@@ -39,13 +41,11 @@ import { assertHasOwnerAccessOrThrow } from "../../../core/middleware/authorizat
 import {
   assertCanViewOrThrow,
   canEdit,
+  toViewer,
 } from "../domain/service/review-job-visibility";
 import { canCancel } from "../domain/service/review-job-cancel";
 import { canReviewAgain } from "../domain/service/review-again";
-import {
-  departmentsOf,
-  resolveDepartment,
-} from "../domain/service/departments";
+import { resolveDepartment } from "../domain/service/departments";
 import { stopStateMachineExecution } from "../../../core/sfn";
 
 export const computeGlobalConcurrency = async (): Promise<{
@@ -110,9 +110,7 @@ export const getAllReviewJobs = async (params: {
     search: params.search,
     checkListSetId: params.checkListSetId,
     departmentId: params.departmentId,
-    visibleTo: params.user
-      ? { ...params.user, departments: departmentsOf(params.user) }
-      : undefined,
+    visibleTo: toViewer(params.user),
   });
   return result;
 };
@@ -523,13 +521,10 @@ export const getReviewJobById = async (params: {
 
   // 所有者チェック（一般ユーザは自分のジョブのみ参照可能）
   // 公開されたジョブは他の人も開ける。直せるのは作成者だけ
-  assertCanViewOrThrow(
-    params.user
-      ? { ...params.user, departments: departmentsOf(params.user) }
-      : undefined,
-    job,
-    { api: "getReviewJobById", logger: console }
-  );
+  assertCanViewOrThrow(toViewer(params.user), job, {
+    api: "getReviewJobById",
+    logger: console,
+  });
 
   // 直せるかどうかも一緒に返す。画面側で持ち主を判定すると規則がずれる
   return { ...job, canEdit: canEdit(params.user, job) };

@@ -5,7 +5,9 @@ import {
   REVIEW_RESULT,
   ReviewResultDetail,
 } from "../model/review";
-import { ReviewResultRepository } from "../repository";
+import {
+  ReviewResultRepository,
+} from "../review-result-repository";
 
 export const updateCheckResultCascade = async (params: {
   updated: ReviewResultDetail;

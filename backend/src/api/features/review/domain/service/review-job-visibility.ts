@@ -1,4 +1,6 @@
 import { ForbiddenError } from "../../../../core/errors/application-errors";
+import type { RequestUser } from "../../../../core/middleware/authorization";
+import { departmentsOf } from "./departments";
 
 /**
  * 誰がどの審査ジョブを見られるか。
@@ -23,6 +25,16 @@ export interface Viewer {
    */
   departments?: string[];
 }
+
+/**
+ * リクエストの利用者を「見る人」にする。
+ *
+ * 所属の読み取りを呼び出し側に書くと、足し忘れた場所だけ部署が効かなく
+ * なる。しかもその間違いは「見えるはずのものが見えない」という形で出るので、
+ * 気づきにくい
+ */
+export const toViewer = (user: RequestUser | undefined): Viewer | undefined =>
+  user ? { ...user, departments: departmentsOf(user) } : undefined;
 
 /**
  * 一覧の絞り込み条件。
