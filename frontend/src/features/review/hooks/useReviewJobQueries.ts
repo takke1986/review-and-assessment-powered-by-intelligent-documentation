@@ -19,7 +19,8 @@ export const getReviewJobsKey = (
   sortBy?: string,
   sortOrder?: "asc" | "desc",
   status?: string,
-  search?: string
+  search?: string,
+  checkListSetId?: string
 ) => {
   const params = new URLSearchParams({
     page: page.toString(),
@@ -30,6 +31,8 @@ export const getReviewJobsKey = (
   if (status) params.append("status", status);
   // 絞り込みはサーバ側で行う。画面側で絞ると、そのページの分しか対象にならない
   if (search?.trim()) params.append("search", search.trim());
+  // 費用の内訳から「この審査が高い」で飛んできたときに使う
+  if (checkListSetId) params.append("checkListSetId", checkListSetId);
   return `/review-jobs?${params.toString()}`;
 };
 
@@ -48,9 +51,18 @@ export function useReviewJobs(
   sortBy?: string,
   sortOrder?: "asc" | "desc",
   status?: string,
-  search?: string
+  search?: string,
+  checkListSetId?: string
 ) {
-  const url = getReviewJobsKey(page, limit, sortBy, sortOrder, status, search);
+  const url = getReviewJobsKey(
+    page,
+    limit,
+    sortBy,
+    sortOrder,
+    status,
+    search,
+    checkListSetId
+  );
   const {
     data: result,
     isLoading,

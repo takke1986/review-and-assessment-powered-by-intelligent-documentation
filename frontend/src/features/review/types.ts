@@ -15,6 +15,8 @@ export enum REVIEW_JOB_STATUS {
   PROCESSING = "processing",
   COMPLETED = "completed",
   FAILED = "failed",
+  /** 人が途中で止めた。失敗とは分けて見せる */
+  CANCELLED = "cancelled",
 }
 
 /**
@@ -270,6 +272,8 @@ export interface ReviewJobSummary {
   updatedAt: Date;
   completedAt?: Date;
   userId?: string;
+  /** 社内に公開したジョブ。見られるだけで、直せるのは作成者だけ */
+  sharedWithOrg?: boolean;
   /** 実行中や失敗したジョブには入らない */
   totalCost?: number;
   documents: Array<{
@@ -295,6 +299,13 @@ export interface ReviewJobDetail {
   id: string;
   name: string;
   status: REVIEW_JOB_STATUS;
+  /** 社内に公開したジョブ。見られるだけで、直せるのは作成者だけ */
+  sharedWithOrg?: boolean;
+  /**
+   * このジョブを直せるか（判定の変更・再審査・中止・削除）。
+   * 持ち主かどうかはサーバが答える。画面側で判定すると規則がずれる
+   */
+  canEdit?: boolean;
   errorDetail?: string;
   hasError: boolean;
   checkList: {

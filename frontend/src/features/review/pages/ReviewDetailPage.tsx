@@ -8,6 +8,7 @@ import { FilterType } from "../hooks/useReviewResultQueries";
 import { useReviewJobDetail } from "../hooks/useReviewJobQueries";
 import { useJobCompletionNotice } from "../hooks/useJobCompletionNotice";
 import { isSupersededByRerun } from "../supersededByRerun";
+import { useReviewJobActions } from "../hooks/useReviewJobActions";
 import { ErrorAlert } from "../../../components/ErrorAlert";
 import Slider from "../../../components/Slider";
 import { DetailSkeleton } from "../../../components/Skeleton";
@@ -45,6 +46,9 @@ export default function ReviewDetailPage() {
 
   // 再審査されたジョブの判定は変えられない
   const isSuperseded = isSupersededByRerun(job?.rerunJobs);
+  // 持ち主かどうかはサーバが答える。画面側で判定すると規則がずれる
+  const canEdit = job?.canEdit !== false;
+  const actions = useReviewJobActions(id ?? "", refetchJob);
 
   // 実行中は、項目の審査が終わるたびに結果のツリーも読み直す。
   // 最後に親の判定がまとまるので、ジョブの状態が変わったときも読み直す
@@ -223,6 +227,46 @@ export default function ReviewDetailPage() {
             <p className="text-aws-font-color-gray">
               {t("review.completedAt", "Completed At")}:{" "}
               {new Date(job.completedAt).toLocaleString()}
+            </p>
+          )}
+        </div>
+        <div className="flex flex-col items-stretch gap-2 self-start">
+          {/* 走っている審査は止められる。間違えて始めたときに、終わるまで
+              待って費用も払うのはおかしい */}
+          {canEdit && isJobRunning(job.status) && (
+            <Button
+              variant="danger"
+              outline
+              disabled={actions.isWorking}
+              onClick={() => {
+                if (window.confirm(t("review.cancelConfirm"))) {
+                  actions.cancel();
+                }
+              }}>
+              {t("review.cancel")}
+            </Button>
+          )}
+          {/* 社内への公開。見られるだけで、直せるのは作成者だけ */}
+          {canEdit && (
+            <label className="flex items-start gap-2 rounded-lg border border-light-gray bg-white p-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={job.sharedWithOrg === true}
+                disabled={actions.isWorking}
+                onChange={(event) => actions.setSharing(event.target.checked)}
+              />
+              <span>
+                <span className="font-medium">{t("review.shareWithOrg")}</span>
+                <span className="mt-0.5 block text-aws-font-color-gray">
+                  {t("review.shareHint")}
+                </span>
+              </span>
+            </label>
+          )}
+          {!canEdit && (
+            <p className="rounded-lg border border-light-gray bg-aws-paper-light p-3 text-sm text-aws-font-color-gray">
+              {t("review.sharedByOther")}
             </p>
           )}
         </div>

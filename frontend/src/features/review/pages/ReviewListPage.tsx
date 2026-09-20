@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useTableSort } from "../../../hooks/useTableSort";
 import SearchBox from "../../../components/SearchBox";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Button from "../../../components/Button";
 import { ReviewJobList } from "../components/ReviewJobList";
@@ -18,6 +18,10 @@ export const ReviewListPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [search, setSearch] = useState("");
+  // 費用の内訳から「この審査が高い」で飛んでくる
+  const checkListSetId = new URLSearchParams(location.search).get(
+    "checkListSetId"
+  );
 
   const { sortBy, sortOrder, handleSortChange } = useTableSort({
     defaultSortBy: "id",
@@ -39,7 +43,8 @@ export const ReviewListPage: React.FC = () => {
     sortBy,
     sortOrder,
     undefined,
-    search
+    search,
+    checkListSetId ?? undefined
   );
 
   // 一覧を開いたままにしておけば、どのジョブが終わっても気づける
@@ -88,6 +93,22 @@ export const ReviewListPage: React.FC = () => {
       <div className="mb-4">
         <SearchBox value={search} onChange={handleSearchChange} />
       </div>
+
+      {/* 絞り込んで来たことが分かるようにする。黙って一部だけ出すと
+          「ジョブが消えた」と見える */}
+      {checkListSetId && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-light-gray bg-aws-paper-light px-4 py-2 text-sm">
+          <span className="text-aws-font-color-gray">
+            {t("review.filterByChecklist")}
+            {reviewJobs[0] ? `: ${reviewJobs[0].checkListSet.name}` : ""}
+          </span>
+          <Link
+            to="/review"
+            className="text-aws-font-color-blue hover:underline">
+            {t("review.clearFilter")}
+          </Link>
+        </div>
+      )}
 
       {error ? (
         <ErrorAlert

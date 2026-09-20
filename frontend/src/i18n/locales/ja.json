@@ -468,7 +468,19 @@
       "copyText": "文章をコピー",
       "copied": "文章をコピーしました",
       "copyFailed": "コピーできませんでした。印刷用レポートから選んで写してください"
-    }
+    },
+    "cancel": "審査を中止",
+    "cancelConfirm": "この審査を中止しますか。途中までの結果は残りますが、残りの項目は審査されません。",
+    "cancelled": "審査を中止しました",
+    "cancelError": "中止できませんでした",
+    "shareWithOrg": "社内に公開",
+    "shareHint": "公開すると、ログインしている人なら誰でもこの審査結果を見られます。判定の変更と削除は作成者だけです。",
+    "shared": "公開中",
+    "shareError": "公開の設定を変えられませんでした",
+    "sharedByOther": "他の人が公開した審査です。判定は変更できません。",
+    "filterByChecklist": "チェックリストで絞り込み中",
+    "clearFilter": "絞り込みを解除",
+    "searchPlaceholderJobs": "ジョブ名か、審査した文書の名前"
   },
   "fileUploader": {
     "dropFiles": "ファイルをドロップしてください",
@@ -485,7 +497,8 @@
     "detecting": "曖昧検知中",
     "completed": "完了",
     "failed": "失敗",
-    "unknown": "不明"
+    "unknown": "不明",
+    "cancelled": "中止"
   },
   "date": {
     "noDate": "日付なし",

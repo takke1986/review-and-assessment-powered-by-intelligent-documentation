@@ -162,6 +162,11 @@ export interface ReviewJobDetail {
   sharedWithOrg?: boolean;
   /** 走っている審査の実行。中止に使う。待ち行列にいる間は入らない */
   executionArn?: string;
+  /**
+   * 見ている人がこのジョブを直せるか（判定の変更・再審査・中止・削除）。
+   * 画面側で持ち主を判定するとサーバの規則とずれるので、ここで答える
+   */
+  canEdit?: boolean;
   errorDetail?: string;
   hasError: boolean;
   checkList: CheckListSetEntity;

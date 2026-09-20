@@ -40,8 +40,8 @@ interface ReviewResultItemProps {
   confidenceThreshold: number;
   isLoadingChildren?: boolean;
   documents: ReviewJobDocument[];
-  /** 再審査された古いジョブでは、判定を変えられない */
-  isSuperseded?: boolean;
+  /** 判定を変えられない。再審査された古いジョブか、他の人が公開した審査 */
+  readOnly?: boolean;
 }
 
 export default function ReviewResultItem({
@@ -52,7 +52,7 @@ export default function ReviewResultItem({
   confidenceThreshold,
   isLoadingChildren,
   documents,
-  isSuperseded = false,
+  readOnly = false,
 }: ReviewResultItemProps) {
   const { t } = useTranslation();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -318,7 +318,7 @@ export default function ReviewResultItem({
                     再審査された古いジョブでは出さない。直しても新しい方には
                     伝わらず、同じ項目が食い違って見えるだけになる */}
                 {!hasChildren &&
-                  !isSuperseded &&
+                  !readOnly &&
                   result.status === REVIEW_RESULT_STATUS.COMPLETED && (
                     <Button
                       onClick={() => setIsModalOpen(true)}

@@ -192,7 +192,15 @@ export default function ReviewCostPage() {
                       <tr
                         key={checklist.checkListSetId}
                         className="border-b border-light-gray">
-                        <td className="min-w-[10rem] px-3 py-2">{checklist.name}</td>
+                        <td className="min-w-[10rem] px-3 py-2">
+                          {/* 「この審査が高い」で終わらせず、該当のジョブまで
+                              辿れるようにする */}
+                          <Link
+                            to={`/review?checkListSetId=${checklist.checkListSetId}`}
+                            className="text-aws-font-color-blue hover:underline">
+                            {checklist.name}
+                          </Link>
+                        </td>
                         <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
                           {money(checklist.totalCost)}
                         </td>

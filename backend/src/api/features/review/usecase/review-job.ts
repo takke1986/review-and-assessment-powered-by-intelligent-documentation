@@ -36,7 +36,10 @@ import { validateFileSize } from "../../../core/file-validation";
 import { maxFileSizeFor } from "../../../constants/index";
 import type { RequestUser } from "../../../core/middleware/authorization";
 import { assertHasOwnerAccessOrThrow } from "../../../core/middleware/authorization";
-import { assertCanViewOrThrow } from "../domain/service/review-job-visibility";
+import {
+  assertCanViewOrThrow,
+  canEdit,
+} from "../domain/service/review-job-visibility";
 import { canCancel } from "../domain/service/review-job-cancel";
 import { stopStateMachineExecution } from "../../../core/sfn";
 
@@ -514,5 +517,6 @@ export const getReviewJobById = async (params: {
     logger: console,
   });
 
-  return job;
+  // 直せるかどうかも一緒に返す。画面側で持ち主を判定すると規則がずれる
+  return { ...job, canEdit: canEdit(params.user, job) };
 };

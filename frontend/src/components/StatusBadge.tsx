@@ -55,6 +55,13 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label }) => {
       statusClasses = "text-red";
       statusLabel = statusLabel || t("status.failed");
       break;
+
+    // 中止は失敗と分ける。人が決めて止めたものを赤くすると、
+    // 直すべき不具合が起きたように見える
+    case REVIEW_JOB_STATUS.CANCELLED:
+      statusClasses = "text-aws-font-color-gray";
+      statusLabel = statusLabel || t("status.cancelled");
+      break;
       
     default:
       statusClasses = "text-aws-font-color-gray";

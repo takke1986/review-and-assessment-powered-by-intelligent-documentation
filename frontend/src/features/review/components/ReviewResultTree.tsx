@@ -78,7 +78,10 @@ export default function ReviewResultTree({
           filter={filter}
           importanceFilter={importanceFilter}
           documents={job?.documents || []}
-          isSuperseded={isSupersededByRerun(job?.rerunJobs)}
+          // 古いジョブか、他の人が公開した審査では判定を変えられない
+          readOnly={
+            isSupersededByRerun(job?.rerunJobs) || job?.canEdit === false
+          }
         />
       ))}
     </div>

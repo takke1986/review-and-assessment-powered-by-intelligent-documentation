@@ -468,7 +468,19 @@
       "copyText": "Copy as text",
       "copied": "Copied to the clipboard",
       "copyFailed": "Could not copy. Select the text on the printable report instead."
-    }
+    },
+    "cancel": "Cancel the review",
+    "cancelConfirm": "Cancel this review? What has finished is kept, but the remaining items will not be reviewed.",
+    "cancelled": "The review was cancelled",
+    "cancelError": "Could not cancel the review",
+    "shareWithOrg": "Share inside the company",
+    "shareHint": "Anyone signed in can then read these results. Only you can change verdicts or delete it.",
+    "shared": "Shared",
+    "shareError": "Could not change the sharing",
+    "sharedByOther": "Someone else shared this review. You cannot change its verdicts.",
+    "filterByChecklist": "Filtered by checklist",
+    "clearFilter": "Clear the filter",
+    "searchPlaceholderJobs": "Job name, or a document name"
   },
   "fileUploader": {
     "dropFiles": "Drop files here",
@@ -485,7 +497,8 @@
     "detecting": "Detecting",
     "completed": "Completed",
     "failed": "Failed",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "cancelled": "Cancelled"
   },
   "date": {
     "noDate": "No date",
