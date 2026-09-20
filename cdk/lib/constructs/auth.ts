@@ -188,9 +188,15 @@ export class Auth extends Construct {
     const standardWriteAttributes = { email: true };
 
     return userPool.addClient("Client", {
-      idTokenValidity: Duration.days(1),
+      // 入れ直さずに使い続けられる時間は、更新トークンの寿命で決まる。
+      // 12時間にすると、朝に入れば業務終わりまで持ち、翌朝には切れる。
+      //
+      // ID とアクセスのトークンは短くして、裏で更新させる。Cognito は
+      // 更新トークンより長い ID トークンを受け付けないので、1日のままには
+      // できない。短いほうが、権限を変えたときに早く反映される
+      idTokenValidity: Duration.hours(1),
       accessTokenValidity: Duration.hours(1),
-      refreshTokenValidity: Duration.days(30),
+      refreshTokenValidity: Duration.hours(12),
       authFlows: {
         userPassword: true,
         userSrp: true,
