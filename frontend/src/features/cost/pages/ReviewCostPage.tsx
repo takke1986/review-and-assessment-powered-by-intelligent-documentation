@@ -93,9 +93,10 @@ export default function ReviewCostPage() {
             ].map((card) => (
               <div
                 key={card.label}
-                className="rounded-lg border border-light-gray bg-white p-4 shadow-sm">
+                className="min-w-0 rounded-lg border border-light-gray bg-white p-4 shadow-sm">
                 <p className="text-sm text-aws-font-color-gray">{card.label}</p>
-                <p className="mt-1 text-2xl font-bold tabular-nums text-aws-squid-ink-light">
+                {/* 桁の多い数字は札を押し広げるので、折り返せるようにする */}
+                <p className="mt-1 break-words text-2xl font-bold tabular-nums text-aws-squid-ink-light">
                   {card.value}
                 </p>
               </div>
@@ -105,9 +106,9 @@ export default function ReviewCostPage() {
           {summary.total.jobCount === 0 ? (
             <p className="text-aws-font-color-gray">{t("cost.empty")}</p>
           ) : (
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="grid min-w-0 gap-6 lg:grid-cols-2">
               {/* 月ごとの動き */}
-              <section className="rounded-lg border border-light-gray bg-white p-6 shadow-sm">
+              <section className="min-w-0 rounded-lg border border-light-gray bg-white p-4 shadow-sm sm:p-6">
                 <h2 className="mb-4 text-xl font-medium text-aws-squid-ink-light">
                   {t("cost.byMonth")}
                 </h2>
@@ -147,7 +148,7 @@ export default function ReviewCostPage() {
               </section>
 
               {/* どのチェックリストに掛かっているか */}
-              <section className="rounded-lg border border-light-gray bg-white p-6 shadow-sm">
+              <section className="min-w-0 rounded-lg border border-light-gray bg-white p-4 shadow-sm sm:p-6">
                 <h2 className="mb-1 text-xl font-medium text-aws-squid-ink-light">
                   {t("cost.byChecklist")}
                 </h2>
@@ -206,7 +207,7 @@ export default function ReviewCostPage() {
               </section>
 
               {/* 突出したものを見つける */}
-              <section className="rounded-lg border border-light-gray bg-white p-6 shadow-sm lg:col-span-2">
+              <section className="min-w-0 rounded-lg border border-light-gray bg-white p-4 shadow-sm sm:p-6 lg:col-span-2">
                 <h2 className="mb-4 text-xl font-medium text-aws-squid-ink-light">
                   {t("cost.topJobs")}
                 </h2>
