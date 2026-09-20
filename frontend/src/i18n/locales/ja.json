@@ -482,7 +482,9 @@
     "filterByChecklist": "チェックリストで絞り込み中",
     "clearFilter": "絞り込みを解除",
     "searchPlaceholderJobs": "ジョブ名か、審査した文書の名前",
-    "overriddenByOn": "{{who}} が変更（{{when}}）"
+    "overriddenByOn": "{{who}} が変更（{{when}}）",
+    "resumeReview": "続きから審査する",
+    "resumeSelectionHelp": "まだ審査が終わっていない項目を選んだ状態から始まります。済んだ項目は元のジョブの結果を引き継ぐので、もう一度費用はかかりません。"
   },
   "fileUploader": {
     "dropFiles": "ファイルをドロップしてください",

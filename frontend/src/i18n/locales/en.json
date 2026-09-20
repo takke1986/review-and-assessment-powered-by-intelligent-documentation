@@ -482,7 +482,9 @@
     "filterByChecklist": "Filtered by checklist",
     "clearFilter": "Clear the filter",
     "searchPlaceholderJobs": "Job name, or a document name",
-    "overriddenByOn": "changed by {{who}} ({{when}})"
+    "overriddenByOn": "changed by {{who}} ({{when}})",
+    "resumeReview": "Carry on with the review",
+    "resumeSelectionHelp": "Starts with the items that were not reviewed. What already finished is carried over, so you do not pay for it twice."
   },
   "fileUploader": {
     "dropFiles": "Drop files here",

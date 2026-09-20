@@ -20,6 +20,7 @@ import RerunSourcePanel from "../components/RerunSourcePanel";
 import { useCreateReviewJob } from "../hooks/useReviewJobMutations";
 import { requestNotificationPermission } from "../hooks/useJobCompletionNotice";
 import { useRerunSource } from "../hooks/useRerunSource";
+import { endedEarly } from "../reviewAgain";
 import { useRerunDocuments } from "../hooks/useRerunDocuments";
 import { useReviewFileSelection } from "../hooks/useReviewFileSelection";
 import { useDocumentUpload } from "../../../hooks/useDocumentUpload";
@@ -408,7 +409,13 @@ export const CreateReviewPage: React.FC = () => {
                 markedIds={failedCheckIdSet}
                 markLabel={t("review.previousFail")}
                 helpText={
-                  sourceJobId ? t("review.rerunSelectionHelp") : undefined
+                  // 途中で終わった審査では、選ばれるのが「不合格」ではなく
+                  // 「まだ審査していない項目」なので、説明を変える
+                  !sourceJobId
+                    ? undefined
+                    : sourceJob && endedEarly(sourceJob.status)
+                      ? t("review.resumeSelectionHelp")
+                      : t("review.rerunSelectionHelp")
                 }
               />
             </div>

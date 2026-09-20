@@ -41,6 +41,7 @@ import {
   canEdit,
 } from "../domain/service/review-job-visibility";
 import { canCancel } from "../domain/service/review-job-cancel";
+import { canReviewAgain } from "../domain/service/review-again";
 import { stopStateMachineExecution } from "../../../core/sfn";
 
 export const computeGlobalConcurrency = async (): Promise<{
@@ -438,9 +439,10 @@ export const loadRerunSource = async (params: {
     logger: console,
   });
 
-  if (sourceJob.status !== REVIEW_JOB_STATUS.COMPLETED) {
+  // 完了だけでなく、失敗・中止も元にできる。途中まで済んだ項目は引き継がれる
+  if (!canReviewAgain(sourceJob.status)) {
     throw new ValidationError(
-      "Only a completed review job can be reviewed again"
+      "This review job is still running, so it cannot be reviewed again yet"
     );
   }
   if (sourceJob.checkList.id !== checkListSetId) {

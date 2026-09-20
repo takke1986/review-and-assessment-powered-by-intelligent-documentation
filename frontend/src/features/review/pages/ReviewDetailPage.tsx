@@ -9,6 +9,7 @@ import { useReviewJobDetail } from "../hooks/useReviewJobQueries";
 import { useJobCompletionNotice } from "../hooks/useJobCompletionNotice";
 import { isSupersededByRerun } from "../supersededByRerun";
 import { useReviewJobActions } from "../hooks/useReviewJobActions";
+import { canReviewAgain, endedEarly } from "../reviewAgain";
 import { ErrorAlert } from "../../../components/ErrorAlert";
 import Slider from "../../../components/Slider";
 import { DetailSkeleton } from "../../../components/Skeleton";
@@ -187,7 +188,10 @@ export default function ReviewDetailPage() {
                   ? "text-green-600"
                   : job.status === REVIEW_JOB_STATUS.FAILED
                     ? "text-red-600"
-                    : "text-yellow-600"
+                    : // 中止は人が決めたこと。不具合が起きたようには見せない
+                      job.status === REVIEW_JOB_STATUS.CANCELLED
+                      ? "text-aws-font-color-gray"
+                      : "text-yellow-600"
               }`}>
               {t(`status.${job.status}`)}
             </span>
@@ -270,14 +274,17 @@ export default function ReviewDetailPage() {
             </p>
           )}
         </div>
-        {job.status === REVIEW_JOB_STATUS.COMPLETED && (
+        {canReviewAgain(job.status) && (
           <div className="flex flex-col items-stretch gap-2 self-start">
-            {/* 不合格の項目を、差し替えた文書で審査し直す */}
+            {/* 完了なら不合格を審査し直す。途中で終わっていれば続きから。
+                することが違うので、言い回しを変える */}
             <Button
               to={`/review/create?source=${job.id}`}
               variant="primary"
               outline>
-              {t("review.rerunFailedItems")}
+              {endedEarly(job.status)
+                ? t("review.resumeReview")
+                : t("review.rerunFailedItems")}
             </Button>
             {/* 紙に出す。顧客に渡したり綴じたりするのは画面の外 */}
             <Button to={`/review/${job.id}/report`} variant="secondary" outline>
