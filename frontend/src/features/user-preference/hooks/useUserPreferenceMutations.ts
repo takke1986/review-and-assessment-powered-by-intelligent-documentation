@@ -1,10 +1,12 @@
 import { useApiClient } from "../../../hooks/useApiClient";
-import {
-  UserPreference,
-  UpdateLanguageRequest,
-  UpdateMcpServersRequest,
-} from "../types";
+import { UserPreference, UpdateLanguageRequest } from "../types";
 
+/**
+ * 表示する言語を変える。
+ *
+ * かつて MCP サーバの設定を変える口もここにあったが、API 側にも型にも
+ * 残っておらず、画面からも呼ばれていなかったので消した
+ */
 export function useUpdateLanguage() {
   const { useMutation } = useApiClient();
   const { mutateAsync, status, error } = useMutation<
@@ -14,20 +16,6 @@ export function useUpdateLanguage() {
 
   return {
     updateLanguage: mutateAsync,
-    status,
-    error,
-  };
-}
-
-export function useUpdateMcpServers() {
-  const { useMutation } = useApiClient();
-  const { mutateAsync, status, error } = useMutation<
-    UserPreference,
-    UpdateMcpServersRequest
-  >("put", "/user/preference/mcp-servers");
-
-  return {
-    updateMcpServers: mutateAsync,
     status,
     error,
   };

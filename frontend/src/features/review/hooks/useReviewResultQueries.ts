@@ -1,6 +1,6 @@
 import { useApiClient } from "../../../hooks/useApiClient";
 import type {
-  ReviewResultDetailModel,
+  ReviewResultDetail,
   GetReviewResultItemsResponse,
 } from "../types";
 import type { ImportanceFilterValue } from "../../checklist/types";
@@ -42,7 +42,7 @@ export function useReviewResultItems(
     useApiClient().useQuery<GetReviewResultItemsResponse>(url);
 
   return {
-    items: (data ?? []) as ReviewResultDetailModel[],
+    items: (data ?? []) as ReviewResultDetail[],
     isLoading,
     error,
     refetch,
@@ -60,7 +60,7 @@ export function useAllReviewResults(jobId: string | null) {
     useApiClient().useQuery<GetReviewResultItemsResponse>(url);
 
   return {
-    items: (data ?? []) as ReviewResultDetailModel[],
+    items: (data ?? []) as ReviewResultDetail[],
     isLoading,
     error,
   };

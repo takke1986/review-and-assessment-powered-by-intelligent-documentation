@@ -1,4 +1,3 @@
-import React from "react";
 import { useTranslation } from "react-i18next";
 import { HiExternalLink, HiX } from "react-icons/hi";
 import { useToolConfigurations } from "../../tool-configuration/hooks/useToolConfigurationQueries";

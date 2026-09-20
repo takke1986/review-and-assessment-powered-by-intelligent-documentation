@@ -16,24 +16,39 @@ export interface BaseButtonProps {
   iconPosition?: "left" | "right";
   fullWidth?: boolean;
   className?: string;
-}
-
-// 通常のボタンのプロパティ
-export interface ButtonProps extends BaseButtonProps {
-  children: ReactNode;
-  to?: never;
-  onClick?: React.MouseEventHandler<HTMLButtonElement>;
-  type?: "button" | "submit" | "reset";
+  /**
+   * 処理中。押せなくして、アイコンを回すものに差し替える。
+   *
+   * 以前は型が何でも通す作りだったので、渡しても何も起きていなかった
+   */
+  loading?: boolean;
+  /** ボタンとリンクの両方で使うので、共通の側に置く */
   disabled?: boolean;
-  [key: string]: any;
 }
 
-// リンクボタンのプロパティ
-export interface LinkButtonProps extends BaseButtonProps {
-  children: ReactNode;
+/**
+ * 通常のボタン。
+ *
+ * children は省略できる。アイコンだけのボタンがあり、必須にすると
+ * それらが型に合わなくなる。
+ *
+ * 素の属性（title、aria-label など）は HTML の型から受け取る。
+ * かつては [key: string]: any で何でも通していたが、それでは打ち間違いも
+ * 通ってしまい、型検査の意味がなくなる
+ */
+export interface ButtonProps
+  extends BaseButtonProps,
+    Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "className"> {
+  children?: ReactNode;
+  to?: never;
+}
+
+/** リンクとして振る舞うボタン */
+export interface LinkButtonProps
+  extends BaseButtonProps,
+    Omit<LinkProps, "to" | "className"> {
+  children?: ReactNode;
   to: string;
-  onClick?: React.MouseEventHandler<HTMLAnchorElement>;
-  [key: string]: any;
 }
 
 // プロパティの型を判定
@@ -65,6 +80,8 @@ export const Button = (props: CombinedButtonProps) => {
     icon,
     iconPosition = "left",
     fullWidth = false,
+    loading = false,
+    disabled = false,
     children,
     className = "",
     ...rest
@@ -120,13 +137,21 @@ export const Button = (props: CombinedButtonProps) => {
 
   // アイコンの配置
   const renderContent = () => {
-    if (!icon) return children;
+    const shown = loading ? (
+      <span
+        className="h-4 w-4 animate-spin rounded-full border-b-2 border-t-2 border-current"
+        aria-hidden="true"
+      />
+    ) : (
+      icon
+    );
+    if (!shown) return children;
 
     return (
       <>
-        {iconPosition === "left" && <span className="mr-1">{icon}</span>}
+        {iconPosition === "left" && <span className="mr-1">{shown}</span>}
         {children}
-        {iconPosition === "right" && <span className="ml-1">{icon}</span>}
+        {iconPosition === "right" && <span className="ml-1">{shown}</span>}
       </>
     );
   };
@@ -150,22 +175,13 @@ export const Button = (props: CombinedButtonProps) => {
     );
   }
 
-  // 不要なpropsをrestから除外
-  const {
-    icon: _,
-    iconPosition: __,
-    variant: ___,
-    outline: ____,
-    size: _____,
-    fullWidth: ______,
-    ...buttonRest
-  } = rest;
-
-  // TypeScriptが型を正しく理解できるようにする
+  // 見た目に関わる props は上で取り除いてあるので、残りをそのまま渡す
   return (
     <button
       className={buttonClasses}
-      {...(buttonRest as ButtonHTMLAttributes<HTMLButtonElement>)}>
+      {...(rest as ButtonHTMLAttributes<HTMLButtonElement>)}
+      // 処理中は押せない。二重に走らせないため
+      disabled={disabled || loading}>
       {renderContent()}
     </button>
   );

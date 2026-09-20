@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState,} from "react";
 
 /**
  * localStorageを使用した永続的な状態管理のためのカスタムフック

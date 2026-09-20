@@ -96,7 +96,7 @@ const SORTABLE_COLUMNS = [
 
 export default function CheckFailureTrendsPage() {
   const { t } = useTranslation();
-  const { items: sets, isLoading: isLoadingSets } = useChecklistSets(1, 100);
+  const { items: sets } = useChecklistSets(1, 100);
   const [setId, setSetId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const { items, reviewJobCount, isLoading } = useCheckFailureTrends(setId);

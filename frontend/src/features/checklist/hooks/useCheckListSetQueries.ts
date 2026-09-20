@@ -2,9 +2,6 @@ import { useApiClient } from "../../../hooks/useApiClient";
 import type {
   GetAllChecklistSetsResponse,
   GetChecklistSetResponse,
-  GetChecklistItemsResponse,
-  CheckListItemDetail,
-  CheckListSetDetailModel,
   CHECK_LIST_STATUS,
 } from "../types";
 

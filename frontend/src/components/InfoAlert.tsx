@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import {
   HiInformationCircle,
   HiCheck,
-  HiX,
   HiExclamation,
 } from "react-icons/hi";
 import Button from "./Button";

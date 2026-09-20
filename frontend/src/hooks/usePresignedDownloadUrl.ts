@@ -2,16 +2,11 @@
  * ダウンロード用のPresigned URLを取得するカスタムフック
  */
 import { useState, useCallback } from "react";
-import { useApiClient } from "./useApiClient";
 import useHttp from "./useHttp";
 
 interface UsePresignedDownloadUrlOptions {
   expiresIn?: number; // 有効期限（秒）
   endpoint?: string; // エンドポイントをオプションで指定可能に
-}
-
-interface PresignedUrlResponse {
-  url: string;
 }
 
 /**

@@ -74,7 +74,7 @@ export default function KnowledgeBaseSourceItem({ source }: KnowledgeBaseSourceI
     fetchS3Urls();
   }, [isExpanded, data]);
 
-  const handleViewDocument = (idx: number, result: KBResult) => {
+  const handleViewDocument = (idx: number, _result: KBResult) => {
     const url = documentUrls.get(idx);
 
     if (!url) {

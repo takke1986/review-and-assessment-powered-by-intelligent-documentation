@@ -31,8 +31,6 @@ export const ReviewListPage: React.FC = () => {
   const {
     items: reviewJobs,
     total,
-    page,
-    limit,
     totalPages,
     refetch: revalidate,
     isLoading,

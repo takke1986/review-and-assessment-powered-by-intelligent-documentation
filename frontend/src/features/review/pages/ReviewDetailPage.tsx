@@ -1,4 +1,4 @@
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { mutate } from "swr";
 import { useTranslation } from "react-i18next";
@@ -22,7 +22,6 @@ import type { ImportanceFilterValue } from "../../checklist/types";
 export default function ReviewDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
 
   // Start with showing fail items
   const [filter, setFilter] = useState<FilterType>("fail");

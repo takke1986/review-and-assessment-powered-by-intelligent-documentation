@@ -27,7 +27,10 @@ import { useRerunDocuments } from "../hooks/useRerunDocuments";
 import { useReviewFileSelection } from "../hooks/useReviewFileSelection";
 import { useDocumentUpload } from "../../../hooks/useDocumentUpload";
 import { useChecklistSets } from "../../checklist/hooks/useCheckListSetQueries";
-import { CHECK_LIST_STATUS, CheckListSet } from "../../checklist/types";
+import {
+  CHECK_LIST_STATUS,
+  CheckListSetSummary,
+} from "../../checklist/types";
 import {
   HiExclamationCircle,
 } from "react-icons/hi";
@@ -44,7 +47,7 @@ export const CreateReviewPage: React.FC = () => {
   const { sourceJob, failedCheckIds, failedCheckIdSet } =
     useRerunSource(sourceJobId);
   const [selectedChecklist, setSelectedChecklist] =
-    useState<CheckListSet | null>(null);
+    useState<CheckListSetSummary | null>(null);
   // 審査するチェック項目（子を持たない項目のID）と、選べる項目の数。
   // 項目の読み込みが終わるまでは null
   const [checkSelection, setCheckSelection] = useState<{
@@ -182,7 +185,7 @@ export const CreateReviewPage: React.FC = () => {
   };
 
   // チェックリスト選択ハンドラ
-  const handleChecklistSelect = (checklist: CheckListSet) => {
+  const handleChecklistSelect = (checklist: CheckListSetSummary) => {
     if (checklist.id !== selectedChecklist?.id) {
       setCheckSelection(null);
     }

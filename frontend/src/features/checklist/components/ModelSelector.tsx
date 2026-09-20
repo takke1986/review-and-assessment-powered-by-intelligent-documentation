@@ -29,11 +29,6 @@ export default function ModelSelector({
 
   const currentModel = models.find((m) => m.modelId === currentModelId);
   const defaultModel = models.find((m) => m.modelId === defaultModelId);
-  const defaultLabel = defaultModel
-    ? `${t("checklist.modelDefault")} (${defaultModel.displayName})`
-    : t("checklist.modelDefault");
-  const displayName = currentModel?.displayName ?? defaultLabel;
-
   const handleSelect = async (modelId: string | null) => {
     setIsOpen(false);
     try {

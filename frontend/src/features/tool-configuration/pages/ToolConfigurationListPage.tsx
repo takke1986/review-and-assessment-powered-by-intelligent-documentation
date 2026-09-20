@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { HiPlus } from "react-icons/hi";
@@ -43,7 +43,7 @@ export default function ToolConfigurationListPage() {
     refetch();
   }, [location, refetch]);
 
-  const handleDelete = async (id: string, name: string) => {
+  const handleDelete = async (id: string, _name: string) => {
     await deleteToolConfiguration(id);
     refetch();
   };

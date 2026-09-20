@@ -29,7 +29,7 @@ export default function ReviewResultOverrideModal({
   result,
 }: ReviewResultOverrideModalProps) {
   const { t } = useTranslation();
-  const { updateReviewResult, status, error } = useUpdateReviewResult(
+  const { updateReviewResult, status,} = useUpdateReviewResult(
     result.reviewJobId
   );
   const isSubmitting = status === "loading";

@@ -45,8 +45,6 @@ export default function CheckListItemEditModal({
   // コンポーネントのトップレベルでフックを呼び出す
   const {
     updateCheckListItem,
-    status: updateStatus,
-    error: updateError,
   } = useUpdateCheckListItem(checkListSetId);
   const { updateCheckListItemReviewGuidance } =
     useUpdateCheckListItemReviewGuidance(checkListSetId);

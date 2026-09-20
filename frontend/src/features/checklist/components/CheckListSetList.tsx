@@ -80,7 +80,7 @@ export default function CheckListSetList({
   // チェックリストセットの削除処理
   const handleDelete = (
     item: CheckListSetListProps["checkListSets"][0],
-    e: React.MouseEvent
+    _e: React.MouseEvent
   ) => {
     // 編集不可の場合は削除できない
     if (item.isEditable === false) {

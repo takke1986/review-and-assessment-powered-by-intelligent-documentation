@@ -36,7 +36,7 @@ export default function ToolConfigurationList({
     navigate(`/tool-configurations/${item.id}`);
   };
 
-  const handleDelete = (item: ToolConfiguration, e: React.MouseEvent) => {
+  const handleDelete = (item: ToolConfiguration, _e: React.MouseEvent) => {
     if ((item.usageCount ?? 0) > 0) {
       showError(t("toolConfiguration.deleteError"));
       return;

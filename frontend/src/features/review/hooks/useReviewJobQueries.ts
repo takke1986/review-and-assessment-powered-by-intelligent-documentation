@@ -1,6 +1,5 @@
 import { useApiClient } from "../../../hooks/useApiClient";
 import type {
-  ReviewJobSummary,
   GetAllReviewJobsResponse,
   ReviewJobDetail,
   GetReviewJobDetailResponse,

@@ -17,7 +17,7 @@ interface PageHeaderProps {
  * タイトル、説明文、戻るリンクを表示する共通コンポーネント
  */
 export const PageHeader: React.FC<PageHeaderProps> = ({ title, description, backLink }) => {
-  const { t } = useTranslation();
+  const {} = useTranslation();
   
   return (
     <div className="mb-8">

@@ -1,5 +1,5 @@
 import React from "react";
-import { HiPencil, HiTrash, HiInformationCircle } from "react-icons/hi";
+import { HiPencil, HiTrash,} from "react-icons/hi";
 import { useTranslation } from "react-i18next";
 import { PromptTemplate } from "../types";
 import { PROMPT_TYPE_LABELS } from "../constants";
@@ -24,8 +24,6 @@ export const PromptTemplateList: React.FC<PromptTemplateListProps> = ({
   templates,
   onEdit,
   onDelete,
-  onSetDefault,
-  onCreateNew,
   isLoading,
   emptyMessage,
   sortBy,

@@ -6,7 +6,6 @@ import {
   HiMenu,
   HiCheck,
   HiDocumentText,
-  HiInformationCircle,
   HiLogout,
   HiUser,
   HiCog,

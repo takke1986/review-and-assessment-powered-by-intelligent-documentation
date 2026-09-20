@@ -1,4 +1,3 @@
-import React from "react";
 import { useTranslation } from "react-i18next";
 import {
   HiExclamation,
@@ -77,7 +76,7 @@ export default function AlertModal({
     }
   };
 
-  const { icon, defaultTitle, buttonColor } = getAlertConfig();
+  const { icon, defaultTitle,} = getAlertConfig();
   const modalTitle = title || defaultTitle;
 
   // 確認ボタンクリック時の処理

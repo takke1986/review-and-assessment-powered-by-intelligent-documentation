@@ -76,8 +76,6 @@ export default function CheckListItemTreeNode({
 
   const {
     deleteCheckListItem,
-    status: delStatus,
-    error: delError,
   } = useDeleteCheckListItem(item.setId);
 
   // チェックリストセットの詳細情報を取得

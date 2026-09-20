@@ -1,13 +1,13 @@
-import React, { useState } from "react";
+import React, {} from "react";
 import SearchBox from "../../../components/SearchBox";
 import { useTranslation } from "react-i18next";
-import { CheckListSet } from "../../../features/checklist/types";
+import { CheckListSetSummary } from "../../../features/checklist/types";
 import Pagination from "../../../components/Pagination";
 
 interface ChecklistSelectorProps {
-  checklists: CheckListSet[];
+  checklists: CheckListSetSummary[];
   selectedChecklistId: string | null;
-  onSelectChecklist: (checklist: CheckListSet) => void;
+  onSelectChecklist: (checklist: CheckListSetSummary) => void;
   currentPage: number;
   totalPages: number;
   totalItems: number;

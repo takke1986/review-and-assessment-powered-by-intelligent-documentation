@@ -1,6 +1,5 @@
 import {
   useParams,
-  Link,
   useNavigate,
   useSearchParams,
 } from "react-router-dom";
@@ -55,12 +54,10 @@ export function CheckListSetDetailPage() {
   const { checklistSet, isLoading, error } = useChecklistSetDetail(id || null);
   const {
     deleteChecklistSet,
-    status: deleteStatus,
-    error: deleteError,
   } = useDeleteChecklistSet();
   const { duplicateChecklistSet, status: duplicateStatus } =
     useDuplicateChecklistSet();
-  const { detectAmbiguity, status: detectStatus } = useDetectAmbiguity();
+  const { detectAmbiguity } = useDetectAmbiguity();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [isToolConfigModalOpen, setIsToolConfigModalOpen] = useState(false);
@@ -255,6 +252,7 @@ export function CheckListSetDetailPage() {
       {checklistSet && checklistSet.hasError && checklistSet.errorSummary && (
         <div className="mb-6">
           <ErrorAlert
+            error={checklistSet.errorSummary}
             title={t("common.processingError")}
             message={checklistSet.errorSummary}
           />

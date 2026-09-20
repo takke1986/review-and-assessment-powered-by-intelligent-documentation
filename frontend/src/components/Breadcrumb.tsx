@@ -12,7 +12,7 @@ interface BreadcrumbProps {
  * 戻るリンクを表示する
  */
 export default function Breadcrumb({ to, label }: BreadcrumbProps) {
-  const { t } = useTranslation();
+  const {} = useTranslation();
   
   return (
     <Link

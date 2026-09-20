@@ -40,8 +40,6 @@ export default function CheckListItemAddModal({
   // コンポーネントのトップレベルでフックを呼び出す
   const {
     createCheckListItem,
-    status: submitStatus,
-    error: submitError,
   } = useCreateCheckListItem(checkListSetId);
 
   // 入力値の変更ハンドラ

@@ -4,19 +4,17 @@ import { signIn, signOut, getCurrentUser, fetchUserAttributes, fetchAuthSession 
 
 // 環境変数から設定を取得
 // CDKのbuildViteAppで設定される環境変数名に合わせる
-const region = import.meta.env.VITE_APP_REGION || 'ap-northeast-1';
 const userPoolId = import.meta.env.VITE_APP_USER_POOL_ID;
 const userPoolWebClientId = import.meta.env.VITE_APP_USER_POOL_CLIENT_ID;
 
-// Amplify設定 - v6形式に修正
+// Amplify v6 の設定。region は受け取らない（userPoolId に含まれている）
 Amplify.configure({
   Auth: {
     Cognito: {
-      region,
       userPoolId,
-      userPoolClientId: userPoolWebClientId
-    }
-  }
+      userPoolClientId: userPoolWebClientId,
+    },
+  },
 });
 
 interface AuthContextType {

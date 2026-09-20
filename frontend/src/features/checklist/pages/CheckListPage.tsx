@@ -36,8 +36,6 @@ export function CheckListPage() {
   const [selectedChecklistId, setSelectedChecklistId] = useState<string | null>(
     null
   );
-  const [selectedChecklistName, setSelectedChecklistName] =
-    useState<string>("");
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
 
@@ -57,8 +55,6 @@ export function CheckListPage() {
   const {
     items: checkListSets,
     total,
-    page,
-    limit,
     totalPages,
     isLoading,
     isLoaded,
@@ -82,8 +78,6 @@ export function CheckListPage() {
 
   const {
     deleteChecklistSet,
-    status: deleteStatus,
-    error: deleteError,
   } = useDeleteChecklistSet();
 
   // 複製フックを追加
@@ -139,7 +133,6 @@ export function CheckListPage() {
   // 複製モーダルを開く処理
   const handleDuplicateClick = (id: string, name: string) => {
     setSelectedChecklistId(id);
-    setSelectedChecklistName(name);
     setNewName(`${name} (${t("common.duplicate")})`);
     setNewDescription(""); // 説明は空にしておく
     setIsDuplicateModalOpen(true);

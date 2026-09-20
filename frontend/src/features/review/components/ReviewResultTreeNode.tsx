@@ -4,7 +4,7 @@
  */
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ReviewResultDetailModel, REVIEW_FILE_TYPE } from "../types";
+import { ReviewResultDetail, REVIEW_FILE_TYPE } from "../types";
 import ReviewResultItem from "./ReviewResultItem";
 import {
   useReviewResultItems,
@@ -15,7 +15,7 @@ import type { ImportanceFilterValue } from "../../checklist/types";
 
 interface ReviewResultTreeNodeProps {
   jobId: string;
-  item: ReviewResultDetailModel;
+  item: ReviewResultDetail;
   level: number;
   confidenceThreshold: number;
   maxDepth?: number;
@@ -69,11 +69,9 @@ export default function ReviewResultTreeNode({
 
   return (
     <div>
+      {/* children を足していたが、渡す先の型に無いので意味がなかった */}
       <ReviewResultItem
-        result={{
-          ...item,
-          children: [], // ReviewResultItemコンポーネントの型との互換性のため
-        }}
+        result={item}
         hasChildren={item.hasChildren}
         isExpanded={isExpanded}
         onToggleExpand={toggleExpand}
