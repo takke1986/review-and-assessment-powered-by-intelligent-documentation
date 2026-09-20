@@ -548,6 +548,8 @@ export const makePrismaReviewJobRepository = async (
             // 引き継ぎは同じ判定の写しなので、履歴としても同じ形にしておく
             aiResult: result.aiResult,
             overrideReason: result.overrideReason,
+            overriddenBy: result.overriddenBy,
+            overriddenAt: result.overriddenAt,
             sourceReferences: result.sourceReferences
               ? JSON.stringify(result.sourceReferences)
               : undefined,
@@ -872,6 +874,8 @@ export const makePrismaReviewResultRepository = async (
         // 審査し直したら前回覆された理由は消えてほしい
         aiResult: newResult.aiResult ?? null,
         overrideReason: newResult.overrideReason ?? null,
+        overriddenBy: newResult.overriddenBy ?? null,
+        overriddenAt: newResult.overriddenAt ?? null,
         updatedAt: newResult.updatedAt,
         sourceReferences: newResult.sourceReferences
           ? JSON.stringify(newResult.sourceReferences)
@@ -909,6 +913,8 @@ export const makePrismaReviewResultRepository = async (
             userComment: result.userComment,
             aiResult: result.aiResult ?? null,
             overrideReason: result.overrideReason ?? null,
+            overriddenBy: result.overriddenBy ?? null,
+            overriddenAt: result.overriddenAt ?? null,
             updatedAt: result.updatedAt,
             sourceReferences: result.sourceReferences
               ? JSON.stringify(result.sourceReferences)

@@ -93,6 +93,8 @@ export const createRerunResults = (
         // 区別できないため）
         aiResult: previous.aiResult,
         overrideReason: previous.overrideReason,
+        overriddenBy: previous.overriddenBy,
+        overriddenAt: previous.overriddenAt,
         sourceReferences: previous.sourceReferences,
         externalSources: previous.externalSources,
         previousResultId: previous.id,

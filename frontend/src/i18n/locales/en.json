@@ -431,7 +431,8 @@
         "extractedText": "Extracted text",
         "sources": "Sources",
         "userOverride": "Overridden",
-        "userComment": "Comment"
+        "userComment": "Comment",
+        "overriddenBy": "Changed by"
       },
       "error": "Could not export the results"
     },
@@ -480,7 +481,8 @@
     "sharedByOther": "Someone else shared this review. You cannot change its verdicts.",
     "filterByChecklist": "Filtered by checklist",
     "clearFilter": "Clear the filter",
-    "searchPlaceholderJobs": "Job name, or a document name"
+    "searchPlaceholderJobs": "Job name, or a document name",
+    "overriddenByOn": "changed by {{who}} ({{when}})"
   },
   "fileUploader": {
     "dropFiles": "Drop files here",

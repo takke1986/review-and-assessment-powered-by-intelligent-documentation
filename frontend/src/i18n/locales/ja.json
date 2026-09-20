@@ -431,7 +431,8 @@
         "extractedText": "抜き出した箇所",
         "sources": "参照元",
         "userOverride": "手動で変更",
-        "userComment": "コメント"
+        "userComment": "コメント",
+        "overriddenBy": "変更した人"
       },
       "error": "結果を書き出せませんでした"
     },
@@ -480,7 +481,8 @@
     "sharedByOther": "他の人が公開した審査です。判定は変更できません。",
     "filterByChecklist": "チェックリストで絞り込み中",
     "clearFilter": "絞り込みを解除",
-    "searchPlaceholderJobs": "ジョブ名か、審査した文書の名前"
+    "searchPlaceholderJobs": "ジョブ名か、審査した文書の名前",
+    "overriddenByOn": "{{who}} が変更（{{when}}）"
   },
   "fileUploader": {
     "dropFiles": "ファイルをドロップしてください",

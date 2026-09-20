@@ -18,6 +18,7 @@ import {
   filenamesById,
   flattenInOrder,
   formatSources,
+  overriddenByLabel,
   verdictLabel,
 } from "../utils/reviewReportModel";
 
@@ -175,6 +176,12 @@ export default function ReviewReportPage() {
                   {sources.length > 0 && (
                     <p className="text-aws-font-color-gray">
                       {t("review.report.source")}: {sources.join("、")}
+                    </p>
+                  )}
+                  {result.userOverride && overriddenByLabel(result, t) && (
+                    <p className="text-aws-font-color-gray">
+                      {t("review.overrideResult")}:{" "}
+                      {overriddenByLabel(result, t)}
                     </p>
                   )}
                   {result.userOverride && result.userComment && (

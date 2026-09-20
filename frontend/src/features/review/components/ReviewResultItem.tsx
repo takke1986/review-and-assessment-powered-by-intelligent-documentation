@@ -11,6 +11,7 @@ import {
   REVIEW_RESULT_STATUS,
   REVIEW_FILE_TYPE,
 } from "../types";
+import { overriddenByLabel } from "../utils/reviewReportModel";
 import { useReviewJobDetail } from "../hooks/useReviewJobQueries";
 import ReviewResultOverrideModal from "./ReviewResultOverrideModal";
 import Button from "../../../components/Button";
@@ -137,9 +138,15 @@ export default function ReviewResultItem({
   // User override badge
   const renderUserOverrideBadge = () => {
     if (result.userOverride) {
+      const who = overriddenByLabel(result, t);
       return (
-        <span className="ml-2 rounded-full bg-aws-sea-blue-light bg-opacity-20 px-2 py-1 text-xs text-aws-sea-blue-light">
+        <span
+          className="ml-2 rounded-full bg-aws-sea-blue-light bg-opacity-20 px-2 py-1 text-xs text-aws-sea-blue-light"
+          // 公開した審査では、誰が決めたのかが要る。札を増やすと行が
+          // 埋まるので、印に重ねて出す
+          title={who || undefined}>
           {t("review.userOverride", "User Override")}
+          {result.overriddenBy ? `: ${result.overriddenBy}` : ""}
         </span>
       );
     }

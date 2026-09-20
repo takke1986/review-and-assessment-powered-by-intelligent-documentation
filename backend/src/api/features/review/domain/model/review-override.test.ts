@@ -88,3 +88,47 @@ describe("fromOverrideRequest", () => {
     expect(second.aiResult).toBe(REVIEW_RESULT.FAIL);
   });
 });
+
+describe("覆した人の記録", () => {
+  it("覆した人と日時を残す", () => {
+    const before = Date.now();
+    const updated = ReviewResultDomain.fromOverrideRequest({
+      current: current({ aiResult: REVIEW_RESULT.FAIL }),
+      result: REVIEW_RESULT.PASS,
+      userComment: "角印でも可",
+      overriddenBy: "reviewer@example.com",
+    });
+
+    expect(updated.overriddenBy).toBe("reviewer@example.com");
+    expect(updated.overriddenAt!.getTime()).toBeGreaterThanOrEqual(before);
+  });
+
+  it("誰か分からないときは残さない。嘘の名前を書くより空の方がよい", () => {
+    const updated = ReviewResultDomain.fromOverrideRequest({
+      current: current(),
+      result: REVIEW_RESULT.PASS,
+      userComment: "",
+    });
+
+    expect(updated.overriddenBy).toBeUndefined();
+  });
+
+  it("覆し直すと、記録は新しい人に変わる", () => {
+    const first = ReviewResultDomain.fromOverrideRequest({
+      current: current({ aiResult: REVIEW_RESULT.FAIL }),
+      result: REVIEW_RESULT.PASS,
+      userComment: "一度目",
+      overriddenBy: "a@example.com",
+    });
+    const second = ReviewResultDomain.fromOverrideRequest({
+      current: first,
+      result: REVIEW_RESULT.FAIL,
+      userComment: "戻す",
+      overriddenBy: "b@example.com",
+    });
+
+    expect(second.overriddenBy).toBe("b@example.com");
+    // AI の判定は最初のまま
+    expect(second.aiResult).toBe(REVIEW_RESULT.FAIL);
+  });
+});

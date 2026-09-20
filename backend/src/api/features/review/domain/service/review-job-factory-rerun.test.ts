@@ -237,6 +237,8 @@ describe("再審査での、覆された記録の扱い", () => {
     userComment: "角印でも可",
     aiResult: REVIEW_RESULT.FAIL,
     overrideReason: OVERRIDE_REASON.CRITERIA_INTERPRETATION,
+    overriddenBy: "reviewer@example.com",
+    overriddenAt: new Date("2026-09-20T00:00:00Z"),
   });
 
   it("引き継ぐ結果は、AI の判定と覆した理由も持っていく", () => {
@@ -254,6 +256,9 @@ describe("再審査での、覆された記録の扱い", () => {
     expect(carried.overrideReason).toBe(OVERRIDE_REASON.CRITERIA_INTERPRETATION);
     // 人が覆したという事実そのものも残る
     expect(carried.userOverride).toBe(true);
+    // 誰がいつ決めたかも引き継ぐ。引き継ぎは同じ判定の写しなので
+    expect(carried.overriddenBy).toBe("reviewer@example.com");
+    expect(carried.overriddenAt).toEqual(new Date("2026-09-20T00:00:00Z"));
   });
 
   it("引き継いだ結果をもう一度覆しても、AI の判定は最初のまま", () => {
@@ -289,5 +294,8 @@ describe("再審査での、覆された記録の扱い", () => {
     expect(rejudged.overrideReason).toBeUndefined();
     expect(rejudged.aiResult).toBeUndefined();
     expect(rejudged.userOverride).toBe(false);
+    // 審査し直したのだから、前に誰が覆したかは持ち越さない
+    expect(rejudged.overriddenBy).toBeUndefined();
+    expect(rejudged.overriddenAt).toBeUndefined();
   });
 });

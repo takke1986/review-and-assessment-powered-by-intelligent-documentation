@@ -109,6 +109,9 @@ export const overrideReviewResult = async (params: {
     result: params.result,
     userComment: params.userComment,
     overrideReason: params.overrideReason,
+    // 記録に残すのは表示名。あとで登録が変わっても、そのとき誰が決めたかは
+    // 変わらない。メールが取れないときは利用者の識別子で代える
+    overriddenBy: params.user?.email || params.user?.userId,
   });
 
   await updateCheckResultCascade({

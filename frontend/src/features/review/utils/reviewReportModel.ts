@@ -104,3 +104,22 @@ export function countVerdicts(results: ReviewResultDetail[]) {
 export function toSafeFilename(name: string): string {
   return name.replace(/[\\/:*?"<>|]/g, "_").slice(0, 80);
 }
+
+/**
+ * 誰がいつ覆したかの一言。記録が無ければ空。
+ *
+ * 判定が人の手で変わったことは、結果を受け取る側にとって重要な事実。
+ * 「誰が」が無いと、あとから辿れない
+ */
+export function overriddenByLabel(
+  result: ReviewResultDetail,
+  t: TFunction
+): string {
+  if (!result.userOverride || !result.overriddenBy) {
+    return "";
+  }
+  const when = result.overriddenAt
+    ? new Date(result.overriddenAt).toLocaleDateString()
+    : "";
+  return t("review.overriddenByOn", { who: result.overriddenBy, when }).trim();
+}

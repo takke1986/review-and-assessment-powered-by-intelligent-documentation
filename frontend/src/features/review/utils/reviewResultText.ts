@@ -5,6 +5,7 @@ import {
   filenamesById,
   flattenInOrder,
   formatSources,
+  overriddenByLabel,
   verdictLabel,
 } from "./reviewReportModel";
 
@@ -72,8 +73,16 @@ export function buildReviewResultText(params: {
     if (sources.length > 0) {
       lines.push(`${indent}  ${t("review.report.source")}: ${sources.join(", ")}`);
     }
-    if (result.userOverride && result.userComment) {
-      lines.push(`${indent}  ${t("review.userComment")}: ${result.userComment}`);
+    if (result.userOverride) {
+      const who = overriddenByLabel(result, t);
+      if (who) {
+        lines.push(`${indent}  ${t("review.overrideResult")}: ${who}`);
+      }
+      if (result.userComment) {
+        lines.push(
+          `${indent}  ${t("review.userComment")}: ${result.userComment}`
+        );
+      }
     }
   }
 

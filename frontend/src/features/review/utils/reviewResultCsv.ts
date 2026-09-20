@@ -8,6 +8,7 @@ import {
   flattenInOrder,
   formatSources,
   IMPORTANCE_LABEL_KEY,
+  overriddenByLabel,
   verdictLabel,
 } from "./reviewReportModel";
 
@@ -58,6 +59,7 @@ export function buildReviewResultCsv(params: {
     "extractedText",
     "sources",
     "userOverride",
+    "overriddenBy",
     "userComment",
   ].map((key) => toCell(t(`review.export.column.${key}`)));
 
@@ -79,6 +81,7 @@ export function buildReviewResultCsv(params: {
       toCell(result.extractedText?.join("\n")),
       toCell(formatSources(result, filenameById, t).join("\n")),
       toCell(result.userOverride ? t("common.yes") : t("common.no")),
+      toCell(overriddenByLabel(result, t)),
       toCell(result.userComment),
     ].join(",");
   });

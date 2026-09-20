@@ -412,6 +412,10 @@ export interface ReviewResultEntity {
   aiResult?: REVIEW_RESULT;
   /** 覆した理由 */
   overrideReason?: OVERRIDE_REASON;
+  /** 覆した人。そのときの表示名 */
+  overriddenBy?: string;
+  /** 覆した日時 */
+  overriddenAt?: string;
   createdAt: Date;
   updatedAt: Date;
   sourceReferences?: SourceReference[];

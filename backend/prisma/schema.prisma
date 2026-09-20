@@ -190,6 +190,10 @@ model ReviewResult {
   aiResult            String?        @map("ai_result") @db.VarChar(20)
   /// 覆した理由。自由記述のコメントとは別に、集計できる形で持つ
   overrideReason      String?        @map("override_reason") @db.VarChar(30)
+  /// 覆した人。そのときの表示名（メールアドレス）を控える。あとで登録が変わっても、そのとき誰が決めたかは変わらない
+  overriddenBy        String?        @map("overridden_by") @db.VarChar(255)
+  /// 覆した日時。updatedAt は審査し直しでも動くので、別に持つ
+  overriddenAt        DateTime?      @map("overridden_at") @db.Timestamp(0)
   reviewMeta          Json?          @map("review_meta")
   inputTokens         Int?           @map("input_tokens")
   outputTokens        Int?           @map("output_tokens")

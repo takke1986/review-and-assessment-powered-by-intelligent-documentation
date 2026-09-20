@@ -234,6 +234,10 @@ export interface PreviousReviewResult {
   aiResult?: REVIEW_RESULT;
   /** 覆した理由 */
   overrideReason?: OVERRIDE_REASON;
+  /** 覆した人。そのときの表示名を控える */
+  overriddenBy?: string;
+  /** 覆した日時。updatedAt は審査し直しでも動くので別に持つ */
+  overriddenAt?: Date;
   userComment?: string;
 }
 
@@ -271,6 +275,10 @@ export interface ReviewResultEntity {
   aiResult?: REVIEW_RESULT;
   /** 覆した理由 */
   overrideReason?: OVERRIDE_REASON;
+  /** 覆した人。そのときの表示名を控える */
+  overriddenBy?: string;
+  /** 覆した日時。updatedAt は審査し直しでも動くので別に持つ */
+  overriddenAt?: Date;
   createdAt: Date;
   updatedAt: Date;
   sourceReferences?: SourceReference[];
@@ -402,6 +410,8 @@ export const ReviewResultDomain = (() => {
         aiResult: (prismaResult.aiResult as REVIEW_RESULT) ?? undefined,
         overrideReason:
           (prismaResult.overrideReason as OVERRIDE_REASON) ?? undefined,
+        overriddenBy: prismaResult.overriddenBy ?? undefined,
+        overriddenAt: prismaResult.overriddenAt ?? undefined,
         createdAt: prismaResult.createdAt,
         updatedAt: prismaResult.updatedAt,
         reviewMeta: prismaResult.reviewMeta as any,
@@ -447,13 +457,18 @@ export const ReviewResultDomain = (() => {
       result: REVIEW_RESULT;
       userComment: string;
       overrideReason?: OVERRIDE_REASON;
+      /** 覆した人の表示名。分からなければ残さない */
+      overriddenBy?: string;
     }): ReviewResultDetail => {
-      const { current, result, userComment, overrideReason } = params;
+      const { current, result, userComment, overrideReason, overriddenBy } =
+        params;
       return {
         ...current,
         result,
         userComment,
         overrideReason,
+        overriddenBy,
+        overriddenAt: new Date(),
         userOverride: true,
         // AI の判定は上書きで変えない。まだ入っていない結果（この変更より
         // 前に審査したもの）でも、まだ誰も上書きしていなければ、いまの
@@ -585,8 +600,10 @@ export const ReviewResultDomain = (() => {
         // AI が下した判定として控える。人が上書きしても、これは変わらない。
         // 審査し直したときは、そのときの AI の判定で置き換わる
         aiResult: reviewResult,
-        // 判定をやり直したので、前回覆された理由は持ち越さない
+        // 判定をやり直したので、前回覆された記録は持ち越さない
         overrideReason: undefined,
+        overriddenBy: undefined,
+        overriddenAt: undefined,
         updatedAt: new Date(),
         reviewMeta: params.reviewMeta,
         inputTokens: params.inputTokens,
