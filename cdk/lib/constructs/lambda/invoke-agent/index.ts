@@ -86,8 +86,23 @@ export const handler: Handler = async (event: StepFunctionsInput) => {
 
     console.log("Transformed payload:", JSON.stringify(agentPayload, null, 2));
 
-    // Use same session ID for all review items in the same job
-    const runtimeSessionId = event.reviewJobId.padEnd(33, "0");
+    // One session per review item, not per job.
+    //
+    // AgentCore refuses concurrent operations on the same session
+    // ("RetryableConflictException: Session operation in progress"), so a
+    // job-wide session only works while the Map state runs one item at a
+    // time. It now runs several, and every item failed.
+    //
+    // Each item is judged on its own — the agent keeps no state between
+    // calls — so splitting the session changes no verdict. The job id stays
+    // as the prefix, so the sessions of one job are still found together in
+    // GenAI Observability.
+    //
+    // The id must be at least 33 characters, hence the padding.
+    const runtimeSessionId = `${event.reviewJobId}-${event.reviewResultId}`
+      .replace(/[^a-zA-Z0-9_-]/g, "-")
+      .padEnd(33, "0")
+      .substring(0, 100);
     console.log(
       `[SESSION] Using runtimeSessionId: ${runtimeSessionId} for reviewJobId: ${event.reviewJobId}, reviewResultId: ${event.reviewResultId}`,
     );

@@ -305,6 +305,10 @@ export class ReviewProcessor extends Construct {
         "ThrottlingException",
         "ServiceQuotaExceededException",
         "TooManyRequestsException",
+        // AgentCore が同じセッションへの同時操作を断るときのエラー。
+        // セッションは項目ごとに分けたので本来起きないが、名前のとおり
+        // 再試行すれば通るものなので、ジョブ全体を落とさないために拾う
+        "RetryableConflictException",
       ],
       interval: cdk.Duration.seconds(2),
       maxAttempts: 5,
