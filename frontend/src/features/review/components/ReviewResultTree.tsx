@@ -6,7 +6,7 @@ import {
   FilterType,
 } from "../hooks/useReviewResultQueries";
 import { useTranslation } from "react-i18next";
-import { isSupersededByRerun } from "../supersededByRerun";
+import { isSupersededByRerun } from "../reviewJobRules";
 import { useReviewJobDetail } from "../hooks/useReviewJobQueries";
 import ReviewResultTreeNode from "./ReviewResultTreeNode";
 import { TreeSkeleton } from "../../../components/Skeleton";

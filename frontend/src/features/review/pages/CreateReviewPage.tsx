@@ -20,7 +20,7 @@ import RerunSourcePanel from "../components/RerunSourcePanel";
 import { useCreateReviewJob } from "../hooks/useReviewJobMutations";
 import { requestNotificationPermission } from "../hooks/useJobCompletionNotice";
 import { useRerunSource } from "../hooks/useRerunSource";
-import { endedEarly } from "../reviewAgain";
+import { endedEarly } from "../reviewJobRules";
 import { useRerunDocuments } from "../hooks/useRerunDocuments";
 import { useReviewFileSelection } from "../hooks/useReviewFileSelection";
 import { useDocumentUpload } from "../../../hooks/useDocumentUpload";

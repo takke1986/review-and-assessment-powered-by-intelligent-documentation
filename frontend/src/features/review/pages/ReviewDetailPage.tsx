@@ -7,19 +7,15 @@ import ReviewResultFilter from "../components/ReviewResultFilter";
 import { FilterType } from "../hooks/useReviewResultQueries";
 import { useReviewJobDetail } from "../hooks/useReviewJobQueries";
 import { useJobCompletionNotice } from "../hooks/useJobCompletionNotice";
-import { isSupersededByRerun } from "../supersededByRerun";
-import { useReviewJobActions } from "../hooks/useReviewJobActions";
-import { canReviewAgain, endedEarly } from "../reviewAgain";
+import { isSupersededByRerun } from "../reviewJobRules";
+import ReviewJobActions from "../components/ReviewJobActions";
 import { ErrorAlert } from "../../../components/ErrorAlert";
 import Slider from "../../../components/Slider";
 import { DetailSkeleton } from "../../../components/Skeleton";
 import { isJobRunning, REVIEW_JOB_STATUS } from "../types";
 import Breadcrumb from "../../../components/Breadcrumb";
 import TotalReviewCostSummary from "../components/TotalReviewCostSummary";
-import Button from "../../../components/Button";
 import ReviewJobDocuments from "../components/ReviewJobDocuments";
-import ReviewResultExportButton from "../components/ReviewResultExportButton";
-import ReviewResultTextButton from "../components/ReviewResultTextButton";
 import ImportanceFilter from "../../checklist/components/ImportanceFilter";
 import type { ImportanceFilterValue } from "../../checklist/types";
 
@@ -47,9 +43,6 @@ export default function ReviewDetailPage() {
 
   // 再審査されたジョブの判定は変えられない
   const isSuperseded = isSupersededByRerun(job?.rerunJobs);
-  // 持ち主かどうかはサーバが答える。画面側で判定すると規則がずれる
-  const canEdit = job?.canEdit !== false;
-  const actions = useReviewJobActions(id ?? "", refetchJob);
 
   // 実行中は、項目の審査が終わるたびに結果のツリーも読み直す。
   // 最後に親の判定がまとまるので、ジョブの状態が変わったときも読み直す
@@ -234,78 +227,7 @@ export default function ReviewDetailPage() {
             </p>
           )}
         </div>
-        <div className="flex flex-col items-stretch gap-2 self-start">
-          {/* 走っている審査は止められる。間違えて始めたときに、終わるまで
-              待って費用も払うのはおかしい */}
-          {canEdit && isJobRunning(job.status) && (
-            <Button
-              variant="danger"
-              outline
-              disabled={actions.isWorking}
-              onClick={() => {
-                if (window.confirm(t("review.cancelConfirm"))) {
-                  actions.cancel();
-                }
-              }}>
-              {t("review.cancel")}
-            </Button>
-          )}
-          {/* 社内への公開。見られるだけで、直せるのは作成者だけ */}
-          {canEdit && (
-            <label className="flex items-start gap-2 rounded-lg border border-light-gray bg-white p-3 text-sm">
-              <input
-                type="checkbox"
-                className="mt-1"
-                checked={job.sharedWithOrg === true}
-                disabled={actions.isWorking}
-                onChange={(event) => actions.setSharing(event.target.checked)}
-              />
-              <span>
-                <span className="font-medium">{t("review.shareWithOrg")}</span>
-                <span className="mt-0.5 block text-aws-font-color-gray">
-                  {t("review.shareHint")}
-                </span>
-              </span>
-            </label>
-          )}
-          {!canEdit && (
-            <p className="rounded-lg border border-light-gray bg-aws-paper-light p-3 text-sm text-aws-font-color-gray">
-              {t("review.sharedByOther")}
-            </p>
-          )}
-        </div>
-        {canReviewAgain(job.status) && (
-          <div className="flex flex-col items-stretch gap-2 self-start">
-            {/* 完了なら不合格を審査し直す。途中で終わっていれば続きから。
-                することが違うので、言い回しを変える */}
-            <Button
-              to={`/review/create?source=${job.id}`}
-              variant="primary"
-              outline>
-              {endedEarly(job.status)
-                ? t("review.resumeReview")
-                : t("review.rerunFailedItems")}
-            </Button>
-            {/* 紙に出す。顧客に渡したり綴じたりするのは画面の外 */}
-            <Button to={`/review/${job.id}/report`} variant="secondary" outline>
-              {t("review.report.open")}
-            </Button>
-            {/* 文章にして写す。メール文の下書きは生成AIに任せることが多い */}
-            <ReviewResultTextButton
-              jobId={job.id}
-              jobName={job.name}
-              checkListName={job.checkList.name}
-              completedAt={job.completedAt}
-              documents={job.documents}
-            />
-            {/* 表計算ソフトに持ち出す。並べ替えや集計は手元の方が早い */}
-            <ReviewResultExportButton
-              jobId={job.id}
-              jobName={job.name}
-              documents={job.documents}
-            />
-          </div>
-        )}
+        <ReviewJobActions job={job} onChanged={refetchJob} />
       </div>
 
       {/* 審査した文書（再審査では差し替え前と差し替え後） */}
