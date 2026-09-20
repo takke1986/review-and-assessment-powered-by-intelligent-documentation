@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import SegmentedControl from "../../../components/SegmentedControl";
+import BarChart, { CHART_COLORS } from "../../../components/BarChart";
 import { ErrorAlert } from "../../../components/ErrorAlert";
 import { DetailSkeleton } from "../../../components/Skeleton";
 import {
@@ -45,12 +46,6 @@ export default function ReviewCostPage() {
       </div>
     );
   }
-
-  // 棒の長さを決める基準。全部が同じ長さに見えないよう、一番高い月に合わせる
-  const highestMonth = Math.max(
-    ...(summary?.byMonth.map((month) => month.totalCost) ?? [0]),
-    0
-  );
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -116,34 +111,36 @@ export default function ReviewCostPage() {
                 <h2 className="mb-4 text-xl font-medium text-aws-squid-ink-light">
                   {t("cost.byMonth")}
                 </h2>
-                <ul className="space-y-3">
+                {/* 増えているのか減っているのかは、並べて見ないと分からない */}
+                <BarChart
+                  height={220}
+                  ariaLabel={t("cost.byMonth")}
+                  labels={summary.byMonth.map((month) =>
+                    monthLabel(month.month, i18n.language)
+                  )}
+                  datasets={[
+                    {
+                      label: t("cost.total"),
+                      data: summary.byMonth.map((month) => month.totalCost),
+                      backgroundColor: CHART_COLORS.blue,
+                    },
+                  ]}
+                  formatValue={money}
+                />
+                <ul className="mt-3 space-y-1 text-sm">
                   {summary.byMonth.map((month) => (
-                    <li key={month.month}>
-                      <div className="flex items-baseline justify-between text-sm">
-                        <span className="text-aws-squid-ink-light">
-                          {monthLabel(month.month, i18n.language)}
+                    <li
+                      key={month.month}
+                      className="flex items-baseline justify-between gap-2">
+                      <span className="text-aws-squid-ink-light">
+                        {monthLabel(month.month, i18n.language)}
+                      </span>
+                      <span className="whitespace-nowrap tabular-nums text-aws-font-color-gray">
+                        {money(month.totalCost)}
+                        <span className="ml-2">
+                          {t("cost.jobCountValue", { count: month.jobCount })}
                         </span>
-                        <span className="tabular-nums text-aws-font-color-gray">
-                          {money(month.totalCost)}
-                          <span className="ml-2">
-                            {t("cost.jobCountValue", {
-                              count: month.jobCount,
-                            })}
-                          </span>
-                        </span>
-                      </div>
-                      {/* グラフの道具は入れていない。棒の長さで十分伝わる */}
-                      <div className="mt-1 h-2 overflow-hidden rounded bg-light-gray">
-                        <div
-                          className="h-full bg-aws-sea-blue-light"
-                          style={{
-                            width:
-                              highestMonth > 0
-                                ? `${(month.totalCost / highestMonth) * 100}%`
-                                : "0%",
-                          }}
-                        />
-                      </div>
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -157,8 +154,24 @@ export default function ReviewCostPage() {
                 <p className="mb-4 text-sm text-aws-font-color-gray">
                   {t("cost.byChecklistHint")}
                 </p>
+                {/* どの審査に掛かっているかは、並べると一目で分かる。
+                    総額だけ見ても打ち手にならない */}
+                <BarChart
+                  horizontal
+                  height={Math.max(140, summary.byChecklist.length * 42)}
+                  ariaLabel={t("cost.byChecklist")}
+                  labels={summary.byChecklist.map((c) => c.name)}
+                  datasets={[
+                    {
+                      label: t("review.cost"),
+                      data: summary.byChecklist.map((c) => c.totalCost),
+                      backgroundColor: CHART_COLORS.blue,
+                    },
+                  ]}
+                  formatValue={money}
+                />
                 {/* 狭い画面でははみ出すので、表だけ横に送れるようにする */}
-                <div className="overflow-x-auto">
+                <div className="mt-4 overflow-x-auto">
                 <table className="min-w-full">
                   <thead>
                     <tr className="bg-aws-paper-light text-left">

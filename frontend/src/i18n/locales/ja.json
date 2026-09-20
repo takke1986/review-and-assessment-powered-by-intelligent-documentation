@@ -36,7 +36,13 @@
     "overturnedToPass": "戻した {{count}}",
     "guidanceNotYetTested": "着眼点を {{written}} に記入。まだ審査していません",
     "guidanceWorking": "{{written}} に着眼点を記入。以降 {{reviewed}} 件で覆されていません",
-    "guidanceStillOverturned": "{{written}} に着眼点を記入。以降も {{reviewed}} 件中 {{overturned}} 件が覆されています"
+    "guidanceStillOverturned": "{{written}} に着眼点を記入。以降も {{reviewed}} 件中 {{overturned}} 件が覆されています",
+    "guidanceEffectChart": "着眼点を書いた効果",
+    "guidanceEffectChartHint": "着眼点を書く前と後で、AI の判定が人に覆された割合です。下がっていれば効いています。",
+    "beforeGuidance": "着眼点を書く前",
+    "afterGuidance": "書いた後",
+    "failRateChart": "不合格率の高い項目",
+    "failRateChartHint": "赤は手を入れる価値がある項目です。上から順に着眼点を書くと効きます。"
   },
   "common": {
     "appName": "Review & Assessment Powered by Intelligent Documentation",

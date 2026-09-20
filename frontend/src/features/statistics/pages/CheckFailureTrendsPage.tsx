@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import SearchBox from "../../../components/SearchBox";
+import BarChart, { CHART_COLORS } from "../../../components/BarChart";
 import { useTableSort } from "../../../hooks/useTableSort";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -13,7 +14,20 @@ import { CHECK_TREND_STATUS, CheckFailureTrendItem } from "../types";
  */
 const STATUS_VIEW: Record<
   CHECK_TREND_STATUS,
-  { style: string; label: string; action: string; actionable: boolean }
+  {
+    style: string;
+    label: string;
+    action: string;
+    actionable: boolean;
+    /**
+     * 手を入れる価値の順。大きいほど先に見たい。
+     *
+     * 状態で並べ替えたときに翻訳された文字列の五十音順になると、
+     * 「安定している」が「AI が迷っている」より上に来てしまい、
+     * 並べ替える意味がなくなる
+     */
+    rank: number;
+  }
 > = {
   [CHECK_TREND_STATUS.MISSES_THINGS]: {
     // 見落としが一番危ない。目で拾えるよう、ほかより強い色にする
@@ -21,42 +35,49 @@ const STATUS_VIEW: Record<
     label: "trends.statusMissesThings",
     action: "trends.actionMissesThings",
     actionable: true,
+    rank: 6,
   },
   [CHECK_TREND_STATUS.TOO_STRICT]: {
     style: "bg-yellow-100 text-yellow-800",
     label: "trends.statusTooStrict",
     action: "trends.actionTooStrict",
     actionable: true,
+    rank: 4,
   },
   [CHECK_TREND_STATUS.NEEDS_GUIDANCE]: {
     style: "bg-yellow-100 text-yellow-800",
     label: "trends.statusNeedsGuidance",
     action: "trends.actionNeedsGuidance",
     actionable: true,
+    rank: 3,
   },
   [CHECK_TREND_STATUS.OPERATIONAL_ISSUE]: {
     style: "bg-red/10 text-red",
     label: "trends.statusOperationalIssue",
     action: "trends.actionOperationalIssue",
     actionable: true,
+    rank: 5,
   },
   [CHECK_TREND_STATUS.INSUFFICIENT_DATA]: {
     style: "bg-light-gray text-aws-font-color-gray",
     label: "trends.statusInsufficientData",
     action: "trends.actionInsufficientData",
     actionable: false,
+    rank: 1,
   },
   [CHECK_TREND_STATUS.NOT_REVIEWED_RECENTLY]: {
     style: "bg-light-gray text-aws-font-color-gray",
     label: "trends.statusNotReviewedRecently",
     action: "trends.actionNotReviewedRecently",
     actionable: false,
+    rank: 2,
   },
   [CHECK_TREND_STATUS.STABLE]: {
     style: "bg-light-gray text-aws-font-color-gray",
     label: "trends.statusStable",
     action: "trends.actionStable",
     actionable: false,
+    rank: 0,
   },
 };
 
@@ -106,7 +127,7 @@ export default function CheckFailureTrendsPage() {
           return item.name;
         case "status":
         case "action":
-          return t(STATUS_VIEW[item.status].label);
+          return STATUS_VIEW[item.status].rank;
         case "failedCount":
           return item.failedCount;
         case "reviewedCount":
@@ -134,7 +155,12 @@ export default function CheckFailureTrendsPage() {
       if (typeof left === "string" && typeof right === "string") {
         return left.localeCompare(right) * direction;
       }
-      return ((left as number) - (right as number)) * direction;
+      const compared = ((left as number) - (right as number)) * direction;
+      if (compared !== 0) {
+        return compared;
+      }
+      // 同じ状態の中では不合格の多い順。塊の中でも手を付ける順が分かる
+      return b.failedCount - a.failedCount;
     });
   }, [items, sortBy, sortOrder, t]);
 
@@ -154,6 +180,36 @@ export default function CheckFailureTrendsPage() {
   );
 
   const percent = (rate: number) => `${Math.round(rate * 100)}%`;
+
+  /**
+   * 手を入れる価値のある項目を、不合格率の高い順に並べる。
+   * 表は全件を出すが、どこから手を付けるかは形で見た方が早い
+   */
+  const worst = useMemo(
+    () =>
+      items
+        .filter((item) => item.reviewedCount > 0)
+        .sort((a, b) => b.failRate - a.failRate)
+        .slice(0, 10),
+    [items]
+  );
+
+  /**
+   * 着眼点を書いた項目の、書く前と後の「覆された率」。
+   *
+   * ここが行動変容の要。書いたら減った、が見えないと次を書く気にならない。
+   * 書いたあと一度も審査していない項目は、比べようがないので外す
+   */
+  const guidanceEffects = useMemo(
+    () =>
+      items.filter(
+        (item) => item.guidanceEffect && item.guidanceEffect.after.reviewed > 0
+      ),
+    [items]
+  );
+
+  const overturnRate = (counts: { reviewed: number; overturned: number }) =>
+    counts.reviewed === 0 ? 0 : counts.overturned / counts.reviewed;
 
   /**
    * 着眼点の効果をひとことにする。
@@ -288,6 +344,71 @@ export default function CheckFailureTrendsPage() {
               </li>
             ))}
           </ol>
+        </div>
+      )}
+
+      {guidanceEffects.length > 0 && (
+        <div className="mb-6 rounded-lg border border-light-gray bg-white p-4">
+          <h2 className="mb-1 font-medium text-aws-squid-ink-light">
+            {t("trends.guidanceEffectChart")}
+          </h2>
+          <p className="mb-3 text-sm text-aws-font-color-gray">
+            {t("trends.guidanceEffectChartHint")}
+          </p>
+          <BarChart
+            showLegend
+            height={Math.max(160, guidanceEffects.length * 56)}
+            horizontal
+            ariaLabel={t("trends.guidanceEffectChart")}
+            labels={guidanceEffects.map((item) => item.name)}
+            datasets={[
+              {
+                label: t("trends.beforeGuidance"),
+                data: guidanceEffects.map((item) =>
+                  overturnRate(item.guidanceEffect!.before)
+                ),
+                backgroundColor: CHART_COLORS.red,
+              },
+              {
+                label: t("trends.afterGuidance"),
+                data: guidanceEffects.map((item) =>
+                  overturnRate(item.guidanceEffect!.after)
+                ),
+                backgroundColor: CHART_COLORS.blue,
+              },
+            ]}
+            formatValue={percent}
+          />
+        </div>
+      )}
+
+      {worst.length > 0 && (
+        <div className="mb-6 rounded-lg border border-light-gray bg-white p-4">
+          <h2 className="mb-1 font-medium text-aws-squid-ink-light">
+            {t("trends.failRateChart")}
+          </h2>
+          <p className="mb-3 text-sm text-aws-font-color-gray">
+            {t("trends.failRateChartHint")}
+          </p>
+          {/* 色は状態に合わせる。赤は手を入れる価値があるもの */}
+          <BarChart
+            horizontal
+            height={Math.max(160, worst.length * 36)}
+            ariaLabel={t("trends.failRateChart")}
+            labels={worst.map((item) => item.name)}
+            datasets={[
+              {
+                label: t("trends.failRate"),
+                data: worst.map((item) => item.failRate),
+                backgroundColor: worst.map((item) =>
+                  STATUS_VIEW[item.status].actionable
+                    ? CHART_COLORS.red
+                    : CHART_COLORS.gray
+                ),
+              },
+            ]}
+            formatValue={percent}
+          />
         </div>
       )}
 

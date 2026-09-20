@@ -36,7 +36,13 @@
     "overturnedToPass": "passed back {{count}}",
     "guidanceNotYetTested": "Guidance written {{written}}. Not reviewed since.",
     "guidanceWorking": "Guidance written {{written}}. None overturned in {{reviewed}} reviews since.",
-    "guidanceStillOverturned": "Guidance written {{written}}. Still {{overturned}} of {{reviewed}} overturned since."
+    "guidanceStillOverturned": "Guidance written {{written}}. Still {{overturned}} of {{reviewed}} overturned since.",
+    "guidanceEffectChart": "What the guidance changed",
+    "guidanceEffectChartHint": "How often people overturned the AI, before and after the guidance was written. Lower after means it worked.",
+    "beforeGuidance": "Before guidance",
+    "afterGuidance": "After",
+    "failRateChart": "Items that fail most",
+    "failRateChartHint": "Red items are worth acting on. Writing guidance from the top down has the most effect."
   },
   "common": {
     "appName": "Review & Assessment Powered by Intelligent Documentation",
