@@ -4,6 +4,7 @@ import {
   createReviewJob,
   getAllReviewJobs,
   getReviewCostSummary,
+  setReviewJobSharing,
   getReviewJobById,
   getReviewDocumentPresignedUrl,
   getReviewDocumentsPresignedUrl,
@@ -32,6 +33,7 @@ export const getAllReviewJobsHandler = async (
       sortOrder?: "asc" | "desc";
       status?: string;
       search?: string;
+      checkListSetId?: string;
     };
   }>,
   reply: FastifyReply
@@ -43,6 +45,7 @@ export const getAllReviewJobsHandler = async (
     sortOrder = "desc",
     status,
     search,
+    checkListSetId,
   } = request.query;
 
   // Convert string query parameters to numbers
@@ -69,6 +72,7 @@ export const getAllReviewJobsHandler = async (
     sortOrder,
     status,
     search,
+    checkListSetId,
     user: request.user,
   });
 
@@ -340,6 +344,22 @@ export const overrideReviewResultHandler = async (
     data: {},
   });
 };
+export const setReviewJobSharingHandler = async (
+  request: FastifyRequest<{
+    Params: { jobId: string };
+    Body: { sharedWithOrg: boolean };
+  }>,
+  reply: FastifyReply
+): Promise<void> => {
+  await setReviewJobSharing({
+    reviewJobId: request.params.jobId,
+    sharedWithOrg: request.body.sharedWithOrg === true,
+    user: request.user,
+  });
+
+  reply.code(200).send({ success: true, data: {} });
+};
+
 export const getReviewJobByIdHandler = async (
   request: FastifyRequest<{ Params: { jobId: string } }>,
   reply: FastifyReply

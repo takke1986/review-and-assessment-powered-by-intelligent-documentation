@@ -5,6 +5,7 @@ import {
   deleteReviewJobHandler,
   getAllReviewJobsHandler,
   getReviewCostSummaryHandler,
+  setReviewJobSharingHandler,
   getReviewJobByIdHandler,
   getReviewPresignedUrlHandler,
   getReviewDocumentsPresignedUrlHandler,
@@ -47,6 +48,11 @@ export function registerReviewRoutes(fastify: FastifyInstance): void {
   fastify.get("/review-jobs", {
     handler: getAllReviewJobsHandler,
   });
+  // 社内への公開の切り替え。切り替えられるのは作成者だけ
+  fastify.put("/review-jobs/:jobId/sharing", {
+    handler: setReviewJobSharingHandler,
+  });
+
   fastify.get("/review-jobs/:jobId", {
     handler: getReviewJobByIdHandler,
   });

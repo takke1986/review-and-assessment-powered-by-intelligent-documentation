@@ -21,6 +21,10 @@ import {
 } from "../../checklist/domain/model/checklist";
 import { countCheckItems } from "./service/check-item-selection";
 import { countReviewProgress } from "./service/review-progress";
+import {
+  visibilityFilter,
+  type Viewer,
+} from "./service/review-job-visibility";
 import { summarizeCost } from "./service/review-cost-summary";
 
 /** 期間で絞るための条件。片側だけの指定もできる */
@@ -66,9 +70,12 @@ export interface ReviewJobRepository {
     sortOrder?: "asc" | "desc";
     status?: string;
     // ownerUserId が指定された場合、そのユーザのジョブのみ返す（管理者は未指定）
-    ownerUserId?: string;
-    /** 名前の一部での絞り込み */
+    /** 見える範囲。管理者は指定しない */
+    visibleTo?: Viewer;
+    /** 名前か、審査した文書の名前の一部での絞り込み */
     search?: string;
+    /** このチェックリストを使ったジョブだけ */
+    checkListSetId?: string;
   }): Promise<PaginatedResponse<ReviewJobSummary>>;
   summarizeReviewCost(
     params: {
@@ -84,6 +91,10 @@ export interface ReviewJobRepository {
     reviewJobId: string;
     status: REVIEW_JOB_STATUS;
     errorDetail?: string;
+  }): Promise<void>;
+  updateJobSharing(params: {
+    reviewJobId: string;
+    sharedWithOrg: boolean;
   }): Promise<void>;
   updateJobCostInfo(params: {
     reviewJobId: string;
@@ -123,9 +134,10 @@ export const makePrismaReviewJobRepository = async (
       sortBy?: string;
       sortOrder?: "asc" | "desc";
       status?: string;
-      ownerUserId?: string;
-      /** 名前の一部。増えてくると一覧から探せないため */
+      visibleTo?: Viewer;
+      /** 名前か、審査した文書の名前の一部。増えてくると一覧から探せないため */
       search?: string;
+      checkListSetId?: string;
     } = {}
   ): Promise<PaginatedResponse<ReviewJobSummary>> => {
     const {
@@ -135,24 +147,36 @@ export const makePrismaReviewJobRepository = async (
       sortOrder = "desc",
       status,
       search,
+      checkListSetId,
     } = params;
 
     // WHERE条件を構築
     const whereCondition: {
       status?: string;
-      userId?: string;
-      name?: { contains: string };
+      checkListSetId?: string;
+      OR?: Array<Record<string, unknown>>;
+      AND?: Array<Record<string, unknown>>;
     } = {};
     if (status) {
       whereCondition.status = status;
     }
     const needle = search?.trim();
     if (needle) {
-      whereCondition.name = { contains: needle };
+      // 名前だけでは探せない。ジョブ名は適当に付けられがちで、あとから
+      // 「あの契約書を審査したのはどれか」で辿ることの方が多い
+      whereCondition.OR = [
+        { name: { contains: needle } },
+        { documents: { some: { filename: { contains: needle } } } },
+      ];
     }
-    // ownerUserId が指定されている場合はそのユーザのジョブに限定する
-    if (params.ownerUserId) {
-      whereCondition.userId = params.ownerUserId;
+    if (checkListSetId) {
+      whereCondition.checkListSetId = checkListSetId;
+    }
+    // 見える範囲。自分のものと、社内に公開されたもの。管理者は絞らない。
+    // 検索の OR と混ざらないよう AND に入れる
+    const visible = visibilityFilter(params.visibleTo);
+    if (visible) {
+      whereCondition.AND = [visible];
     }
 
     // ページネーション用のクエリを並列実行
@@ -234,6 +258,7 @@ export const makePrismaReviewJobRepository = async (
         updatedAt: job.updatedAt,
         completedAt: job.completedAt || undefined,
         userId: job.userId || undefined,
+        sharedWithOrg: job.sharedWithOrg,
         // 実行中や失敗したジョブには費用が入っていない
         totalCost: job.totalCost ? Number(job.totalCost) : undefined,
         documents: job.documents.map((doc) => ({
@@ -272,6 +297,16 @@ export const makePrismaReviewJobRepository = async (
       limit,
       totalPages,
     };
+  };
+
+  const updateJobSharing = async (params: {
+    reviewJobId: string;
+    sharedWithOrg: boolean;
+  }): Promise<void> => {
+    await client.reviewJob.update({
+      where: { id: params.reviewJobId },
+      data: { sharedWithOrg: params.sharedWithOrg },
+    });
   };
 
   const summarizeReviewCost = async (
@@ -411,6 +446,7 @@ export const makePrismaReviewJobRepository = async (
       },
       documents: job.documents.map(toReviewJobDocument),
       userId: job.userId || undefined,
+      sharedWithOrg: job.sharedWithOrg,
       createdAt: job.createdAt,
       updatedAt: job.updatedAt,
       completedAt: job.completedAt || undefined,
@@ -577,6 +613,7 @@ export const makePrismaReviewJobRepository = async (
   return {
     findAllReviewJobs,
     summarizeReviewCost,
+    updateJobSharing,
     findReviewJobById,
     createReviewJob,
     deleteReviewJobById,

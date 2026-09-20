@@ -36,6 +36,7 @@ import { validateFileSize } from "../../../core/file-validation";
 import { maxFileSizeFor } from "../../../constants/index";
 import type { RequestUser } from "../../../core/middleware/authorization";
 import { assertHasOwnerAccessOrThrow } from "../../../core/middleware/authorization";
+import { assertCanViewOrThrow } from "../domain/service/review-job-visibility";
 
 export const computeGlobalConcurrency = async (): Promise<{
   isLimit: boolean;
@@ -75,8 +76,10 @@ export const getAllReviewJobs = async (params: {
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   status?: string;
-  /** 名前の一部での絞り込み */
+  /** 名前か、審査した文書の名前の一部での絞り込み */
   search?: string;
+  /** このチェックリストを使ったジョブだけ */
+  checkListSetId?: string;
   // オプショナルでリクエストユーザーを受け取り、一般ユーザの場合は ownerUserId を使って絞る
   user: RequestUser;
   deps?: {
@@ -85,10 +88,7 @@ export const getAllReviewJobs = async (params: {
 }): Promise<PaginatedResponse<ReviewJobSummary>> => {
   const repo = params.deps?.repo || (await makePrismaReviewJobRepository());
 
-  // 一般ユーザの場合は自身のジョブのみ返す（管理者は全件）
-  const ownerUserId =
-    params.user && !params.user.isAdmin ? params.user.userId : undefined;
-
+  // 自分のものと、社内に公開されたものが見える（管理者は全件）
   const result = await repo.findAllReviewJobs({
     page: params.page,
     limit: params.limit,
@@ -96,7 +96,8 @@ export const getAllReviewJobs = async (params: {
     sortOrder: params.sortOrder,
     status: params.status,
     search: params.search,
-    ownerUserId,
+    checkListSetId: params.checkListSetId,
+    visibleTo: params.user,
   });
   return result;
 };
@@ -125,6 +126,34 @@ export const getReviewCostSummary = async (params: {
     createdTo: params.createdTo,
     tzOffsetMinutes: params.tzOffsetMinutes,
     ownerUserId,
+  });
+};
+
+/**
+ * 審査ジョブを社内に公開する／やめる。
+ *
+ * 公開しても見られるだけで、判定の変更・再審査・削除は作成者のまま。
+ * 切り替えられるのも作成者だけで、他人に勝手に公開されることはない
+ */
+export const setReviewJobSharing = async (params: {
+  reviewJobId: string;
+  sharedWithOrg: boolean;
+  user?: RequestUser;
+  deps?: { repo?: ReviewJobRepository };
+}): Promise<void> => {
+  const repo = params.deps?.repo || (await makePrismaReviewJobRepository());
+  const job = await repo.findReviewJobById({
+    reviewJobId: params.reviewJobId,
+  });
+  assertHasOwnerAccessOrThrow(params.user, job.userId, {
+    api: "setReviewJobSharing",
+    resourceId: job.id,
+    logger: console,
+  });
+
+  await repo.updateJobSharing({
+    reviewJobId: params.reviewJobId,
+    sharedWithOrg: params.sharedWithOrg,
   });
 };
 
@@ -439,9 +468,9 @@ export const getReviewJobById = async (params: {
   });
 
   // 所有者チェック（一般ユーザは自分のジョブのみ参照可能）
-  assertHasOwnerAccessOrThrow(params.user, job.userId, {
+  // 公開されたジョブは他の人も開ける。直せるのは作成者だけ
+  assertCanViewOrThrow(params.user, job, {
     api: "getReviewJobById",
-    resourceId: params.reviewJobId,
     logger: console,
   });
 

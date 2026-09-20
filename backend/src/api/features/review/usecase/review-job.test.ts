@@ -19,10 +19,11 @@ const createReviewJobRepositoryMock = (): ReviewJobRepository => ({
   deleteReviewJobById: vi.fn(),
   updateJobStatus: vi.fn(),
   updateJobCostInfo: vi.fn(),
+  summarizeReviewCost: vi.fn(),
 });
 
 describe("getAllReviewJobs", () => {
-  it("passes ownerUserId for non-admin users", async () => {
+  it("tells the repository who is looking, so shared jobs can be included", async () => {
     const repo = createReviewJobRepositoryMock();
 
     await getAllReviewJobs({
@@ -32,12 +33,16 @@ describe("getAllReviewJobs", () => {
       deps: { repo },
     });
 
+    // 自分のものだけに絞るのではなく、見える範囲を渡す。
+    // 絞り込みそのものは visibilityFilter が決める
     expect(repo.findAllReviewJobs).toHaveBeenCalledWith(
-      expect.objectContaining({ ownerUserId: "user-1" })
+      expect.objectContaining({
+        visibleTo: { userId: "user-1", isAdmin: false },
+      })
     );
   });
 
-  it("does not pass ownerUserId for admin users", async () => {
+  it("passes the admin through too; the filter decides they see everything", async () => {
     const repo = createReviewJobRepositoryMock();
 
     await getAllReviewJobs({
@@ -48,7 +53,9 @@ describe("getAllReviewJobs", () => {
     });
 
     expect(repo.findAllReviewJobs).toHaveBeenCalledWith(
-      expect.not.objectContaining({ ownerUserId: "admin-1" })
+      expect.objectContaining({
+        visibleTo: { userId: "admin-1", isAdmin: true },
+      })
     );
   });
 });

@@ -130,6 +130,8 @@ export interface ReviewJobSummary {
   updatedAt: Date;
   completedAt?: Date;
   userId?: string;
+  /** 社内に公開したジョブ。見られるだけで、直せるのは作成者だけ */
+  sharedWithOrg?: boolean;
   /** 実行中や失敗したジョブには入らない */
   totalCost?: number;
   documents: Array<{
@@ -154,6 +156,8 @@ export interface ReviewJobDetail {
   id: string;
   name: string;
   status: REVIEW_JOB_STATUS;
+  /** 社内に公開したジョブ。見られるだけで、直せるのは作成者だけ */
+  sharedWithOrg?: boolean;
   errorDetail?: string;
   hasError: boolean;
   checkList: CheckListSetEntity;

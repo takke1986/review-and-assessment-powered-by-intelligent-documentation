@@ -12,6 +12,7 @@ import {
 } from "../domain/repository";
 import { updateCheckResultCascade } from "../domain/service/review-result-cascade-update";
 import { isSupersededByRerun } from "../domain/service/superseded-by-rerun";
+import { assertCanViewOrThrow } from "../domain/service/review-job-visibility";
 import {
   assertHasOwnerAccessOrThrow,
   RequestUser,
@@ -40,9 +41,9 @@ export const getReviewResults = async (params: {
   const job = await reviewJobRepo.findReviewJobById({
     reviewJobId: params.reviewJobId,
   });
-  assertHasOwnerAccessOrThrow(params.user, job.userId, {
+  // 公開されたジョブの結果も読める。覆せるのは作成者だけ
+  assertCanViewOrThrow(params.user, job, {
     api: "getReviewResults",
-    resourceId: job.id,
     logger: console,
   });
 
