@@ -4,9 +4,12 @@ import useHttp from "../../../hooks/useHttp";
 import { useToast } from "../../../contexts/ToastContext";
 
 /**
- * 審査ジョブへの操作。中止と、社内への公開。
+ * 審査ジョブへの操作。いまは中止だけ。
  *
- * どちらも作成者だけができる。結果は呼び出し元で読み直す
+ * 作成者だけができる。結果は呼び出し元で読み直す。
+ *
+ * 社内への公開もここにあったが、画面から外したので消した。API と列は
+ * 残してあるので、要るようになったら戻せる
  */
 export function useReviewJobActions(jobId: string, onChanged: () => void) {
   const { t } = useTranslation();
@@ -14,37 +17,19 @@ export function useReviewJobActions(jobId: string, onChanged: () => void) {
   const { addToast } = useToast();
   const [isWorking, setIsWorking] = useState(false);
 
-  const run = async (
-    action: () => Promise<unknown>,
-    successKey: string,
-    errorKey: string
-  ) => {
+  const cancel = async () => {
     setIsWorking(true);
     try {
-      await action();
-      addToast(t(successKey), "success");
+      await http.post(`/review-jobs/${jobId}/cancel`, {});
+      addToast(t("review.cancelled"), "success");
       onChanged();
     } catch (error) {
       console.error(error);
-      addToast(t(errorKey), "error");
+      addToast(t("review.cancelError"), "error");
     } finally {
       setIsWorking(false);
     }
   };
 
-  return {
-    isWorking,
-    cancel: () =>
-      run(
-        () => http.post(`/review-jobs/${jobId}/cancel`, {}),
-        "review.cancelled",
-        "review.cancelError"
-      ),
-    setSharing: (sharedWithOrg: boolean) =>
-      run(
-        () => http.put(`/review-jobs/${jobId}/sharing`, { sharedWithOrg }),
-        sharedWithOrg ? "review.shared" : "review.shareWithOrg",
-        "review.shareError"
-      ),
-  };
+  return { isWorking, cancel };
 }
