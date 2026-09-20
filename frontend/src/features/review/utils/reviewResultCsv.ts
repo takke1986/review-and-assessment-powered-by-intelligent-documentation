@@ -1,10 +1,17 @@
 import type { TFunction } from "i18next";
-import { CHECK_ITEM_IMPORTANCE } from "../../checklist/types";
 import {
-  REVIEW_RESULT,
   type ReviewJobDocument,
   type ReviewResultDetail,
 } from "../types";
+import {
+  filenamesById,
+  flattenInOrder,
+  formatSources,
+  IMPORTANCE_LABEL_KEY,
+  verdictLabel,
+} from "./reviewReportModel";
+
+export { toSafeFilename } from "./reviewReportModel";
 
 /**
  * Excel は先頭の BOM が無いと UTF-8 と判断せず、日本語が文字化けする。
@@ -15,12 +22,6 @@ const BOM = "﻿";
 /** Excel は行末が CRLF でないと、セル内の改行と行の区切りを取り違える */
 const LINE_END = "\r\n";
 
-const IMPORTANCE_LABEL_KEY: Record<CHECK_ITEM_IMPORTANCE, string> = {
-  [CHECK_ITEM_IMPORTANCE.HIGH]: "checklist.importanceHigh",
-  [CHECK_ITEM_IMPORTANCE.MEDIUM]: "checklist.importanceMedium",
-  [CHECK_ITEM_IMPORTANCE.LOW]: "checklist.importanceLow",
-};
-
 /**
  * 値を1つのセルにする。
  *
@@ -29,63 +30,6 @@ const IMPORTANCE_LABEL_KEY: Record<CHECK_ITEM_IMPORTANCE, string> = {
  */
 function toCell(value: string | undefined): string {
   return `"${(value ?? "").replace(/"/g, '""')}"`;
-}
-
-/** 参照元を「ファイル名 p.3」の形にする。画像にはページが無い */
-function formatSources(
-  result: ReviewResultDetail,
-  filenameById: Map<string, string>,
-  t: TFunction
-): string {
-  if (!result.sourceReferences?.length) {
-    return "";
-  }
-  return result.sourceReferences
-    .map((reference) => {
-      const filename =
-        filenameById.get(reference.documentId) ?? reference.documentId;
-      return reference.pageNumber
-        ? `${filename} ${t("review.export.page", { page: reference.pageNumber })}`
-        : filename;
-    })
-    .join("\n");
-}
-
-/**
- * 親から子へ順に並べ、各項目に「1.2.3」のような通し番号を振る。
- *
- * API は階層を平らにして返すので、そのまま書き出すと親子の関係が分からない。
- * 表計算ソフトには入れ子が無いため、番号と深さで表す
- */
-function flattenInOrder(
-  results: ReviewResultDetail[]
-): Array<{ result: ReviewResultDetail; number: string; depth: number }> {
-  const childrenOf = new Map<string, ReviewResultDetail[]>();
-  const known = new Set(results.map((result) => result.checkList.id));
-  for (const result of results) {
-    // 親が結果に含まれていなければ根として扱う（項目を選んで審査した場合）
-    const parentId = result.checkList.parentId;
-    const key = parentId && known.has(parentId) ? parentId : "";
-    const siblings = childrenOf.get(key) ?? [];
-    siblings.push(result);
-    childrenOf.set(key, siblings);
-  }
-
-  const rows: Array<{
-    result: ReviewResultDetail;
-    number: string;
-    depth: number;
-  }> = [];
-  const walk = (parentKey: string, prefix: string, depth: number) => {
-    const children = childrenOf.get(parentKey) ?? [];
-    children.forEach((result, index) => {
-      const number = prefix ? `${prefix}.${index + 1}` : String(index + 1);
-      rows.push({ result, number, depth });
-      walk(result.checkList.id, number, depth + 1);
-    });
-  };
-  walk("", "", 0);
-  return rows;
 }
 
 /**
@@ -101,9 +45,7 @@ export function buildReviewResultCsv(params: {
   t: TFunction;
 }): string {
   const { results, documents, t } = params;
-  const filenameById = new Map(
-    documents.map((document) => [document.id, document.filename])
-  );
+  const filenameById = filenamesById(documents);
 
   const headers = [
     "number",
@@ -125,13 +67,7 @@ export function buildReviewResultCsv(params: {
       toCell(number),
       toCell(result.checkList.name),
       toCell(importance ? t(IMPORTANCE_LABEL_KEY[importance]) : ""),
-      toCell(
-        result.result === REVIEW_RESULT.PASS
-          ? t("review.pass")
-          : result.result === REVIEW_RESULT.FAIL
-            ? t("review.fail")
-            : ""
-      ),
+      toCell(verdictLabel(result, t)),
       // 割合ではなく百分率にする。画面の表示と揃える
       toCell(
         result.confidenceScore === undefined
@@ -141,18 +77,13 @@ export function buildReviewResultCsv(params: {
       toCell(result.shortExplanation),
       toCell(result.explanation),
       toCell(result.extractedText?.join("\n")),
-      toCell(formatSources(result, filenameById, t)),
+      toCell(formatSources(result, filenameById, t).join("\n")),
       toCell(result.userOverride ? t("common.yes") : t("common.no")),
       toCell(result.userComment),
     ].join(",");
   });
 
   return BOM + [headers.join(","), ...rows].join(LINE_END) + LINE_END;
-}
-
-/** ファイル名に使えない文字を落とす。ジョブ名は自由に付けられる */
-export function toSafeFilename(name: string): string {
-  return name.replace(/[\\/:*?"<>|]/g, "_").slice(0, 80);
 }
 
 /** 組み立てた CSV を、その場でファイルとして落とす */

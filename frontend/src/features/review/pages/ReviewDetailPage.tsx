@@ -17,6 +17,7 @@ import TotalReviewCostSummary from "../components/TotalReviewCostSummary";
 import Button from "../../../components/Button";
 import ReviewJobDocuments from "../components/ReviewJobDocuments";
 import ReviewResultExportButton from "../components/ReviewResultExportButton";
+import ReviewResultTextButton from "../components/ReviewResultTextButton";
 import ImportanceFilter from "../../checklist/components/ImportanceFilter";
 import type { ImportanceFilterValue } from "../../checklist/types";
 
@@ -234,7 +235,19 @@ export default function ReviewDetailPage() {
               outline>
               {t("review.rerunFailedItems")}
             </Button>
-            {/* 結果を表計算ソフトに持ち出す。報告や共有は画面の外で行われる */}
+            {/* 紙に出す。顧客に渡したり綴じたりするのは画面の外 */}
+            <Button to={`/review/${job.id}/report`} variant="secondary" outline>
+              {t("review.report.open")}
+            </Button>
+            {/* 文章にして写す。メール文の下書きは生成AIに任せることが多い */}
+            <ReviewResultTextButton
+              jobId={job.id}
+              jobName={job.name}
+              checkListName={job.checkList.name}
+              completedAt={job.completedAt}
+              documents={job.documents}
+            />
+            {/* 表計算ソフトに持ち出す。並べ替えや集計は手元の方が早い */}
             <ReviewResultExportButton
               jobId={job.id}
               jobName={job.name}

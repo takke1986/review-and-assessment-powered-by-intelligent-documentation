@@ -449,7 +449,20 @@
       "not_applicable": "この文書では見なくてよい項目だった",
       "other": "その他（コメントに書く）"
     },
-    "supersededByRerun": "このジョブは再審査されているため、判定は変更できません。最新のジョブで変更してください："
+    "supersededByRerun": "このジョブは再審査されているため、判定は変更できません。最新のジョブで変更してください：",
+    "backToDetail": "審査結果に戻る",
+    "report": {
+      "open": "印刷用レポート",
+      "print": "印刷 / PDFで保存",
+      "title": "審査結果レポート",
+      "summary": "結果",
+      "summaryValue": "{{total}} 項目中 不合格 {{failed}} 件（合格 {{passed}} 件）",
+      "reason": "判定理由",
+      "source": "参照元",
+      "copyText": "文章をコピー",
+      "copied": "文章をコピーしました",
+      "copyFailed": "コピーできませんでした。印刷用レポートから選んで写してください"
+    }
   },
   "fileUploader": {
     "dropFiles": "ファイルをドロップしてください",

@@ -1,3 +1,38 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/**
+ * 印刷（および「PDFとして保存」）のための調整。
+ *
+ * PDF は画面側で組み立てない。ブラウザの印刷から保存でき、しかも日本語の
+ * フォントを数MB抱き込まずに済む
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  /* 紙に出す意味の無いもの。操作の帯は print:hidden で個別に消している */
+  nav,
+  aside,
+  header.app-header {
+    display: none !important;
+  }
+
+  /* 影や角丸はインクを食うだけで、紙では読みやすさに寄与しない */
+  * {
+    box-shadow: none !important;
+  }
+
+  /* 判定とその理由が別の紙に分かれないようにする */
+  .break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

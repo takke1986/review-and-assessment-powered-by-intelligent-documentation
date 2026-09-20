@@ -19,6 +19,7 @@ import {
 import { ExamplesPage } from "./features/examples";
 import CheckFailureTrendsPage from "./features/statistics/pages/CheckFailureTrendsPage";
 import ReviewCostPage from "./features/cost/pages/ReviewCostPage";
+import ReviewReportPage from "./features/review/pages/ReviewReportPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ToastProvider } from "./contexts/ToastContext";
@@ -49,6 +50,17 @@ function App() {
                 <Route
                   path="/"
                   element={<Navigate to="/checklist" replace />}
+                />
+
+                {/* 印刷用。サイドバーの外に置く。紙に出すときに
+                    画面の枠が混ざらないようにするため */}
+                <Route
+                  path="/review/:id/report"
+                  element={
+                    <ProtectedRoute>
+                      <ReviewReportPage />
+                    </ProtectedRoute>
+                  }
                 />
 
                 <Route
