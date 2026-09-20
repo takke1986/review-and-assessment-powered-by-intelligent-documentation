@@ -1,3 +1,4 @@
+import { ValidationError } from "../../../../core/errors";
 import type { RequestUser } from "../../../../core/middleware/authorization";
 
 /**
@@ -58,8 +59,8 @@ export const departmentsOf = (user: RequestUser | undefined): string[] => {
  * 兼務があるので「作った人の所属」だけでは決まらない。営業と法務を兼ねる人の
  * 審査を、法務の同僚に見せてよいとは限らないため、作るときに選んでもらう。
  *
- * 所属が1つなら選ぶまでもないので、それを使う。属していなければ部署なしで
- * 作る（部署を使わない運用でも止まらないように）
+ * 決められないときは止める。黙って部署なしで作ると、同僚の履歴に出てこない
+ * ことに誰も気づけない。画面でも選ばせているが、そちらだけに頼らない
  */
 export const resolveDepartment = (params: {
   user: RequestUser | undefined;
@@ -67,9 +68,24 @@ export const resolveDepartment = (params: {
   chosen?: string;
 }): string | undefined => {
   const mine = departmentsOf(params.user);
+
   if (params.chosen) {
-    // 自分が属していない部署のものにはできない
-    return mine.includes(params.chosen) ? params.chosen : undefined;
+    if (!mine.includes(params.chosen)) {
+      // 黙って無視すると、記録されたと思われる
+      throw new ValidationError(
+        `You do not belong to this department: ${params.chosen}`
+      );
+    }
+    return params.chosen;
   }
+
+  if (mine.length > 1) {
+    throw new ValidationError(
+      "You belong to more than one department, so choose which one this review is for"
+    );
+  }
+
+  // 所属が1つなら選ぶまでもない。どこにも属していなければ部署なしで作る
+  // （部署を使わない運用でも止まらないように）
   return mine.length === 1 ? mine[0] : undefined;
 };

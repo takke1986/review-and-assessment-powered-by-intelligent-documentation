@@ -50,13 +50,14 @@ describe("resolveDepartment", () => {
     ).toBe("sales");
   });
 
-  it("兼務で選ばれていなければ、どの部署のものか決めない", () => {
-    // 勝手に片方に寄せると、見せたくない相手に見えてしまう
-    expect(
+  it("兼務で選ばれていなければ止める", () => {
+    // 勝手に片方へ寄せると見せたくない相手に見え、部署なしで作ると
+    // 同僚の履歴に出てこないことに誰も気づけない
+    expect(() =>
       resolveDepartment({
         user: user({ "cognito:groups": ["dept-sales", "dept-legal"] }),
       })
-    ).toBeUndefined();
+    ).toThrow(/more than one department/);
   });
 
   it("兼務でも選ばれていればそれを使う", () => {
@@ -68,13 +69,14 @@ describe("resolveDepartment", () => {
     ).toBe("legal");
   });
 
-  it("自分が属していない部署のものにはできない", () => {
-    expect(
+  it("自分が属していない部署を指定されたら止める", () => {
+    // 黙って無視すると、記録されたと思われる
+    expect(() =>
       resolveDepartment({
         user: user({ "cognito:groups": ["dept-sales"] }),
         chosen: "finance",
       })
-    ).toBeUndefined();
+    ).toThrow(/do not belong/);
   });
 
   it("どこにも属していなければ部署なしで作る", () => {
