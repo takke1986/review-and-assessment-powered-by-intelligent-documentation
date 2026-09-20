@@ -110,7 +110,7 @@ export default function ReviewDetailPage() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <Breadcrumb to="/review" label={t("review.backToList")} />
           <div className="flex items-center justify-between">
@@ -276,7 +276,7 @@ export default function ReviewDetailPage() {
 
       {/* Review results */}
       <div className="rounded-lg border border-light-gray bg-white p-6 shadow-md">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-medium text-aws-squid-ink-light">
               {t("review.results")}
@@ -304,7 +304,8 @@ export default function ReviewDetailPage() {
                 </p>
               )}
           </div>
-          <div className="w-64">
+          {/* 携帯では幅いっぱいに。w-64 だと画面からはみ出す */}
+          <div className="w-full sm:w-64">
             <Slider
               min={0}
               max={1}

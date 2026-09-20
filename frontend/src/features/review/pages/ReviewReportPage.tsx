@@ -86,7 +86,7 @@ export default function ReviewReportPage() {
   const rows = flattenInOrder(results);
 
   return (
-    <div className="mx-auto max-w-4xl bg-white p-8 text-aws-squid-ink-light">
+    <div className="mx-auto max-w-4xl bg-white p-4 text-aws-squid-ink-light sm:p-8">
       {/* 印刷には出さない操作の帯 */}
       <div className="mb-6 flex items-center justify-between print:hidden">
         <Breadcrumb to={`/review/${job.id}`} label={t("review.backToDetail")} />

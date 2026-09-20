@@ -157,6 +157,8 @@ export default function ReviewCostPage() {
                 <p className="mb-4 text-sm text-aws-font-color-gray">
                   {t("cost.byChecklistHint")}
                 </p>
+                {/* 狭い画面でははみ出すので、表だけ横に送れるようにする */}
+                <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="bg-aws-paper-light text-left">
@@ -187,6 +189,7 @@ export default function ReviewCostPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </section>
 
               {/* 突出したものを見つける */}
@@ -194,6 +197,8 @@ export default function ReviewCostPage() {
                 <h2 className="mb-4 text-xl font-medium text-aws-squid-ink-light">
                   {t("cost.topJobs")}
                 </h2>
+                {/* 狭い画面でははみ出すので、表だけ横に送れるようにする */}
+                <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="bg-aws-paper-light text-left">
@@ -228,6 +233,7 @@ export default function ReviewCostPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </section>
             </div>
           )}
