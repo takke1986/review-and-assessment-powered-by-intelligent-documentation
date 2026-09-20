@@ -49,13 +49,11 @@ export default function ReviewJobActions({
           </Button>
         )}
 
-        {/* 社内への公開は画面から外した。承認も他部署への受け渡しも製品の
-            外で運用するので使い道がなく、申込書の個人情報を全員に見せられる
-            操作が残っているほうが危ない。
-            仕組み（列と API）は残してあるので、要るようになったら戻せる */}
+        {/* 同じ部署の審査は読めるが、直せるのは作成者だけ。ボタンを出さない
+            だけだと権限の問題だと思われるので、理由を書く */}
         {!canEdit && (
           <p className="rounded-lg border border-light-gray bg-aws-paper-light p-3 text-sm text-aws-font-color-gray">
-            {t("review.sharedByOther")}
+            {t("review.readOnlyByOther")}
           </p>
         )}
       </div>

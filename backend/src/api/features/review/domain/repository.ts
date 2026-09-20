@@ -106,10 +106,6 @@ export interface ReviewJobRepository {
     reviewJobId: string;
     executionArn: string;
   }): Promise<void>;
-  updateJobSharing(params: {
-    reviewJobId: string;
-    sharedWithOrg: boolean;
-  }): Promise<void>;
   updateJobCostInfo(params: {
     reviewJobId: string;
     totalCost: number;
@@ -278,7 +274,6 @@ export const makePrismaReviewJobRepository = async (
         updatedAt: job.updatedAt,
         completedAt: job.completedAt || undefined,
         userId: job.userId || undefined,
-        sharedWithOrg: job.sharedWithOrg,
         departmentId: job.departmentId ?? undefined,
         // 実行中や失敗したジョブには費用が入っていない
         totalCost: job.totalCost ? Number(job.totalCost) : undefined,
@@ -318,16 +313,6 @@ export const makePrismaReviewJobRepository = async (
       limit,
       totalPages,
     };
-  };
-
-  const updateJobSharing = async (params: {
-    reviewJobId: string;
-    sharedWithOrg: boolean;
-  }): Promise<void> => {
-    await client.reviewJob.update({
-      where: { id: params.reviewJobId },
-      data: { sharedWithOrg: params.sharedWithOrg },
-    });
   };
 
   const summarizeReviewCost = async (
@@ -478,7 +463,6 @@ export const makePrismaReviewJobRepository = async (
       },
       documents: job.documents.map(toReviewJobDocument),
       userId: job.userId || undefined,
-      sharedWithOrg: job.sharedWithOrg,
       departmentId: job.departmentId ?? undefined,
       executionArn: job.executionArn ?? undefined,
       createdAt: job.createdAt,
@@ -674,7 +658,6 @@ export const makePrismaReviewJobRepository = async (
     findAllReviewJobs,
     summarizeReviewCost,
     updateJobExecution,
-    updateJobSharing,
     findReviewJobById,
     createReviewJob,
     deleteReviewJobById,

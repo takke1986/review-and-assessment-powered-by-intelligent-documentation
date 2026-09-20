@@ -474,7 +474,6 @@
     "cancelConfirm": "この審査を中止しますか。途中までの結果は残りますが、残りの項目は審査されません。",
     "cancelled": "審査を中止しました",
     "cancelError": "中止できませんでした",
-    "sharedByOther": "他の人が公開した審査です。判定は変更できません。",
     "filterByChecklist": "チェックリストで絞り込み中",
     "clearFilter": "絞り込みを解除",
     "searchPlaceholderJobs": "ジョブ名か、審査した文書の名前",
@@ -484,7 +483,8 @@
     "department": "この審査を行う部署",
     "departmentHelp": "複数の部署に所属しているため、どの部署の仕事として記録するかを選んでください。選んだ部署の人が、この審査結果を見られます。",
     "departmentRequired": "部署を選んでください",
-    "filterByDepartment": "部署で絞り込み中"
+    "filterByDepartment": "部署で絞り込み中",
+    "readOnlyByOther": "同じ部署の他の人が行った審査です。内容は見られますが、判定は変更できません。"
   },
   "fileUploader": {
     "dropFiles": "ファイルをドロップしてください",

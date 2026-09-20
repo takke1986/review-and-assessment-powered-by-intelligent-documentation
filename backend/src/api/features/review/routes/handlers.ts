@@ -4,7 +4,6 @@ import {
   createReviewJob,
   getAllReviewJobs,
   getReviewCostSummary,
-  setReviewJobSharing,
   cancelReviewJob,
   getReviewJobById,
   getReviewDocumentPresignedUrl,
@@ -367,22 +366,6 @@ export const cancelReviewJobHandler = async (
 ): Promise<void> => {
   await cancelReviewJob({
     reviewJobId: request.params.jobId,
-    user: request.user,
-  });
-
-  reply.code(200).send({ success: true, data: {} });
-};
-
-export const setReviewJobSharingHandler = async (
-  request: FastifyRequest<{
-    Params: { jobId: string };
-    Body: { sharedWithOrg: boolean };
-  }>,
-  reply: FastifyReply
-): Promise<void> => {
-  await setReviewJobSharing({
-    reviewJobId: request.params.jobId,
-    sharedWithOrg: request.body.sharedWithOrg === true,
     user: request.user,
   });
 

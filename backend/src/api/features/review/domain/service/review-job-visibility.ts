@@ -5,12 +5,14 @@ import { departmentsOf } from "./departments";
 /**
  * 誰がどの審査ジョブを見られるか。
  *
- * 審査は担当者ひとりで完結しない。上長や後任が結果を開けないと、紙か CSV を
- * 渡すしかなく、根拠まで辿れなくなる。そこでジョブごとに社内へ公開できる
- * ようにした。
+ * 一般の利用者は、自分のものと自分の部署のものだけ。管理者は全部。
  *
- * 公開しても見られるだけで、判定の変更・再審査・削除は作成者のまま。
- * 見えることと直せることを混ぜると、誰が決めたのか分からなくなる。
+ * 見えることと直せることは分ける。同じ部署の審査は読めるが、判定の変更・
+ * 再審査・中止・削除は作成者だけ。混ぜると、誰が決めたのか分からなくなる。
+ *
+ * かつてジョブごとに社内全員へ公開する仕組みがあったが、承認も他部署への
+ * 受け渡しも製品の外で運用することになったので外した。申込書の個人情報を
+ * 全員に見せられる経路が残っているほうが危ない。
  *
  * 判断を1か所に集めているのは、一覧と詳細で食い違うと「一覧には出るのに
  * 開けない」といった見え方になるため
@@ -51,7 +53,6 @@ export const visibilityFilter = (
   return {
     OR: [
       { userId: viewer.userId },
-      { sharedWithOrg: true },
       // 同じ部署の審査は履歴として見える。部署に属していなければ
       // この条件は足さない。空の in は誰にも当たらないが、条件として
       // 残すと読む人が「部署なしの審査が見える」と誤解する
@@ -65,12 +66,12 @@ export const visibilityFilter = (
 /** 1件を開けるか */
 export const canView = (
   viewer: Viewer | undefined,
-  job: { userId?: string; sharedWithOrg?: boolean; departmentId?: string }
+  job: { userId?: string; departmentId?: string }
 ): boolean => {
   if (!viewer || viewer.isAdmin) {
     return true;
   }
-  if (job.userId === viewer.userId || job.sharedWithOrg === true) {
+  if (job.userId === viewer.userId) {
     return true;
   }
   // 同じ部署の審査は履歴として見える。直せるかどうかは別（canEdit）
@@ -100,7 +101,7 @@ export const canEdit = (
  */
 export function assertCanViewOrThrow(
   viewer: Viewer | undefined,
-  job: { id?: string; userId?: string; sharedWithOrg?: boolean },
+  job: { id?: string; userId?: string; departmentId?: string },
   opts?: { api?: string; logger?: { warn?: (...args: any[]) => void } }
 ): void {
   if (canView(viewer, job)) {

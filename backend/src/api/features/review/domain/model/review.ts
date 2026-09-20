@@ -134,8 +134,6 @@ export interface ReviewJobSummary {
   updatedAt: Date;
   completedAt?: Date;
   userId?: string;
-  /** 社内に公開したジョブ。見られるだけで、直せるのは作成者だけ */
-  sharedWithOrg?: boolean;
   /** この審査がどの部署の仕事か */
   departmentId?: string;
   /** 実行中や失敗したジョブには入らない */
@@ -162,8 +160,6 @@ export interface ReviewJobDetail {
   id: string;
   name: string;
   status: REVIEW_JOB_STATUS;
-  /** 社内に公開したジョブ。見られるだけで、直せるのは作成者だけ */
-  sharedWithOrg?: boolean;
   /** この審査がどの部署の仕事か */
   departmentId?: string;
   /** 走っている審査の実行。中止に使う。待ち行列にいる間は入らない */

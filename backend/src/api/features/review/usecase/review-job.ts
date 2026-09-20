@@ -180,34 +180,6 @@ export const cancelReviewJob = async (params: {
   }
 };
 
-/**
- * 審査ジョブを社内に公開する／やめる。
- *
- * 公開しても見られるだけで、判定の変更・再審査・削除は作成者のまま。
- * 切り替えられるのも作成者だけで、他人に勝手に公開されることはない
- */
-export const setReviewJobSharing = async (params: {
-  reviewJobId: string;
-  sharedWithOrg: boolean;
-  user?: RequestUser;
-  deps?: { repo?: ReviewJobRepository };
-}): Promise<void> => {
-  const repo = params.deps?.repo || (await makePrismaReviewJobRepository());
-  const job = await repo.findReviewJobById({
-    reviewJobId: params.reviewJobId,
-  });
-  assertHasOwnerAccessOrThrow(params.user, job.userId, {
-    api: "setReviewJobSharing",
-    resourceId: job.id,
-    logger: console,
-  });
-
-  await repo.updateJobSharing({
-    reviewJobId: params.reviewJobId,
-    sharedWithOrg: params.sharedWithOrg,
-  });
-};
-
 export const getReviewDocumentPresignedUrl = async (params: {
   filename: string;
   contentType: string;

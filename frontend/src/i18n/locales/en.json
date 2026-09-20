@@ -474,7 +474,6 @@
     "cancelConfirm": "Cancel this review? What has finished is kept, but the remaining items will not be reviewed.",
     "cancelled": "The review was cancelled",
     "cancelError": "Could not cancel the review",
-    "sharedByOther": "Someone else shared this review. You cannot change its verdicts.",
     "filterByChecklist": "Filtered by checklist",
     "clearFilter": "Clear the filter",
     "searchPlaceholderJobs": "Job name, or a document name",
@@ -484,7 +483,8 @@
     "department": "Department for this review",
     "departmentHelp": "You belong to more than one department, so choose which one this review is for. People in that department can see the results.",
     "departmentRequired": "Please choose a department",
-    "filterByDepartment": "Filtered by department"
+    "filterByDepartment": "Filtered by department",
+    "readOnlyByOther": "Someone else in your department ran this review. You can read it, but you cannot change its verdicts."
   },
   "fileUploader": {
     "dropFiles": "Drop files here",

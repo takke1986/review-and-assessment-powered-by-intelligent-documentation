@@ -47,7 +47,7 @@ RAPID runs on AWS serverless services (Amazon CloudFront, API Gateway + Lambda, 
 - **Getting the results out** – Three ways: a **printable report** (save as PDF from the browser; meant to be handed to a customer, so it carries no internal URL), **copy as prose** (to hand to a generative AI that drafts the email), and **CSV** (to sort and total in a spreadsheet). All three use the same order and the same item numbers, so paper and file line up.
 - **Finish notification** – A toast when a review ends, plus an OS notification when you are looking at another tab or another application.
 - **What it costs** – Beyond the cost of a single review: the **total for a period, the trend by month, the breakdown by checklist, and the most expensive reviews**. Knowing which reviews cost the most is what leads to trimming items or changing the model.
-- **History by department** – Reviews are tied to a department, and people in that department can see its history. Someone in more than one department chooses which one a review is for. Membership comes from the identity provider (Cognito groups, or attributes when federated over SAML).
+- **History by department** – Reviews are tied to a department. **A regular user sees only their own department; an administrator sees everything.** Reviews from your department can be read, but only the person who ran one can change its verdicts, re-review, cancel or delete it. Someone in more than one department chooses which one a review is for. Membership comes from the identity provider (Cognito groups, or attributes when federated over SAML).
 
 <details>
 <summary><strong>Screenshots of the main screens</strong> (click to expand)</summary>
