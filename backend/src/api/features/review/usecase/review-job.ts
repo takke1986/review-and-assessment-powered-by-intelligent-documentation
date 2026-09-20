@@ -42,6 +42,10 @@ import {
 } from "../domain/service/review-job-visibility";
 import { canCancel } from "../domain/service/review-job-cancel";
 import { canReviewAgain } from "../domain/service/review-again";
+import {
+  departmentsOf,
+  resolveDepartment,
+} from "../domain/service/departments";
 import { stopStateMachineExecution } from "../../../core/sfn";
 
 export const computeGlobalConcurrency = async (): Promise<{
@@ -86,6 +90,8 @@ export const getAllReviewJobs = async (params: {
   search?: string;
   /** このチェックリストを使ったジョブだけ */
   checkListSetId?: string;
+  /** この部署の審査だけ。部署ごとの履歴を見るのに使う */
+  departmentId?: string;
   // オプショナルでリクエストユーザーを受け取り、一般ユーザの場合は ownerUserId を使って絞る
   user: RequestUser;
   deps?: {
@@ -103,7 +109,10 @@ export const getAllReviewJobs = async (params: {
     status: params.status,
     search: params.search,
     checkListSetId: params.checkListSetId,
-    visibleTo: params.user,
+    departmentId: params.departmentId,
+    visibleTo: params.user
+      ? { ...params.user, departments: departmentsOf(params.user) }
+      : undefined,
   });
   return result;
 };
@@ -514,10 +523,13 @@ export const getReviewJobById = async (params: {
 
   // 所有者チェック（一般ユーザは自分のジョブのみ参照可能）
   // 公開されたジョブは他の人も開ける。直せるのは作成者だけ
-  assertCanViewOrThrow(params.user, job, {
-    api: "getReviewJobById",
-    logger: console,
-  });
+  assertCanViewOrThrow(
+    params.user
+      ? { ...params.user, departments: departmentsOf(params.user) }
+      : undefined,
+    job,
+    { api: "getReviewJobById", logger: console }
+  );
 
   // 直せるかどうかも一緒に返す。画面側で持ち主を判定すると規則がずれる
   return { ...job, canEdit: canEdit(params.user, job) };

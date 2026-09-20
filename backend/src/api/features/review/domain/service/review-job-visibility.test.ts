@@ -54,3 +54,54 @@ describe("canEdit", () => {
     expect(canEdit(admin, { userId: "u-2" })).toBe(true);
   });
 });
+
+describe("部署ごとの見え方", () => {
+  const sales = { userId: "u-1", isAdmin: false, departments: ["sales"] };
+  const both = {
+    userId: "u-1",
+    isAdmin: false,
+    departments: ["sales", "legal"],
+  };
+
+  it("同じ部署の審査は、他の人のものでも見える", () => {
+    expect(
+      canView(sales, { userId: "u-2", departmentId: "sales" })
+    ).toBe(true);
+  });
+
+  it("違う部署の審査は見えない", () => {
+    expect(canView(sales, { userId: "u-2", departmentId: "legal" })).toBe(
+      false
+    );
+  });
+
+  it("部署のついていない他人の審査は見えない", () => {
+    expect(canView(sales, { userId: "u-2" })).toBe(false);
+  });
+
+  it("兼務ならどちらの部署の審査も見える", () => {
+    expect(canView(both, { userId: "u-2", departmentId: "sales" })).toBe(true);
+    expect(canView(both, { userId: "u-2", departmentId: "legal" })).toBe(true);
+  });
+
+  it("同じ部署でも、直せるのは作成者だけ", () => {
+    // 見えることと直せることを混ぜない
+    expect(canEdit(sales, { userId: "u-2" })).toBe(false);
+  });
+
+  it("絞り込みの条件に部署が入る", () => {
+    expect(visibilityFilter(sales)).toEqual({
+      OR: [
+        { userId: "u-1" },
+        { sharedWithOrg: true },
+        { departmentId: { in: ["sales"] } },
+      ],
+    });
+  });
+
+  it("部署に属していなければ、条件を足さない", () => {
+    expect(visibilityFilter({ userId: "u-1", isAdmin: false })).toEqual({
+      OR: [{ userId: "u-1" }, { sharedWithOrg: true }],
+    });
+  });
+});

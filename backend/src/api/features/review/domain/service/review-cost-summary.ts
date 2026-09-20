@@ -11,6 +11,8 @@ export interface ReviewCostRow {
   totalOutputTokens: number | null;
   checkListSetId: string;
   checkListSetName: string;
+  /** この審査がどの部署の仕事か。部署を使わない運用では無い */
+  departmentId: string | null;
 }
 
 /** 内訳に出す上限。全部出しても読めない */
@@ -48,6 +50,7 @@ export function summarizeCost(
     string,
     { name: string; totalCost: number; jobCount: number }
   >();
+  const departments = new Map<string, { totalCost: number; jobCount: number }>();
   let totalCost = 0;
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
@@ -74,6 +77,18 @@ export function summarizeCost(
     checklist.totalCost += cost;
     checklist.jobCount += 1;
     checklists.set(row.checkListSetId, checklist);
+
+    // 部署の付いていない審査は、どこにも足さない。「未所属」という部署が
+    // あるように見せると、実在する部署と並んで紛らわしい
+    if (row.departmentId) {
+      const department = departments.get(row.departmentId) ?? {
+        totalCost: 0,
+        jobCount: 0,
+      };
+      department.totalCost += cost;
+      department.jobCount += 1;
+      departments.set(row.departmentId, department);
+    }
   }
 
   return {
@@ -87,6 +102,9 @@ export function summarizeCost(
     byMonth: [...months.entries()]
       .map(([month, values]) => ({ month, ...values }))
       .sort((a, b) => a.month.localeCompare(b.month)),
+    byDepartment: [...departments.entries()]
+      .map(([departmentId, values]) => ({ departmentId, ...values }))
+      .sort((a, b) => b.totalCost - a.totalCost),
     byChecklist: [...checklists.entries()]
       .map(([checkListSetId, values]) => ({ checkListSetId, ...values }))
       .sort((a, b) => b.totalCost - a.totalCost),

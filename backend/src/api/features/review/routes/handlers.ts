@@ -24,6 +24,7 @@ import {
 } from "../usecase/review-result";
 import { getDocumentDownloadUrl } from "../usecase/document";
 import { MAX_REVIEW_DOCUMENTS } from "../../../constants";
+import { resolveDepartment } from "../domain/service/departments";
 
 export const getAllReviewJobsHandler = async (
   request: FastifyRequest<{
@@ -35,6 +36,7 @@ export const getAllReviewJobsHandler = async (
       status?: string;
       search?: string;
       checkListSetId?: string;
+      departmentId?: string;
     };
   }>,
   reply: FastifyReply
@@ -47,6 +49,7 @@ export const getAllReviewJobsHandler = async (
     status,
     search,
     checkListSetId,
+    departmentId,
   } = request.query;
 
   // Convert string query parameters to numbers
@@ -74,6 +77,7 @@ export const getAllReviewJobsHandler = async (
     status,
     search,
     checkListSetId,
+    departmentId,
     user: request.user,
   });
 
@@ -227,6 +231,11 @@ export interface CreateReviewJobRequest {
     replacesDocumentId?: string;
   }>;
   userId?: string;
+  /**
+   * この審査をどの部署の仕事として記録するか。兼務があるので、作った人の
+   * 所属が1つに決まらないときは画面で選んでもらう
+   */
+  departmentId?: string;
   /** 審査するチェック項目。省略するとすべての項目を審査する */
   checkIds?: string[];
   /**
@@ -259,6 +268,12 @@ export const createReviewJobHandler = async (
     requestBody: {
       ...request.body,
       userId: request.user?.userId,
+      // どの部署の仕事として記録するかは、送られてきた値をそのまま信じず、
+      // その人が属している部署かどうかを見て決める
+      departmentId: resolveDepartment({
+        user: request.user,
+        chosen: request.body.departmentId,
+      }),
     },
     user: request.user,
   });

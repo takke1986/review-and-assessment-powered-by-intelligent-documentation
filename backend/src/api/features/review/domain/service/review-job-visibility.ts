@@ -17,6 +17,11 @@ import { ForbiddenError } from "../../../../core/errors/application-errors";
 export interface Viewer {
   userId: string;
   isAdmin: boolean;
+  /**
+   * 属している部署。兼務があるので複数。
+   * 読み取りは departments.ts に閉じてある
+   */
+  departments?: string[];
 }
 
 /**
@@ -30,18 +35,37 @@ export const visibilityFilter = (
   if (!viewer || viewer.isAdmin) {
     return undefined;
   }
-  return { OR: [{ userId: viewer.userId }, { sharedWithOrg: true }] };
+  const departments = viewer.departments ?? [];
+  return {
+    OR: [
+      { userId: viewer.userId },
+      { sharedWithOrg: true },
+      // 同じ部署の審査は履歴として見える。部署に属していなければ
+      // この条件は足さない。空の in は誰にも当たらないが、条件として
+      // 残すと読む人が「部署なしの審査が見える」と誤解する
+      ...(departments.length > 0
+        ? [{ departmentId: { in: departments } }]
+        : []),
+    ],
+  };
 };
 
 /** 1件を開けるか */
 export const canView = (
   viewer: Viewer | undefined,
-  job: { userId?: string; sharedWithOrg?: boolean }
+  job: { userId?: string; sharedWithOrg?: boolean; departmentId?: string }
 ): boolean => {
   if (!viewer || viewer.isAdmin) {
     return true;
   }
-  return job.userId === viewer.userId || job.sharedWithOrg === true;
+  if (job.userId === viewer.userId || job.sharedWithOrg === true) {
+    return true;
+  }
+  // 同じ部署の審査は履歴として見える。直せるかどうかは別（canEdit）
+  return (
+    job.departmentId !== undefined &&
+    (viewer.departments ?? []).includes(job.departmentId)
+  );
 };
 
 /** 直せるか（判定の変更・再審査・削除・公開の切り替え） */

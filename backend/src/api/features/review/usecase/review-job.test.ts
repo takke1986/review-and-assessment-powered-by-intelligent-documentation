@@ -20,6 +20,8 @@ const createReviewJobRepositoryMock = (): ReviewJobRepository => ({
   updateJobStatus: vi.fn(),
   updateJobCostInfo: vi.fn(),
   summarizeReviewCost: vi.fn(),
+  updateJobExecution: vi.fn(),
+  updateJobSharing: vi.fn(),
 });
 
 describe("getAllReviewJobs", () => {
@@ -34,10 +36,15 @@ describe("getAllReviewJobs", () => {
     });
 
     // 自分のものだけに絞るのではなく、見える範囲を渡す。
-    // 絞り込みそのものは visibilityFilter が決める
+    // 絞り込みそのものは visibilityFilter が決める。
+    // 所属部署も添える。読み取りは departments.ts に閉じてある
     expect(repo.findAllReviewJobs).toHaveBeenCalledWith(
       expect.objectContaining({
-        visibleTo: { userId: "user-1", isAdmin: false },
+        visibleTo: expect.objectContaining({
+          userId: "user-1",
+          isAdmin: false,
+          departments: [],
+        }),
       })
     );
   });
@@ -54,7 +61,10 @@ describe("getAllReviewJobs", () => {
 
     expect(repo.findAllReviewJobs).toHaveBeenCalledWith(
       expect.objectContaining({
-        visibleTo: { userId: "admin-1", isAdmin: true },
+        visibleTo: expect.objectContaining({
+          userId: "admin-1",
+          isAdmin: true,
+        }),
       })
     );
   });

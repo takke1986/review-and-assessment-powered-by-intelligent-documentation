@@ -17,6 +17,7 @@ const row = (overrides: Partial<ReviewCostRow> = {}): ReviewCostRow => ({
   totalOutputTokens: 20,
   checkListSetId: "set-1",
   checkListSetName: "チェックリストA",
+  departmentId: null,
   ...overrides,
 });
 
@@ -117,5 +118,37 @@ describe("summarizeCost", () => {
     expect(summary.topJobs).toHaveLength(10);
     expect(summary.topJobs[0].id).toBe("job-14");
     expect(summary.topJobs[9].id).toBe("job-5");
+  });
+});
+
+describe("部署ごとの費用", () => {
+  it("部署ごとに足し合わせ、高い順に並べる", () => {
+    const summary = summarizeCost([
+      row({ departmentId: "sales", totalCost: 0.1 }),
+      row({ id: "b", departmentId: "legal", totalCost: 0.5 }),
+      row({ id: "c", departmentId: "sales", totalCost: 0.2 }),
+    ]);
+
+    expect(summary.byDepartment.map((d) => d.departmentId)).toEqual([
+      "legal",
+      "sales",
+    ]);
+    expect(summary.byDepartment[1]).toMatchObject({
+      departmentId: "sales",
+      jobCount: 2,
+    });
+    expect(summary.byDepartment[1].totalCost).toBeCloseTo(0.3);
+  });
+
+  it("部署の付いていない審査は、どこにも足さない", () => {
+    // 「未所属」という部署があるように見せると、実在する部署と並んで紛らわしい
+    const summary = summarizeCost([
+      row({ departmentId: null, totalCost: 0.4 }),
+      row({ id: "b", departmentId: "sales", totalCost: 0.1 }),
+    ]);
+
+    expect(summary.byDepartment).toHaveLength(1);
+    // 総額には入る。使った費用であることに変わりはない
+    expect(summary.total.totalCost).toBeCloseTo(0.5);
   });
 });

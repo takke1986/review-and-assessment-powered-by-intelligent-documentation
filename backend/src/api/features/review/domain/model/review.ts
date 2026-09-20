@@ -75,6 +75,8 @@ export interface ReviewJobEntity {
   status: REVIEW_JOB_STATUS;
   checkListSetId: string;
   userId?: string;
+  /** この審査がどの部署の仕事か。部署を使わない運用では空 */
+  departmentId?: string;
   /** 再審査の元になったジョブ */
   sourceReviewJobId?: string;
   /** 再審査で何を直したかのメモ */
@@ -134,6 +136,8 @@ export interface ReviewJobSummary {
   userId?: string;
   /** 社内に公開したジョブ。見られるだけで、直せるのは作成者だけ */
   sharedWithOrg?: boolean;
+  /** この審査がどの部署の仕事か */
+  departmentId?: string;
   /** 実行中や失敗したジョブには入らない */
   totalCost?: number;
   documents: Array<{
@@ -160,6 +164,8 @@ export interface ReviewJobDetail {
   status: REVIEW_JOB_STATUS;
   /** 社内に公開したジョブ。見られるだけで、直せるのは作成者だけ */
   sharedWithOrg?: boolean;
+  /** この審査がどの部署の仕事か */
+  departmentId?: string;
   /** 走っている審査の実行。中止に使う。待ち行列にいる間は入らない */
   executionArn?: string;
   /**

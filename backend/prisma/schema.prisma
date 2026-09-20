@@ -151,6 +151,8 @@ model ReviewJob {
   completedAt       DateTime?        @map("completed_at") @db.Timestamp(0)
   /// 走っている審査の実行。中止するときに使う。待ち行列にいる間は入らない
   executionArn      String?          @map("execution_arn") @db.VarChar(255)
+  /// この審査がどの部署の仕事か。兼務があるので作った人の所属だけでは決まらず、審査ごとに持つ。部署を使わない運用では空
+  departmentId      String?          @map("department_id") @db.VarChar(100)
   /// 社内に公開したジョブ。公開しても見られるだけで、判定の変更と削除は作成者のまま
   sharedWithOrg     Boolean          @default(false) @map("shared_with_org")
   userId            String?          @map("user_id") @db.VarChar(50)
@@ -171,6 +173,8 @@ model ReviewJob {
 
   @@index([checkListSetId], map: "review_jobs_check_list_set_id_fkey")
   @@index([sourceReviewJobId], map: "idx_review_jobs_source_review_job")
+  /// 部署で絞る一覧が主な使い道
+  @@index([departmentId], map: "idx_review_jobs_department")
   @@map("review_jobs")
 }
 

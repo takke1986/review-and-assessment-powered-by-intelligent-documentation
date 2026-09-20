@@ -46,6 +46,12 @@ export interface ReviewCostSummary {
   };
   /** 月ごと。古い順 */
   byMonth: Array<{ month: string; totalCost: number; jobCount: number }>;
+  /** 部署ごと。高い順。部署の付いていない審査は入らない */
+  byDepartment: Array<{
+    departmentId: string;
+    totalCost: number;
+    jobCount: number;
+  }>;
   /** チェックリストごと。高い順。どの種類の審査に掛かっているかを見る */
   byChecklist: Array<{
     checkListSetId: string;
@@ -76,12 +82,16 @@ export interface ReviewJobRepository {
     search?: string;
     /** このチェックリストを使ったジョブだけ */
     checkListSetId?: string;
+    /** この部署の審査だけ。部署ごとの履歴を見るのに使う */
+    departmentId?: string;
   }): Promise<PaginatedResponse<ReviewJobSummary>>;
   summarizeReviewCost(
     params: {
       ownerUserId?: string;
       /** 月を切る時間帯。getTimezoneOffset と同じ向き */
       tzOffsetMinutes?: number;
+      /** 部署で絞る */
+      departmentId?: string;
     } & ReviewJobPeriod
   ): Promise<ReviewCostSummary>;
   findReviewJobById(params: { reviewJobId: string }): Promise<ReviewJobDetail>;
@@ -142,6 +152,7 @@ export const makePrismaReviewJobRepository = async (
       /** 名前か、審査した文書の名前の一部。増えてくると一覧から探せないため */
       search?: string;
       checkListSetId?: string;
+      departmentId?: string;
     } = {}
   ): Promise<PaginatedResponse<ReviewJobSummary>> => {
     const {
@@ -152,12 +163,14 @@ export const makePrismaReviewJobRepository = async (
       status,
       search,
       checkListSetId,
+      departmentId,
     } = params;
 
     // WHERE条件を構築
     const whereCondition: {
       status?: string;
       checkListSetId?: string;
+      departmentId?: string;
       OR?: Array<Record<string, unknown>>;
       AND?: Array<Record<string, unknown>>;
     } = {};
@@ -175,6 +188,9 @@ export const makePrismaReviewJobRepository = async (
     }
     if (checkListSetId) {
       whereCondition.checkListSetId = checkListSetId;
+    }
+    if (departmentId) {
+      whereCondition.departmentId = departmentId;
     }
     // 見える範囲。自分のものと、社内に公開されたもの。管理者は絞らない。
     // 検索の OR と混ざらないよう AND に入れる
@@ -263,6 +279,7 @@ export const makePrismaReviewJobRepository = async (
         completedAt: job.completedAt || undefined,
         userId: job.userId || undefined,
         sharedWithOrg: job.sharedWithOrg,
+        departmentId: job.departmentId ?? undefined,
         // 実行中や失敗したジョブには費用が入っていない
         totalCost: job.totalCost ? Number(job.totalCost) : undefined,
         documents: job.documents.map((doc) => ({
@@ -314,14 +331,23 @@ export const makePrismaReviewJobRepository = async (
   };
 
   const summarizeReviewCost = async (
-    params: { ownerUserId?: string; tzOffsetMinutes?: number } & ReviewJobPeriod
+    params: {
+      ownerUserId?: string;
+      tzOffsetMinutes?: number;
+      /** 部署で絞る。部署ごとの費用を見るのに使う */
+      departmentId?: string;
+    } & ReviewJobPeriod
   ): Promise<ReviewCostSummary> => {
     const where: {
       userId?: string;
+      departmentId?: string;
       createdAt?: { gte?: Date; lte?: Date };
     } = {};
     if (params.ownerUserId) {
       where.userId = params.ownerUserId;
+    }
+    if (params.departmentId) {
+      where.departmentId = params.departmentId;
     }
     if (params.createdFrom || params.createdTo) {
       where.createdAt = {
@@ -344,6 +370,7 @@ export const makePrismaReviewJobRepository = async (
         totalOutputTokens: true,
         checkListSetId: true,
         checkListSet: { select: { name: true } },
+        departmentId: true,
       },
     });
 
@@ -357,6 +384,7 @@ export const makePrismaReviewJobRepository = async (
         totalOutputTokens: job.totalOutputTokens,
         checkListSetId: job.checkListSetId,
         checkListSetName: job.checkListSet.name,
+        departmentId: job.departmentId,
       })),
       params.tzOffsetMinutes ?? 0
     );
@@ -451,6 +479,7 @@ export const makePrismaReviewJobRepository = async (
       documents: job.documents.map(toReviewJobDocument),
       userId: job.userId || undefined,
       sharedWithOrg: job.sharedWithOrg,
+      departmentId: job.departmentId ?? undefined,
       executionArn: job.executionArn ?? undefined,
       createdAt: job.createdAt,
       updatedAt: job.updatedAt,
@@ -498,6 +527,7 @@ export const makePrismaReviewJobRepository = async (
           createdAt: now,
           updatedAt: now,
           userId: params.userId,
+          departmentId: params.departmentId,
           sourceReviewJobId: params.sourceReviewJobId,
           revisionNote: params.revisionNote,
         },
