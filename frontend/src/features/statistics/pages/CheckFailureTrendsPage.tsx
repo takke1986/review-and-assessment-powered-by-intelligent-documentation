@@ -188,7 +188,9 @@ export default function CheckFailureTrendsPage() {
   const worst = useMemo(
     () =>
       items
-        .filter((item) => item.reviewedCount > 0)
+        // 一度も落ちていない項目を混ぜると、長さ0の棒が並んで図の半分が
+        // 埋まらない。ここに出すのは手を入れる先の候補だけでよい
+        .filter((item) => item.reviewedCount > 0 && item.failRate > 0)
         .sort((a, b) => b.failRate - a.failRate)
         .slice(0, 10),
     [items]
