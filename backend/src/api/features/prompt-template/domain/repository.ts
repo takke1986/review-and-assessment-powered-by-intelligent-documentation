@@ -1,4 +1,5 @@
 import { PrismaClient, getPrismaClient } from "../../../core/db";
+import { normalizeForStorage, normalizeSearchTerm } from "../../../core/utils/search-text";
 import { PaginatedResponse } from "../../../common/types";
 import { NotFoundError } from "../../../core/errors";
 import { PromptTemplateEntity, PromptTemplateType } from "./model/template";
@@ -46,7 +47,7 @@ export const makePrismaPromptTemplateRepository = async (
       search,
     } = params;
 
-    const needle = search?.trim();
+    const needle = normalizeSearchTerm(search);
     const where = {
       userId,
       type,
@@ -114,7 +115,7 @@ export const makePrismaPromptTemplateRepository = async (
       data: {
         id: template.id,
         userId: template.userId,
-        name: template.name,
+        name: normalizeForStorage(template.name),
         description: template.description,
         prompt: template.prompt,
         type: template.type,

@@ -1,4 +1,5 @@
 import { getPrismaClient, PrismaClient } from "../../../core/db";
+import { normalizeForStorage, normalizeSearchTerm } from "../../../core/utils/search-text";
 import { NotFoundError } from "../../../core/errors";
 import { PaginatedResponse } from "../../../common/types";
 import {
@@ -182,7 +183,7 @@ export const makePrismaReviewJobRepository = async (
     if (status) {
       whereCondition.status = status;
     }
-    const needle = search?.trim();
+    const needle = normalizeSearchTerm(search);
     if (needle) {
       // 名前だけでは探せない。ジョブ名は適当に付けられがちで、あとから
       // 「あの契約書を審査したのはどれか」で辿ることの方が多い
@@ -236,13 +237,12 @@ export const makePrismaReviewJobRepository = async (
               name: true,
             },
           },
-          // サマリー情報計算用にレビュー結果も同時取得
+          // 数え上げに使う3列だけ。親子は下で読む項目一覧から引くので結合しない
           reviewResults: {
             select: {
               checkId: true,
               status: true,
               result: true,
-              checkList: { select: { parentId: true } },
             },
           },
         },
@@ -261,6 +261,12 @@ export const makePrismaReviewJobRepository = async (
       },
       select: { id: true, parentId: true, checkListSetId: true },
     });
+
+    // 進捗は親を持つかどうかで数え方が変わる。結果1件ごとに結合すると
+    // ページあたり数千行の結合になるので、ここで引けるようにしておく
+    const parentByCheckId = new Map(
+      checkItems.map((item) => [item.id, item.parentId ?? null])
+    );
 
     // 各ジョブのモデルを構築
     const mappedJobs = jobs.map((job) => {
@@ -307,7 +313,7 @@ export const makePrismaReviewJobRepository = async (
           reviewResults.map((r) => ({
             checkId: r.checkId,
             status: r.status,
-            parentId: r.checkList.parentId,
+            parentId: parentByCheckId.get(r.checkId) ?? null,
           }))
         ),
       };
@@ -514,7 +520,7 @@ export const makePrismaReviewJobRepository = async (
       await tx.reviewJob.create({
         data: {
           id: params.id,
-          name: params.name,
+          name: normalizeForStorage(params.name),
           status: params.status,
           checkListSetId: params.checkListSetId,
           createdAt: now,
@@ -535,7 +541,7 @@ export const makePrismaReviewJobRepository = async (
         await tx.reviewDocument.create({
           data: {
             id: doc.id,
-            filename: doc.filename,
+            filename: normalizeForStorage(doc.filename),
             s3Path: doc.s3Key,
             fileType: doc.fileType,
             uploadDate: doc.uploadDate ?? now,

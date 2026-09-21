@@ -1,4 +1,5 @@
 import { PrismaClient, getPrismaClient } from "../../../core/db";
+import { normalizeForStorage, normalizeSearchTerm } from "../../../core/utils/search-text";
 import { NotFoundError } from "../../../core/errors";
 import {
   CheckListItemEntity,
@@ -96,14 +97,14 @@ export const makePrismaCheckRepository = async (
     await client.checkListSet.create({
       data: {
         id,
-        name,
+        name: normalizeForStorage(name),
         description,
         userId: ownerUserId,
         createdAt: createdAt,
         documents: {
           create: documents.map((doc: ChecklistDocumentEntity) => ({
             id: doc.id,
-            filename: doc.filename,
+            filename: normalizeForStorage(doc.filename),
             // それでもなければ空文字を代入して型を満たす（データ整合上は本来あり得ないはず）。
             s3Path: doc.s3Key,
             fileType: doc.fileType,
@@ -272,7 +273,7 @@ export const makePrismaCheckRepository = async (
 
     // 名前での絞り込み。ステータスの分岐が whereCondition を再代入するため、
     // ここで AND に包んで足す（直接項目を置くと条件が消える）
-    const needle = search?.trim();
+    const needle = normalizeSearchTerm(search);
     if (needle) {
       whereCondition = {
         AND: [whereCondition, { name: { contains: needle } }],

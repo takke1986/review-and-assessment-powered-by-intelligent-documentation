@@ -60,6 +60,9 @@ model ToolConfiguration {
   updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamp(0)
   checkLists      CheckList[]
 
+  /// 一覧の並べ替えに使う
+  @@index([createdAt], map: "idx_tool_configurations_created")
+  @@index([name], map: "idx_tool_configurations_name")
   @@map("tool_configurations")
 }
 
@@ -175,6 +178,11 @@ model ReviewJob {
   @@index([sourceReviewJobId], map: "idx_review_jobs_source_review_job")
   /// 部署で絞る一覧が主な使い道
   @@index([departmentId], map: "idx_review_jobs_department")
+  /// 一覧は作成日時の新しい順に出すので、並べ替えを索引順にたどる
+  @@index([createdAt], map: "idx_review_jobs_created")
+  @@index([userId, createdAt], map: "idx_review_jobs_user_created")
+  @@index([sharedWithOrg, createdAt], map: "idx_review_jobs_shared_created")
+  @@index([status, createdAt], map: "idx_review_jobs_status_created")
   @@map("review_jobs")
 }
 
