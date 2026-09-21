@@ -56,6 +56,9 @@ _SNIPPET_RADIUS = 60
 # 文字がこれより少ないページは、スキャンや図だけのページとみなす
 _SCANNED_PAGE_CHARS = 20
 _KINDS = {".pdf": "pdf", ".docx": "word", ".xlsx": "excel", ".pptx": "powerpoint"}
+# 審査に上げた画像ファイル。この道具では中身を直接は読めないので、先に
+# 読み取っておいたものを渡す。読み取りが無ければ「読めない」と伝える
+_IMAGE_KINDS = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tif", ".tiff")
 _OFFICE_KINDS = ("word", "excel", "powerpoint")
 # 変換した Markdown では、シート・スライド・Word の見出し1が「## 」で始まる
 _SECTION_HEADING = re.compile(r"^## ", re.MULTILINE)
@@ -157,7 +160,10 @@ class DocumentLibrary:
             key = _normalize(file.name)
             counts[key] = counts.get(key, 0) + 1
             name = file.name if counts[key] == 1 else f"{file.name} ({counts[key]})"
-            kind = _KINDS.get(os.path.splitext(file.path.lower())[1], "other")
+            extension = os.path.splitext(file.path.lower())[1]
+            kind = _KINDS.get(extension, "other")
+            if kind == "other" and extension in _IMAGE_KINDS:
+                kind = "picture"
             read = (digests or {}).get(file.path) or DocumentDigest()
             self._documents.append(
                 _Document(
@@ -220,6 +226,17 @@ class DocumentLibrary:
                                 else {"name": image.name}
                                 for image in office.images
                             ]
+                    elif document.kind == "picture":
+                        # 読み取ってあれば、その中身を渡す。画像の枠は
+                        # 使わない。読み取りが無ければ、ここでは読めない
+                        read = document.image_notes.get(document.name)
+                        if read:
+                            entry["shows"] = read
+                        else:
+                            entry["error"] = (
+                                "This picture was not read before the review, so it "
+                                "cannot be read with these tools."
+                            )
                     else:
                         entry["error"] = (
                             "This file type cannot be read with these tools."
@@ -344,6 +361,20 @@ class DocumentLibrary:
             image_format, data = encode_image(bitmap)
             self.images_returned += 1
             return EmbeddedImage(f"page {page}", image_format, data)
+
+    def picture_text(self, name: str) -> str:
+        """審査に上げた画像から、先に読み取っておいた文字と説明"""
+        with self._lock:
+            document = self._find(name)
+            if document.kind != "picture":
+                raise DocumentToolError(f"{document.name} is not a picture.")
+            read = document.image_notes.get(document.name)
+            if not read:
+                raise DocumentToolError(
+                    f"{document.name} was not read before the review, so it cannot "
+                    "be read here."
+                )
+            return self._spend(f"--- {document.name} ---\n{read}")
 
     def office_section(self, name: str, section: int, part: int = 1) -> str:
         with self._lock:
@@ -607,6 +638,18 @@ def create_document_tools(library: DocumentLibrary) -> list[Any]:
         return _success({"text": library.office_section(file, section, part)})
 
     @tool
+    def read_picture(file: str) -> dict[str, Any]:
+        """
+        Read what is written in a picture that was uploaded for review, and what it
+        shows. The picture was read before the review, so this costs you none of the
+        images you are allowed to see.
+
+        Args:
+            file: The file name, as list_documents shows it.
+        """
+        return _success({"text": library.picture_text(file)})
+
+    @tool
     def view_embedded_image(file: str, image: str) -> dict[str, Any]:
         """
         See an image embedded in a Word, Excel or PowerPoint file. The Markdown marks where it
@@ -627,5 +670,6 @@ def create_document_tools(library: DocumentLibrary) -> list[Any]:
         read_pdf_pages,
         view_pdf_page,
         read_office_section,
+        read_picture,
         view_embedded_image,
     ]

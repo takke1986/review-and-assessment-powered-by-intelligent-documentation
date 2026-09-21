@@ -44,8 +44,10 @@ from document_digest import (
 )
 from document_reader import (
     build_image_content,
+    build_image_file_content,
     build_read_content,
     parse_image_descriptions,
+    parse_image_file,
     parse_pages,
 )
 import digest_store
@@ -58,6 +60,10 @@ BEDROCK_REGION = os.environ.get("BEDROCK_REGION", os.environ.get("AWS_REGION"))
 # 1回の呼び出しに渡せる画像は20枚まで
 IMAGES_PER_CALL = 20
 PARTIAL_PREFIX = "digest/partials/"
+# 審査に上げられる画像。review_documents と同じ並び
+IMAGE_EXTENSIONS = (
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tif", ".tiff",
+)
 
 # そのまま渡せる書類の目安。review_documents の上限と同じにしてある
 PAGE_LIMIT = 100
@@ -99,6 +105,7 @@ def plan(event: dict[str, Any]) -> dict[str, Any]:
     bucket = event["bucket"]
     tasks: list[dict[str, Any]] = []
     documents: list[dict[str, Any]] = []
+    pictures: list[dict[str, Any]] = []
 
     for document in event.get("documents") or []:
         # 審査の準備処理は s3Path という名前で渡してくる。呼び出し側に
@@ -113,12 +120,29 @@ def plan(event: dict[str, Any]) -> dict[str, Any]:
             tasks_for, page_count = _plan_pdf(bucket, key, name)
         elif lowered.endswith((".docx", ".xlsx", ".pptx")):
             tasks_for, page_count = _plan_office(bucket, key, name)
+        elif lowered.endswith(IMAGE_EXTENSIONS):
+            # 画像は、ほかの書類の都合で道具経路に回るときだけ読む。下で判断する
+            pictures.append({"key": key, "name": name})
+            continue
         else:
             continue
 
         if tasks_for:
             tasks += tasks_for
             documents.append({"key": key, "name": name, "pageCount": page_count})
+
+    # 道具で読む経路に入るジョブでは、画像ファイルはそのままでは読めない
+    # （道具が PDF と Office しか扱えない）。そこに写真や図が混ざっていると、
+    # 中身が一切見られないまま判定される。先に読んでおけば、文字は画像の枠を
+    # 使わずに読め、見る必要があるときだけ開ける。
+    #
+    # ほかの書類が1回で渡せるジョブでは、画像はそのままモデルに届くので読まない
+    if tasks and pictures:
+        for picture in pictures:
+            tasks.append(
+                {"kind": "picture", "key": picture["key"], "name": picture["name"]}
+            )
+            documents.append({**picture, "pageCount": 0})
 
     logger.info("Planned %s reads across %s documents", len(tasks), len(documents))
     return {"tasks": tasks, "documents": documents, "anyToRead": bool(tasks)}
@@ -210,6 +234,29 @@ def read(event: dict[str, Any]) -> dict[str, Any]:
             },
         )
 
+    if task["kind"] == "picture":
+        with _downloaded(bucket, key, os.path.splitext(name)[1]) as path:
+            content = build_image_file_content(path=path, name=name)
+        if not content:
+            return _partial(bucket, key, {"images": []})
+        read_picture = parse_image_file(_ask(content), name)
+        logger.info("Read the picture %s", name)
+        return _partial(
+            bucket,
+            key,
+            {
+                "images": [
+                    {
+                        "name": read_picture.name,
+                        "description": read_picture.description,
+                        "text": read_picture.text,
+                    }
+                ]
+                if read_picture
+                else []
+            },
+        )
+
     from office_documents import convert_office_file
 
     with _downloaded(bucket, key, os.path.splitext(name)[1]) as path:
@@ -296,7 +343,11 @@ def store(event: dict[str, Any]) -> dict[str, Any]:
                 ]
             )
             images += [
-                ImageDigest(name=i["name"], description=i.get("description") or "")
+                ImageDigest(
+                    name=i["name"],
+                    description=i.get("description") or "",
+                    text=i.get("text") or "",
+                )
                 for i in payload.get("images") or []
             ]
 

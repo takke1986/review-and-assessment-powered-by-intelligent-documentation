@@ -96,10 +96,15 @@ class PageDigest:
 
 @dataclass
 class ImageDigest:
-    """埋め込み画像1枚の説明。Word・Excel・PowerPoint 用"""
+    """画像1枚から読み取ったもの。
+
+    Office の埋め込み画像と、審査に上げた画像ファイルの両方に使う。
+    text は画像に写っている文字、description は何が描かれているか
+    """
 
     name: str
     description: str = ""
+    text: str = ""
 
 
 @dataclass
@@ -119,9 +124,21 @@ class DocumentDigest:
 
     @property
     def image_descriptions(self) -> dict[str, str]:
-        return {
-            image.name: image.description for image in self.images if image.description
-        }
+        """名前 → 読み取った中身。写っている文字も説明も、あるものを並べる。
+
+        Office の埋め込み画像は説明だけ、審査に上げた画像ファイルは
+        文字と説明の両方を持つことが多い
+        """
+        notes: dict[str, str] = {}
+        for image in self.images:
+            parts = []
+            if image.description:
+                parts.append(image.description)
+            if image.text:
+                parts.append(f"Written in it: {image.text}")
+            if parts:
+                notes[image.name] = "\n".join(parts)
+        return notes
 
 
 # 埋め込み画像がこれより多い書類は、先に説明しておく。
@@ -231,7 +248,8 @@ def to_json(
                 {"page": d.page, "text": d.text, "figures": d.figures} for d in pages
             ],
             "images": [
-                {"name": i.name, "description": i.description} for i in images
+                {"name": i.name, "description": i.description, "text": i.text}
+                for i in images
             ],
         },
         ensure_ascii=False,
@@ -271,6 +289,7 @@ def from_json(payload: str) -> DocumentDigest:
                 ImageDigest(
                     name=str(image["name"]),
                     description=str(image.get("description") or ""),
+                    text=str(image.get("text") or ""),
                 )
             )
         except (KeyError, TypeError, ValueError):

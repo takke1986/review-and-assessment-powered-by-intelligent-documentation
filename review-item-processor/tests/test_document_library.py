@@ -220,6 +220,7 @@ def test_tools_return_text_json_and_images_to_the_model(tmp_path):
         "read_pdf_pages",
         "view_pdf_page",
         "read_office_section",
+        "read_picture",
         "view_embedded_image",
     }
     assert tools["list_documents"]()["content"][0]["json"]["files"][0]["pages"] == 2

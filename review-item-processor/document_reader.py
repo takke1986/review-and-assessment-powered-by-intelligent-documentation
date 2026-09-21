@@ -258,3 +258,62 @@ def build_image_content(
         return []
     content.append({"text": build_image_prompt(name=name, language=language)})
     return content
+
+
+IMAGE_FILE_PROMPT = """You are reading the picture "{name}" so that it can be
+reviewed later.
+
+Return:
+- "text": everything written in the picture, as text. Keep the wording exactly as
+  it appears, including labels, numbers, units, stamps and handwriting. Lay any
+  table out so the rows and columns can still be told apart. Use an empty string
+  when nothing is written.
+- "description": what the picture shows and what can be read off it. Someone who
+  cannot see it should be able to answer questions about it from this.
+
+Write both in {language}.
+
+Return only JSON, in this shape:
+{{"text": "...", "description": "..."}}"""
+
+
+def build_image_file_prompt(*, name: str, language: str = "Japanese") -> str:
+    return IMAGE_FILE_PROMPT.format(name=name, language=language)
+
+
+def build_image_file_content(
+    *, path: str, name: str, language: str = "Japanese"
+) -> list[dict[str, Any]]:
+    """審査に上げた画像ファイルを、読み取りのためにモデルへ渡す形にする。
+
+    道具で読む経路では、画像ファイルはそのままでは読めない。先に読んで
+    おけば、文字は画像の枠を使わずに読め、見る必要があるときだけ開ける
+    """
+    from PIL import Image
+
+    from review_images import encode_image
+
+    try:
+        with Image.open(path) as opened:
+            image_format, data = encode_image(opened.convert("RGB"))
+    except Exception as error:
+        logger.warning("%s could not be opened as a picture: %s", name, error)
+        return []
+
+    return [
+        {"text": f"{name}:"},
+        {"image": {"format": image_format, "source": {"bytes": data}}},
+        {"text": build_image_file_prompt(name=name, language=language)},
+    ]
+
+
+def parse_image_file(reply: str, name: str) -> Optional[ImageDigest]:
+    """画像ファイル1枚の読み取り結果。読めなければ None"""
+    data = _load_json(reply)
+    if not isinstance(data, dict):
+        return None
+    text = str(data.get("text") or "").strip()
+    description = str(data.get("description") or "").strip()
+    if not text and not description:
+        return None
+    return ImageDigest(name=name, description=description, text=text)
