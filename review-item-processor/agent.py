@@ -29,6 +29,13 @@ from review_documents import (
 )
 from review_images import prepare_image_file
 import digest_store
+from pricing import (
+    CACHE_READ_MULTIPLIER,
+    CACHE_WRITE_MULTIPLIER,
+    cost_of,
+    counts_from_usage,
+    saved_by_cache,
+)
 from tool_history_collector import ToolHistoryCollector
 from tools.factory import create_custom_tools
 
@@ -41,34 +48,54 @@ class ReviewMetaTracker:
         self.start_time = time.time()
 
     def get_review_meta(self, agent_result) -> Dict[str, Any]:
-        """Extract review metadata from the agent result."""
+        """Extract review metadata from the agent result.
+
+        キャッシュした分も数える。Bedrock はキャッシュのトークンを
+        inputTokens に入れず別の欄で返すので、inputTokens だけを見ると
+        書類を読んだ費用がまるごと抜け落ちる（pricing.py に経緯）
+        """
         end_time = time.time()
         duration = end_time - self.start_time
 
-        metrics = agent_result.metrics
-        usage = metrics.accumulated_usage
-        input_tokens = usage.get("inputTokens", 0)
-        output_tokens = usage.get("outputTokens", 0)
-        total_tokens = usage.get("totalTokens", 0)
-
-        logger.debug(
-            f"Token usage from metrics: input={input_tokens}, output={output_tokens}, total={total_tokens}"
+        usage = agent_result.metrics.accumulated_usage
+        counts = counts_from_usage(usage)
+        cost = cost_of(
+            counts,
+            input_per_1k=self.model.input_per_1k,
+            output_per_1k=self.model.output_per_1k,
         )
+        saved = saved_by_cache(counts, input_per_1k=self.model.input_per_1k)
 
-        input_cost = (input_tokens / 1000) * self.model.input_per_1k
-        output_cost = (output_tokens / 1000) * self.model.output_per_1k
-        total_cost = input_cost + output_cost
+        logger.info(
+            "Token usage: input=%s output=%s cache_read=%s cache_write=%s cost=$%.6f",
+            counts.input_tokens,
+            counts.output_tokens,
+            counts.cache_read_tokens,
+            counts.cache_write_tokens,
+            cost.total,
+        )
 
         return {
             "model_id": self.model.model_id,
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-            "input_cost": input_cost,
-            "output_cost": output_cost,
-            "total_cost": total_cost,
+            # 費用の内訳に使う。キャッシュの分はここに出さないと消える
+            "input_tokens": counts.input_tokens,
+            "output_tokens": counts.output_tokens,
+            "cache_read_tokens": counts.cache_read_tokens,
+            "cache_write_tokens": counts.cache_write_tokens,
+            # モデルが読んだ入力の総量。キャッシュが効くほど input_tokens は
+            # 小さく見えるので、「どれだけ読ませたか」はこちらで見る
+            "total_input_tokens": counts.total_input,
+            "input_cost": cost.input_cost,
+            "output_cost": cost.output_cost,
+            "cache_read_cost": cost.cache_read_cost,
+            "cache_write_cost": cost.cache_write_cost,
+            "cache_saving": saved,
+            "total_cost": cost.total,
             "pricing": {
                 "input_per_1k": self.model.input_per_1k,
                 "output_per_1k": self.model.output_per_1k,
+                "cache_write_per_1k": self.model.input_per_1k * CACHE_WRITE_MULTIPLIER,
+                "cache_read_per_1k": self.model.input_per_1k * CACHE_READ_MULTIPLIER,
             },
             "duration_seconds": round(duration, 2),
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -598,7 +625,9 @@ def _run_agent_with_file_read_tool(
     logger.debug("Extracting usage metrics from agent result")
     review_meta = meta_tracker.get_review_meta(response)
     result["reviewMeta"] = review_meta
-    result["inputTokens"] = review_meta["input_tokens"]
+    # キャッシュから読んだ分も含めた「実際に読ませた量」。inputTokens だけを
+    # 入れると、キャッシュが効くほど読ませた量が小さく見える
+    result["inputTokens"] = review_meta["total_input_tokens"]
     result["outputTokens"] = review_meta["output_tokens"]
     result["totalCost"] = review_meta["total_cost"]
 
@@ -676,7 +705,9 @@ def _run_agent_with_document_block(
     result["verificationDetails"] = {"sourcesDetails": history_collector.executions}
     review_meta = meta_tracker.get_review_meta(response)
     result["reviewMeta"] = review_meta
-    result["inputTokens"] = review_meta["input_tokens"]
+    # キャッシュから読んだ分も含めた「実際に読ませた量」。inputTokens だけを
+    # 入れると、キャッシュが効くほど読ませた量が小さく見える
+    result["inputTokens"] = review_meta["total_input_tokens"]
     result["outputTokens"] = review_meta["output_tokens"]
     result["totalCost"] = review_meta["total_cost"]
 
@@ -730,7 +761,9 @@ def _run_agent_with_document_tools(
     result["verificationDetails"] = {"sourcesDetails": history_collector.executions}
     review_meta = meta_tracker.get_review_meta(response)
     result["reviewMeta"] = review_meta
-    result["inputTokens"] = review_meta["input_tokens"]
+    # キャッシュから読んだ分も含めた「実際に読ませた量」。inputTokens だけを
+    # 入れると、キャッシュが効くほど読ませた量が小さく見える
+    result["inputTokens"] = review_meta["total_input_tokens"]
     result["outputTokens"] = review_meta["output_tokens"]
     result["totalCost"] = review_meta["total_cost"]
 
