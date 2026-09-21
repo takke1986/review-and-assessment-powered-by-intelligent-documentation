@@ -50,6 +50,7 @@ from document_reader import (
     parse_image_file,
     parse_pages,
 )
+from document_library import MAX_IMAGES_PER_REVIEW
 from pdf_extras import has_hidden_content
 
 import digest_store
@@ -71,9 +72,13 @@ IMAGE_EXTENSIONS = (
 PAGE_LIMIT = 100
 BYTE_LIMIT = 4_500_000
 DOCUMENTS_PER_REQUEST = 5
-# 審査のとき1回に見られる画像は20枚。1枚ずつ開いて、いくつか見直せば
-# それだけで尽きる。これを超える枚数なら、先に読んでおく
-PICTURES_THAT_MAY_NOT_FIT = 10
+# 審査で実際に目で見られる枚数を超えたら、先に読んでおく。
+#
+# ここを上限より大きくすると、その差の枚数は「先にも読まれず、審査でも
+# 見られない」ことになり、中身が一切得られないまま判定される。写真7枚で
+# 上限5枚なら、2枚が完全に未確認のまま通る。上限と同じ数にそろえるのが
+# 正しく、別々に決めてはいけない
+PICTURES_THAT_MAY_NOT_FIT = MAX_IMAGES_PER_REVIEW
 
 _s3 = None
 _bedrock = None

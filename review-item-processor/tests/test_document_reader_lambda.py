@@ -445,6 +445,18 @@ class TestManyPictures:
     def test_leaves_a_few_pictures_alone(self, wired):
         assert self._plan(wired, 3)["tasks"] == []
 
+    # 先に読む閾値が、審査で見られる枚数より大きいと、その差の枚数は
+    # 「先にも読まれず、審査でも見られない」ことになる。写真7枚で上限5枚
+    # なら2枚が完全に未確認のまま通る。別々に決めてはいけない
+    def test_never_leaves_a_picture_with_no_way_to_be_seen(self, wired):
+        from document_library import MAX_IMAGES_PER_REVIEW
+
+        for count in range(1, MAX_IMAGES_PER_REVIEW + 4):
+            result = self._plan(wired, count)
+            read_ahead = bool(result["tasks"])
+            unreachable = 0 if read_ahead else max(0, count - MAX_IMAGES_PER_REVIEW)
+            assert unreachable == 0, f"{count} pictures leave {unreachable} unseen"
+
 
 class TestTellingTheModelWhatWasRead:
     def test_puts_what_was_read_into_the_instructions(self):
