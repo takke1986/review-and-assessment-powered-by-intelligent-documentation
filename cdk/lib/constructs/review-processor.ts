@@ -232,8 +232,11 @@ export class ReviewProcessor extends Construct {
             platform: Platform.LINUX_ARM64,
           },
         ),
-        // 20ページを同時に絵にするので、余裕を見る
-        memorySize: 2048,
+        // 20ページを一度に絵にする。長辺1568pxで描くと1枚あたり数MBに
+        // なるので、余裕を見る。Lambda は確保した分ではなく使った時間で
+        // 課金されるうえ、メモリが多いほど速く終わるので、足りなくて
+        // 落ちるより大きめに取るほうが結局安い
+        memorySize: 3008,
         // 20ページ分をモデルに読ませる1回ぶん。待てる長さにしておく
         timeout: cdk.Duration.minutes(10),
         architecture: cdk.aws_lambda.Architecture.ARM_64,

@@ -371,6 +371,23 @@ class DocumentLibrary:
             self.images_returned += 1
             return EmbeddedImage(f"page {page}", image_format, data)
 
+    @property
+    def pages_not_read(self) -> dict[str, list[int]]:
+        """先に読もうとして読めなかったページ。書類の名前 → ページ番号。
+
+        読み取りが落ちても審査は続く作りにしてあるが、そのぶん中身の
+        分からないページが残る。判定に「全部見たうえで」と思われないよう、
+        結果に残して画面に出す
+        """
+        missing: dict[str, list[int]] = {}
+        for document in self._documents:
+            if not document.digest:
+                continue
+            pages = unread_pages(document.digest.values())
+            if pages:
+                missing[document.name] = pages
+        return missing
+
     def picture_text(self, name: str) -> str:
         """審査に上げた画像から、先に読み取っておいた文字と説明"""
         with self._lock:

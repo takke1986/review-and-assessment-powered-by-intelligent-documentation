@@ -450,6 +450,8 @@ export interface ReviewResultEntity {
     image_limit?: number;
     /** 上限に達して、それ以上は見られなかったか */
     image_limit_reached?: boolean;
+    /** 先に読もうとして読めなかったページ。書類の名前 → ページ番号 */
+    pages_not_read?: Record<string, number[]>;
   };
   inputTokens?: number;
   outputTokens?: number;

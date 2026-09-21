@@ -95,6 +95,17 @@ export class RapidStack extends cdk.Stack {
       autoDeleteObjects: true,
       serverAccessLogsBucket: accessLogBucket,
       serverAccessLogsPrefix: "DocumentBucket",
+      lifecycleRules: [
+        {
+          // 読み取りの途中の結果。まとめ終わった時点で消しているが、
+          // 読み取りが途中で落ちると残る。誰も見ないものが積み上がると
+          // 保管料だけが増えていくので、日数で落とす
+          id: "clear-away-half-read-documents",
+          prefix: "digest/partials/",
+          expiration: cdk.Duration.days(7),
+          abortIncompleteMultipartUploadAfter: cdk.Duration.days(1),
+        },
+      ],
     });
 
     // VPCの作成

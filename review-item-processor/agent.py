@@ -900,6 +900,10 @@ def _run_agent_with_document_tools(
     review_meta["image_limit_reached"] = (
         library.images_returned >= MAX_IMAGES_PER_REVIEW
     )
+    # 読み取りが落ちたページ。審査は続けているが、中身は分かっていない
+    not_read = library.pages_not_read
+    if not_read:
+        review_meta["pages_not_read"] = not_read
     result["reviewMeta"] = review_meta
     # キャッシュから読んだ分も含めた「実際に読ませた量」。inputTokens だけを
     # 入れると、キャッシュが効くほど読ませた量が小さく見える
