@@ -37,6 +37,7 @@ from office_documents import (
     convert_office_file,
 )
 from document_digest import DocumentDigest, figure_pages, unread_pages
+from pdf_extras import describe_extras, field_values, looks_garbled, page_notes
 from review_documents import ReviewFile
 from review_images import encode_image
 
@@ -85,6 +86,8 @@ class _Document:
     digest: dict[int, "PageDigestType"] = field(default_factory=dict)
     # 埋め込み画像の説明。名前 → 何が描かれているか（Office 用）
     image_notes: dict[str, str] = field(default_factory=dict)
+    # 記入済みフォームの値。まだ読んでいなければ None
+    form_values: Optional[dict[str, str]] = None
 
 
 def _normalize(text: str) -> str:
@@ -420,14 +423,51 @@ class DocumentLibrary:
 
     def _page_text(self, document: _Document, page: int) -> str:
         if page not in document.page_texts:
+            reader = self._pdf(document)
             try:
-                text = self._pdf(document).pages[page - 1].extract_text() or ""
+                pdf_page = reader.pages[page - 1]
+                text = (pdf_page.extract_text() or "").strip()
             except DocumentToolError:
                 raise
             except Exception:
-                text = ""
-            document.page_texts[page] = text.strip()
+                pdf_page, text = None, ""
+
+            if pdf_page is not None:
+                # 本文には出ない中身を足す。記入済みフォームの値と、注釈・
+                # 押印・コメント。申込書の記入内容がここにしか無いことが
+                # あり、拾わないと「空の申込書」を審査することになる
+                extras = describe_extras(
+                    page_notes(pdf_page), self._form_values(document)
+                )
+                if extras:
+                    # 本文が取れないページに注釈だけがある場合、足したせいで
+                    # 「文字のあるページ」に見えてしまい、画像で見る案内が
+                    # 出なくなる。ここで先に付けておく
+                    if len(text) < _SCANNED_PAGE_CHARS:
+                        text += (
+                            "\n(Little or no text could be taken from this page. It "
+                            "may be scanned or made of figures: use view_pdf_page to "
+                            "see it.)"
+                        )
+                    text = f"{text}\n{extras}".strip()
+
+            if text and looks_garbled(text):
+                # 文字コード表の無いフォント。文字数はあるので「スキャンでは
+                # ない」と判定されてしまい、画像で見直す道に入らない
+                text += (
+                    "\n(The text taken from this page looks garbled, so the file's "
+                    "own text cannot be trusted here: use view_pdf_page to see it.)"
+                )
+            document.page_texts[page] = text
         return document.page_texts[page]
+
+    def _form_values(self, document: _Document) -> dict[str, str]:
+        """記入済みフォームの値。どのページの欄かは辿れないので文書全体で1度だけ読む"""
+        if document.form_values is None:
+            document.form_values = field_values(self._pdf(document))
+        # 何度も同じ値を並べない。最初に読んだページにだけ添える
+        values, document.form_values = document.form_values, {}
+        return values
 
     def _office(self, document: _Document) -> tuple[OfficeDocument, list[Section]]:
         if document.kind not in _OFFICE_KINDS:

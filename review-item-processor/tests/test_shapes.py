@@ -245,3 +245,44 @@ def test_excel_says_which_cells_a_shape_covers(tmp_path):
     assert "処理" in markdown
     # 表計算では、cm より「どのセルを覆っているか」のほうが突き合わせられる
     assert "B3:D8" in markdown
+
+
+# --- グループの中の図形 ---
+# 図はたいていグループにまとめられているので、換算を忘れると必ず当たる
+
+
+def group(x_cm, y_cm, *inner, scale=1.0):
+    emu = 360000
+    size = int(3600000 * scale)
+    return f"""<p:grpSp>
+      <p:nvGrpSpPr><p:cNvPr id="9" name="グループ"/></p:nvGrpSpPr>
+      <p:grpSpPr><a:xfrm>
+        <a:off x="{int(x_cm * emu)}" y="{int(y_cm * emu)}"/>
+        <a:ext cx="{size}" cy="{size}"/>
+        <a:chOff x="0" y="0"/><a:chExt cx="3600000" cy="3600000"/>
+      </a:xfrm></p:grpSpPr>
+      {''.join(inner)}
+    </p:grpSp>"""
+
+
+class TestGroupedShapes:
+    def test_reports_where_a_grouped_shape_really_is(self):
+        found = shapes_in(tree(group(10, 10, shape(2, "箱", "rect", "中身", 1, 1))))
+        assert (found[0].left, found[0].top) == (11.0, 11.0)
+
+    def test_follows_a_group_inside_a_group(self):
+        inner = group(2, 2, shape(2, "箱", "rect", "奥", 1, 1))
+        found = shapes_in(tree(group(10, 10, inner)))
+        assert (found[0].left, found[0].top) == (13.0, 13.0)
+
+    # グループを縮めて貼ると、中の図形も縮む
+    def test_scales_a_shape_when_the_group_was_resized(self):
+        found = shapes_in(
+            tree(group(0, 0, shape(2, "箱", "rect", "半分", 2, 2, 4, 2), scale=0.5))
+        )
+        assert (found[0].left, found[0].top) == (1.0, 1.0)
+        assert (found[0].width, found[0].height) == (2.0, 1.0)
+
+    def test_leaves_an_ungrouped_shape_alone(self):
+        found = shapes_in(tree(shape(2, "箱", "rect", "そのまま", 3, 4)))
+        assert (found[0].left, found[0].top) == (3.0, 4.0)

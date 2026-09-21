@@ -29,6 +29,7 @@ from review_documents import (
 )
 from review_images import prepare_image_file
 import digest_store
+from pdf_extras import has_hidden_content
 from pricing import (
     CACHE_READ_MULTIPLIER,
     CACHE_WRITE_MULTIPLIER,
@@ -195,6 +196,17 @@ def _should_use_document_block(
             not path.lower().endswith(tuple(IMAGE_FILE_EXTENSIONS))
             for path in document_paths
         )
+
+    # 記入済みフォームや注釈を持つ PDF は、道具で読ませる。そのまま渡すと
+    # 記入内容が読まれるかどうか分からず、読まれなければ「空の申込書」を
+    # 審査することになる。道具の経路なら、こちらで読み出して本文に足せる
+    for path in document_paths:
+        if path.lower().endswith(".pdf") and has_hidden_content(path):
+            logger.info(
+                "Reading %s through document tools: it has filled-in fields or notes",
+                path,
+            )
+            return False
     return True
 
 

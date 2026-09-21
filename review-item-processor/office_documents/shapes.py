@@ -125,14 +125,81 @@ def _identity(element: Optional[ET.Element], tag: str) -> tuple[str, str]:
     return (properties.get("id") or "", properties.get("name") or "")
 
 
-def shapes_in(tree: Optional[ET.Element]) -> list[Shape]:
-    """図形の一覧。読む順（上から、同じ高さなら左から）に並べる"""
+@dataclass(frozen=True)
+class GroupFrame:
+    """グループの中の座標を、スライドの座標に直すための換算。
+
+    グループの中の図形は、親から見た相対座標で書かれている。そのまま出すと
+    「左1cm」と言いながら実際はスライドの左11cm、ということが起きる。
+    図はたいていグループにまとめられているので、必ず当たる
+    """
+
+    offset_x: int = 0
+    offset_y: int = 0
+    scale_x: float = 1.0
+    scale_y: float = 1.0
+
+    def apply(self, x: Optional[int], y: Optional[int]) -> tuple[Optional[int], ...]:
+        if x is None or y is None:
+            return (None, None)
+        return (
+            int(self.offset_x + x * self.scale_x),
+            int(self.offset_y + y * self.scale_y),
+        )
+
+    def scale(self, cx: Optional[int], cy: Optional[int]) -> tuple[Optional[int], ...]:
+        if cx is None or cy is None:
+            return (None, None)
+        return (int(cx * self.scale_x), int(cy * self.scale_y))
+
+
+def frame_of(group: ET.Element, outer: GroupFrame) -> GroupFrame:
+    """グループの a:xfrm から換算を作り、外側の換算と重ねる"""
+    transform = first(group, "a:xfrm")
+    if transform is None:
+        return outer
+    offset = child(transform, "a:off")
+    child_offset = child(transform, "a:chOff")
+    extent = child(transform, "a:ext")
+    child_extent = child(transform, "a:chExt")
+    if offset is None or child_offset is None:
+        return outer
+
+    scale_x = scale_y = 1.0
+    if extent is not None and child_extent is not None:
+        width = to_int(child_extent.get("cx")) or 0
+        height = to_int(child_extent.get("cy")) or 0
+        if width:
+            scale_x = to_int(extent.get("cx")) / width
+        if height:
+            scale_y = to_int(extent.get("cy")) / height
+
+    # 子の座標 → グループ内の位置 → 外側の座標、の順に重ねる
+    inner_x = to_int(offset.get("x")) - to_int(child_offset.get("x")) * scale_x
+    inner_y = to_int(offset.get("y")) - to_int(child_offset.get("y")) * scale_y
+    moved_x, moved_y = outer.apply(int(inner_x), int(inner_y))
+    return GroupFrame(
+        offset_x=moved_x or 0,
+        offset_y=moved_y or 0,
+        scale_x=scale_x * outer.scale_x,
+        scale_y=scale_y * outer.scale_y,
+    )
+
+
+def shapes_in(
+    tree: Optional[ET.Element], frame: Optional[GroupFrame] = None
+) -> list[Shape]:
+    """図形の一覧。読む順（上から、同じ高さなら左から）に並べる。
+
+    グループの中の図形は、スライドから見た座標に直して返す
+    """
     found: list[Shape] = []
-    for node in walk(tree):
-        if node.tag != q("p:sp"):
-            continue
+    for node in _shapes_with_frames(tree, frame or GroupFrame()):
+        node, node_frame = node
         shape_id, name = _identity(node, "p:cNvPr")
         left, top, width, height = placement_of(node)
+        left, top = node_frame.apply(left, top)
+        width, height = node_frame.scale(width, height)
         found.append(
             Shape(
                 shape_id=shape_id,
@@ -239,3 +306,20 @@ def geometry_note(element: Optional[ET.Element]) -> str:
     if width is not None and height is not None:
         parts.append(f"幅{to_cm(width)}cm 高さ{to_cm(height)}cm")
     return "[" + " ".join(parts) + "]"
+
+
+def _shapes_with_frames(
+    container: Optional[ET.Element], frame: GroupFrame
+) -> list[tuple[ET.Element, GroupFrame]]:
+    """図形と、それに効く換算の組。グループに入るたびに換算を重ねる"""
+    if container is None:
+        return []
+    found: list[tuple[ET.Element, GroupFrame]] = []
+    for node in list(container):
+        if node.tag == q("p:sp"):
+            found.append((node, frame))
+        elif node.tag == q("p:grpSp"):
+            found += _shapes_with_frames(node, frame_of(node, frame))
+        else:
+            found += _shapes_with_frames(node, frame)
+    return found
