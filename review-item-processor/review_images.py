@@ -13,6 +13,17 @@ import os
 
 from PIL import Image
 
+# 1つの審査で実際に目で見る画像の枚数。
+#
+# 先に読み取った文章で足りることが多いので、実際に目で見る回数を絞る。
+# 足りなければ「見た範囲で判断する」ことになるが、それは結果に残して
+# 人が確かめられるようにしてある。
+#
+# ここに置いてあるのは、読み取り Lambda からも参照するため。
+# document_library は strands を読み込むので、あちらに置くと
+# 読み取り Lambda が起動できなくなる（実際に一度そうなった）
+MAX_IMAGES_PER_REVIEW = int(os.environ.get("MAX_IMAGES_PER_REVIEW", "5"))
+
 MAX_IMAGE_BYTES = 3_750_000
 MAX_IMAGE_SIDE_PIXELS = 8000
 

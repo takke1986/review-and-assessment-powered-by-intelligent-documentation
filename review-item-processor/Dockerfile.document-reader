@@ -17,6 +17,8 @@ RUN pip install --no-cache-dir \
     "pypdfium2==5.13.0"
 
 COPY office_documents ${LAMBDA_TASK_ROOT}/office_documents
+# 積むのは、読み取りに必要なものだけ。document_library は strands を
+# 読み込むので積めない（画像の上限は review_images に置いてある）
 COPY document_digest.py document_reader.py digest_store.py pdf_extras.py \
      review_images.py document_reader_lambda.py ${LAMBDA_TASK_ROOT}/
 

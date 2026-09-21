@@ -50,7 +50,7 @@ from document_reader import (
     parse_image_file,
     parse_pages,
 )
-from document_library import MAX_IMAGES_PER_REVIEW
+from review_images import MAX_IMAGES_PER_REVIEW
 from pdf_extras import has_hidden_content
 
 import digest_store

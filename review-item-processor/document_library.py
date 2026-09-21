@@ -39,7 +39,7 @@ from office_documents import (
 from document_digest import DocumentDigest, figure_pages, unread_pages
 from pdf_extras import describe_extras, field_values, looks_garbled, page_notes
 from review_documents import ReviewFile
-from review_images import encode_image
+from review_images import MAX_IMAGES_PER_REVIEW, encode_image
 
 MAX_PAGES_PER_READ = 20
 MAX_CHARS_PER_READ = 30_000
@@ -51,10 +51,7 @@ MAX_CHARS_PER_REVIEW = 200_000
 # 審査すると延べ200枚ぶん払うことになり、しかも項目ごとに別の会話なので
 # キャッシュも効きにくい。
 #
-# 先に読み取った文章で足りることが多いので、実際に目で見る回数を絞る。
-# 足りなければ「見た範囲で判断する」ことになるが、それは結果に残して
-# 人が確かめられるようにしてある
-MAX_IMAGES_PER_REVIEW = int(os.environ.get("MAX_IMAGES_PER_REVIEW", "5"))
+# 置き場所は review_images。読み取り Lambda からも参照するため
 # Claude は長辺がこれより大きい画像を縮めて読むので、これより大きく描いても読みやすくならない
 PAGE_IMAGE_LONG_SIDE = 1568
 SECTION_PART_CHARS = 20_000
