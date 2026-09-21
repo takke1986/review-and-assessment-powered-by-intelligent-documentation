@@ -444,6 +444,12 @@ export interface ReviewResultEntity {
     };
     duration_seconds: number;
     timestamp: string;
+    /** 実際に目で見た画像の枚数 */
+    images_seen?: number;
+    /** 1項目で見られる枚数 */
+    image_limit?: number;
+    /** 上限に達して、それ以上は見られなかったか */
+    image_limit_reached?: boolean;
   };
   inputTokens?: number;
   outputTokens?: number;

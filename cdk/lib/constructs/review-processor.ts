@@ -275,6 +275,8 @@ export class ReviewProcessor extends Construct {
         action: "plan",
         bucket: props.documentBucket.bucketName,
         documents: sfn.JsonPath.objectAt("$.prepareResult.Payload.documents"),
+        // 何を審査するのか。読み取りがそこに触れるようになる
+        focus: sfn.JsonPath.objectAt("$.prepareResult.Payload.focus"),
       }),
       resultPath: "$.readPlan",
       resultSelector: {

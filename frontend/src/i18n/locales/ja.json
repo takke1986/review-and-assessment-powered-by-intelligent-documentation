@@ -478,6 +478,7 @@
     "clearFilter": "絞り込みを解除",
     "searchPlaceholderJobs": "ジョブ名か、審査した文書の名前",
     "overriddenByOn": "{{who}} が変更（{{when}}）",
+    "imageLimitReached": "画像を{{seen}}枚まで見た時点で上限に達しました。書類の一部だけを見た判定です。",
     "resumed": "続きから審査を始めました",
     "resumeError": "続きから流せませんでした",
     "resumeReview": "続きから審査する",

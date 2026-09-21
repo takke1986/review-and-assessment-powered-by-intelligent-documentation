@@ -478,6 +478,7 @@
     "clearFilter": "Clear the filter",
     "searchPlaceholderJobs": "Job name, or a document name",
     "overriddenByOn": "changed by {{who}} ({{when}})",
+    "imageLimitReached": "This verdict was made after looking at {{seen}} pictures, which is the limit, so not everything was seen.",
     "resumed": "The review is carrying on from where it stopped",
     "resumeError": "Could not carry on with the review",
     "resumeReview": "Carry on with the review",

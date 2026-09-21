@@ -114,3 +114,47 @@ class TestRendering:
         assert build_read_content(
             path=str(empty), name="empty.pdf", batch=DigestBatch(5, 6)
         ) == []
+
+
+from document_reader import (  # noqa: E402
+    build_image_file_prompt,
+    build_image_prompt,
+    focus_note,
+)
+
+
+class TestFocus:
+    """審査で見るべき観点を読み取りに渡す。
+    知らせないと当たり障りのない書き取りになり、審査のときに結局その
+    ページや画像を開くことになる"""
+
+    def test_lists_the_points_the_document_will_be_checked_against(self):
+        note = focus_note(["安全帯の装着", "立入禁止表示"])
+        assert "安全帯の装着" in note
+        assert "立入禁止表示" in note
+
+    # 「無いこと」を確かめる項目は、書かれていないと判断できない
+    def test_asks_to_say_so_even_when_the_thing_is_absent(self):
+        assert "absent" in focus_note(["安全帯の装着"])
+
+    # 観点だけを書かせると、ほかを見落とす
+    def test_still_asks_for_everything(self):
+        assert "everything either way" in focus_note(["何か"])
+
+    def test_says_nothing_when_there_are_no_points(self):
+        assert focus_note([]) == ""
+        assert focus_note(None) == ""
+
+    def test_reaches_the_page_prompt(self):
+        prompt = build_read_prompt(
+            name="a.pdf", batch=BATCH, focus=["押印の有無"]
+        )
+        assert "押印の有無" in prompt
+
+    def test_reaches_the_embedded_image_prompt(self):
+        assert "押印の有無" in build_image_prompt(name="a.pptx", focus=["押印の有無"])
+
+    def test_reaches_the_picture_prompt(self):
+        assert "押印の有無" in build_image_file_prompt(
+            name="a.png", focus=["押印の有無"]
+        )

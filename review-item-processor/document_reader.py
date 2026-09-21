@@ -49,15 +49,40 @@ Return one entry per page you were given, even if a page is blank (use an empty
 string). Never invent a page number you were not given."""
 
 
+def focus_note(focus: Optional[list[str]]) -> str:
+    """審査で見るべき観点を、読み取りの指示に添える。
+
+    何を審査するのか知らないと、当たり障りのない書き取りになる。読んだ
+    文章に欲しいことが無ければ、審査のときに結局その画像やページを開く
+    ことになり、見られる枚数と費用に跳ね返る。
+
+    「その観点だけを書け」とは言わない。写すことが本筋で、観点は
+    見落とさないための注意書き
+    """
+    if not focus:
+        return ""
+    listed = "\n".join(f"- {item}" for item in focus)
+    return (
+        "\n\nThis document will be checked against the points below. Write down "
+        "everything either way, but make sure that whatever bears on these is in "
+        "what you return, including when the thing being looked for is absent.\n"
+        f"{listed}"
+    )
+
+
 def build_read_prompt(
-    *, name: str, batch: DigestBatch, language: str = "Japanese"
+    *,
+    name: str,
+    batch: DigestBatch,
+    language: str = "Japanese",
+    focus: Optional[list[str]] = None,
 ) -> str:
     return READ_PROMPT.format(
         first=batch.first_page,
         last=batch.last_page,
         name=name,
         language=language,
-    )
+    ) + focus_note(focus)
 
 
 def parse_pages(reply: str, batch: DigestBatch) -> list[PageDigest]:
@@ -170,7 +195,12 @@ def render_pages(path: str, batch: DigestBatch) -> list[tuple[int, str, bytes]]:
 
 
 def build_read_content(
-    *, path: str, name: str, batch: DigestBatch, language: str = "Japanese"
+    *,
+    path: str,
+    name: str,
+    batch: DigestBatch,
+    language: str = "Japanese",
+    focus: Optional[list[str]] = None,
 ) -> list[dict[str, Any]]:
     """モデルに渡す中身を組み立てる。
 
@@ -185,7 +215,11 @@ def build_read_content(
     if not content:
         return []
     content.append(
-        {"text": build_read_prompt(name=name, batch=batch, language=language)}
+        {
+            "text": build_read_prompt(
+                name=name, batch=batch, language=language, focus=focus
+            )
+        }
     )
     return content
 
@@ -206,8 +240,10 @@ Return only JSON, in this shape:
 Use the names exactly as they were given to you. Never invent a name."""
 
 
-def build_image_prompt(*, name: str, language: str = "Japanese") -> str:
-    return IMAGE_PROMPT.format(name=name, language=language)
+def build_image_prompt(
+    *, name: str, language: str = "Japanese", focus: Optional[list[str]] = None
+) -> str:
+    return IMAGE_PROMPT.format(name=name, language=language) + focus_note(focus)
 
 
 def parse_image_descriptions(reply: str, names: list[str]) -> list[ImageDigest]:
@@ -241,7 +277,11 @@ def parse_image_descriptions(reply: str, names: list[str]) -> list[ImageDigest]:
 
 
 def build_image_content(
-    images: list[Any], *, name: str, language: str = "Japanese"
+    images: list[Any],
+    *,
+    name: str,
+    language: str = "Japanese",
+    focus: Optional[list[str]] = None,
 ) -> list[dict[str, Any]]:
     """埋め込み画像をモデルに渡す形にする。
 
@@ -256,7 +296,9 @@ def build_image_content(
         )
     if not content:
         return []
-    content.append({"text": build_image_prompt(name=name, language=language)})
+    content.append(
+        {"text": build_image_prompt(name=name, language=language, focus=focus)}
+    )
     return content
 
 
@@ -277,12 +319,18 @@ Return only JSON, in this shape:
 {{"text": "...", "description": "..."}}"""
 
 
-def build_image_file_prompt(*, name: str, language: str = "Japanese") -> str:
-    return IMAGE_FILE_PROMPT.format(name=name, language=language)
+def build_image_file_prompt(
+    *, name: str, language: str = "Japanese", focus: Optional[list[str]] = None
+) -> str:
+    return IMAGE_FILE_PROMPT.format(name=name, language=language) + focus_note(focus)
 
 
 def build_image_file_content(
-    *, path: str, name: str, language: str = "Japanese"
+    *,
+    path: str,
+    name: str,
+    language: str = "Japanese",
+    focus: Optional[list[str]] = None,
 ) -> list[dict[str, Any]]:
     """審査に上げた画像ファイルを、読み取りのためにモデルへ渡す形にする。
 
@@ -303,7 +351,7 @@ def build_image_file_content(
     return [
         {"text": f"{name}:"},
         {"image": {"format": image_format, "source": {"bytes": data}}},
-        {"text": build_image_file_prompt(name=name, language=language)},
+        {"text": build_image_file_prompt(name=name, language=language, focus=focus)},
     ]
 
 

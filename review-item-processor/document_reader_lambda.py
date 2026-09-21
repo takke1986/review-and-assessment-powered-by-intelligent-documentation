@@ -109,6 +109,9 @@ def handler(event: dict[str, Any], _context: Any = None) -> dict[str, Any]:
 
 def plan(event: dict[str, Any]) -> dict[str, Any]:
     bucket = event["bucket"]
+    # 何を審査するのか。読み取りがそこに触れるようになり、審査のときに
+    # 画像を開き直さずに済むことが増える
+    focus = [str(item) for item in (event.get("focus") or []) if str(item).strip()]
     tasks: list[dict[str, Any]] = []
     documents: list[dict[str, Any]] = []
     pictures: list[dict[str, Any]] = []
@@ -162,6 +165,9 @@ def plan(event: dict[str, Any]) -> dict[str, Any]:
                 {"kind": "picture", "key": picture["key"], "name": picture["name"]}
             )
             documents.append({**picture, "pageCount": 0})
+
+    for task in tasks:
+        task["focus"] = focus
 
     logger.info("Planned %s reads across %s documents", len(tasks), len(documents))
     return {"tasks": tasks, "documents": documents, "anyToRead": bool(tasks)}
@@ -266,7 +272,9 @@ def read(event: dict[str, Any]) -> dict[str, Any]:
     if task["kind"] == "pages":
         batch = DigestBatch(task["first"], task["last"])
         with _downloaded(bucket, key, ".pdf") as path:
-            content = build_read_content(path=path, name=name, batch=batch)
+            content = build_read_content(
+                path=path, name=name, batch=batch, focus=task.get("focus")
+            )
         if not content:
             return _partial(bucket, key, {"pages": []})
         reply = _ask(content)
@@ -285,7 +293,9 @@ def read(event: dict[str, Any]) -> dict[str, Any]:
 
     if task["kind"] == "picture":
         with _downloaded(bucket, key, os.path.splitext(name)[1]) as path:
-            content = build_image_file_content(path=path, name=name)
+            content = build_image_file_content(
+                path=path, name=name, focus=task.get("focus")
+            )
         if not content:
             return _partial(bucket, key, {"images": []})
         read_picture = parse_image_file(_ask(content), name)
@@ -311,7 +321,7 @@ def read(event: dict[str, Any]) -> dict[str, Any]:
     with _downloaded(bucket, key, os.path.splitext(name)[1]) as path:
         document = convert_office_file(path, display_name=name)
     chosen = document.images[task["offset"] : task["offset"] + task["count"]]
-    content = build_image_content(chosen, name=name)
+    content = build_image_content(chosen, name=name, focus=task.get("focus"))
     if not content:
         return _partial(bucket, key, {"images": []})
     reply = _ask(content)

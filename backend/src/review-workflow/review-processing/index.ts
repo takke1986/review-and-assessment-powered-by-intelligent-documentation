@@ -10,6 +10,7 @@ import {
 } from "../../api/features/review/domain/model/review";
 import { updateCheckResultCascade } from "../../api/features/review/domain/service/review-result-cascade-update";
 import { describeUnjudged } from "../../api/features/review/domain/service/review-completeness";
+import { focusFor } from "./focus";
 import { selectItemsToReview } from "./select-items";
 
 /**
@@ -85,6 +86,9 @@ export async function prepareReview(params: PrepareReviewParams): Promise<any> {
       reviewJobId,
       documents: jobDetail.documents,
       checkItems,
+      // 先に書類を読むときに渡す。何を審査するのかを知らないと、当たり
+      // 障りのない書き取りになり、結局その画像を開くことになる
+      focus: focusFor(results),
     };
   } catch (error) {
     console.error(`Error preparing review job ${reviewJobId}:`, error);

@@ -339,6 +339,19 @@ export default function ReviewResultItem({
               </div>
             </div>
 
+            {/* 見られる画像の枚数に達した判定。全部を見たわけではないので、
+                人が確かめられるようにここで断っておく。黙っていると
+                「全部見たうえでの判定」だと思われる */}
+            {result.reviewMeta?.image_limit_reached && (
+              <div className="mt-1 rounded border border-aws-squid-ink-light/20 bg-yellow-50 px-2 py-1">
+                <p className="text-xs text-aws-font-color-gray">
+                  {t("review.imageLimitReached", {
+                    seen: result.reviewMeta.images_seen ?? 0,
+                  })}
+                </p>
+              </div>
+            )}
+
             {/* 短い説明文を表示 */}
             {result.shortExplanation && (
               <div className="mt-1">
