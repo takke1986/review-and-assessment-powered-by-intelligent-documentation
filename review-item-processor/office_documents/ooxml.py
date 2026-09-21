@@ -14,6 +14,8 @@ NAMESPACES = {
     "s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
     "xdr": "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing",
     "dgm": "http://schemas.openxmlformats.org/drawingml/2006/diagram",
+    # Word の図形。w:drawing の中で、図形そのものは wps:wsp が持つ
+    "wps": "http://schemas.microsoft.com/office/word/2010/wordprocessingShape",
     "v": "urn:schemas-microsoft-com:vml",
     "mc": "http://schemas.openxmlformats.org/markup-compatibility/2006",
     "rel": "http://schemas.openxmlformats.org/package/2006/relationships",

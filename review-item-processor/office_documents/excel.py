@@ -12,6 +12,7 @@ from xml.etree import ElementTree as ET
 from . import limits
 from .converter import Converter
 from .drawing import drawing_text
+from .shapes import kind_of
 from .model import OfficeFileError
 from .ooxml import (
     child,
@@ -554,17 +555,33 @@ class ExcelConverter(Converter):
         lines = []
         for anchor in root:
             where = _anchor_cell(child(anchor, "xdr:from"))
+            spans = _anchor_range(anchor)
             for node in walk(anchor):
                 if node.tag == q("xdr:sp"):
                     text = " ".join(drawing_text(node).split("\n"))
+                    # 形（判断・矢印など）が分かると、図の意味が読める。
+                    # 表計算では位置を cm より「どのセルを覆っているか」で
+                    # 言うほうが、他の行と突き合わせられる
+                    kind = kind_of(node)
+                    label = kind if kind != "図形" else "shape"
+                    place = spans or where
                     if text:
-                        lines.append(f"[shape{where}] {text}")
+                        lines.append(f"[{label}{place}] {text}")
                     continue
                 found = self._image_or_chart(node, relationships)
                 if found:
                     first_line, _, rest = found.partition("\n")
                     lines.append(first_line + where + ("\n" + rest if rest else ""))
         return lines
+
+
+def _anchor_range(anchor: Optional[ET.Element]) -> str:
+    """図形が覆うセルの範囲を「 at B3:D8」の形で。片側しか無ければ空"""
+    start = _anchor_cell(child(anchor, "xdr:from"))
+    end = _anchor_cell(child(anchor, "xdr:to"))
+    if not start or not end:
+        return ""
+    return f"{start}:{end.removeprefix(' at ')}"
 
 
 def _anchor_cell(start: Optional[ET.Element]) -> str:

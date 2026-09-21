@@ -169,3 +169,79 @@ class TestDescribe:
     def test_uses_the_shape_name_when_a_preset_is_not_translated(self):
         lines = describe(tree(shape(2, "星", "star5", "重要", 1, 1)))
         assert "star5" in "\n".join(lines)
+
+
+# --- Word と Excel の図形 ---
+# import の付け忘れで、図形のある文書だけ落ちるところだった。
+# 変換を通しで呼んで塞ぐ
+
+WORD_NS = (
+    'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+    'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+    'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"'
+)
+
+
+def test_word_says_the_shape_kind_and_size_around_a_text_box(tmp_path):
+    from tests.test_office_documents import write_package
+    from office_documents import convert_office_file
+
+    drawing = f"""
+    <w:p><w:r><w:drawing>
+      <wps:wsp>
+        <wps:spPr>
+          <a:xfrm><a:off x="360000" y="720000"/><a:ext cx="1440000" cy="720000"/></a:xfrm>
+          <a:prstGeom prst="flowChartDecision"/>
+        </wps:spPr>
+        <wps:txbx><w:txbxContent><w:p><w:r><w:t>承認する？</w:t></w:r></w:p></w:txbxContent></wps:txbx>
+      </wps:wsp>
+    </w:drawing></w:r></w:p>"""
+    parts = {
+        "[Content_Types].xml": '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>',
+        "_rels/.rels": '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>',
+        "word/document.xml": f"<w:document {WORD_NS}><w:body>{drawing}</w:body></w:document>",
+        "word/_rels/document.xml.rels": '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>',
+    }
+    path = write_package(tmp_path, "shape.docx", parts)
+    markdown = convert_office_file(path, display_name="shape.docx").markdown
+
+    assert "承認する？" in markdown
+    assert "判断" in markdown
+    assert "幅4.0cm 高さ2.0cm" in markdown
+
+
+def test_excel_says_which_cells_a_shape_covers(tmp_path):
+    from tests.test_office_documents import write_package
+    from office_documents import convert_office_file
+
+    xdr = (
+        'xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" '
+        'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"'
+    )
+    drawing = f"""<xdr:wsDr {xdr}>
+      <xdr:twoCellAnchor>
+        <xdr:from><xdr:col>1</xdr:col><xdr:row>2</xdr:row></xdr:from>
+        <xdr:to><xdr:col>3</xdr:col><xdr:row>7</xdr:row></xdr:to>
+        <xdr:sp>
+          <xdr:spPr><a:prstGeom prst="flowChartProcess"/></xdr:spPr>
+          <xdr:txBody><a:p><a:r><a:t>集計範囲</a:t></a:r></a:p></xdr:txBody>
+        </xdr:sp>
+      </xdr:twoCellAnchor>
+    </xdr:wsDr>"""
+    s_ns = 'xmlns:s="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"'
+    parts = {
+        "[Content_Types].xml": '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>',
+        "_rels/.rels": '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+        "xl/workbook.xml": f'<s:workbook {s_ns}><s:sheets><s:sheet name="Sheet1" sheetId="1" r:id="rId1"/></s:sheets></s:workbook>',
+        "xl/_rels/workbook.xml.rels": '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',
+        "xl/worksheets/sheet1.xml": f'<s:worksheet {s_ns}><s:sheetData/><s:drawing r:id="rId9"/></s:worksheet>',
+        "xl/worksheets/_rels/sheet1.xml.rels": '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/></Relationships>',
+        "xl/drawings/drawing1.xml": drawing,
+    }
+    path = write_package(tmp_path, "shape.xlsx", parts)
+    markdown = convert_office_file(path, display_name="shape.xlsx").markdown
+
+    assert "集計範囲" in markdown
+    assert "処理" in markdown
+    # 表計算では、cm より「どのセルを覆っているか」のほうが突き合わせられる
+    assert "B3:D8" in markdown

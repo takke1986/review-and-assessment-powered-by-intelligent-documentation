@@ -8,6 +8,7 @@ from xml.etree import ElementTree as ET
 
 from .converter import Converter
 from .model import OfficeFileError
+from .shapes import geometry_note
 from .ooxml import (
     MC_ALTERNATE,
     MC_FALLBACK,
@@ -248,7 +249,23 @@ class WordConverter(Converter):
             found = self._image_or_chart(node, relationships)
             if found:
                 parts.append(found)
+
+        # 図形（wps:wsp）は、形と大きさを持っている。中の文字だけを出すと
+        # 「ひし形に囲まれた判断」なのか本文の注記なのか分からない
+        described = set()
+        for wsp in (node for node in walk(element) if node.tag == q("wps:wsp")):
+            note = geometry_note(wsp)
+            for box in (node for node in walk(wsp) if node.tag == text_box):
+                described.add(id(box))
+                text = " / ".join(self._blocks(box, relationships))
+                if text:
+                    parts.append(
+                        f"[shape] {text} {note}" if note else f"[text box] {text}"
+                    )
+
         for box in (node for node in walk(element) if node.tag == text_box):
+            if id(box) in described:
+                continue
             text = " / ".join(self._blocks(box, relationships))
             if text:
                 parts.append(f"[text box] {text}")
