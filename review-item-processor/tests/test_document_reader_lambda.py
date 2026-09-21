@@ -347,3 +347,69 @@ class TestUsingAPictureWhileReviewing:
         assert "not read before the review" in entry["error"]
         with pytest.raises(DocumentToolError):
             library.picture_text("photo.png")
+
+
+class TestWhenTheJobUsesTheTools:
+    """道具経路に入るかは、書類1件ずつでは決まらない。
+    合わないと「道具で読むのに画像を読んでいない」ジョブが生まれる"""
+
+    def test_counts_the_pages_across_the_whole_job(self):
+        # 40ページが3件。どれも単体では収まるのに、合計120ページで溢れる
+        facts = [{"kind": "pdf", "pages": 40, "bytes": 1000} for _ in range(3)]
+        assert reader.uses_tools(facts)
+
+    def test_leaves_a_job_that_fits(self):
+        facts = [{"kind": "pdf", "pages": 30, "bytes": 1000} for _ in range(3)]
+        assert not reader.uses_tools(facts)
+
+    def test_spots_a_pdf_that_is_too_large(self):
+        assert reader.uses_tools([{"kind": "pdf", "pages": 1, "bytes": 5_000_000}])
+
+    # 記入値や注釈のある PDF は、そのまま渡す経路に載せない決まり
+    def test_spots_a_pdf_with_filled_in_fields(self):
+        assert reader.uses_tools(
+            [{"kind": "pdf", "pages": 1, "bytes": 1000, "hidden": True}]
+        )
+
+    def test_spots_a_job_with_more_documents_than_one_request_takes(self):
+        facts = [{"kind": "office"} for _ in range(6)]
+        assert reader.uses_tools(facts)
+
+
+def test_reads_a_picture_when_the_job_overflows_on_total_pages(wired, monkeypatch):
+    """40ページ×3件＋写真。PDF はどれも読み取り不要だが、ジョブは道具経路に
+    入るので、写真を読んでおかないと中身が見られない"""
+    pdf = scanned_pdf_bytes(pages=40)
+    # 文字が取れる扱いにして、PDF 自体は読み取り不要にする
+    monkeypatch.setattr(
+        reader, "survey_pdf", lambda path: [_readable_page(n) for n in range(1, 41)]
+    )
+    wired(
+        {
+            "docs/a.pdf": pdf,
+            "docs/b.pdf": pdf,
+            "docs/c.pdf": pdf,
+            "docs/photo.png": png_bytes(),
+        }
+    )
+
+    result = reader.plan(
+        {
+            "bucket": "b",
+            "documents": [
+                {"key": "docs/a.pdf", "filename": "a.pdf"},
+                {"key": "docs/b.pdf", "filename": "b.pdf"},
+                {"key": "docs/c.pdf", "filename": "c.pdf"},
+                {"key": "docs/photo.png", "filename": "photo.png"},
+            ],
+        }
+    )
+
+    kinds = [task["kind"] for task in result["tasks"]]
+    assert kinds == ["picture"]
+
+
+def _readable_page(number):
+    from document_digest import PageSurvey
+
+    return PageSurvey(page=number, characters=2000)

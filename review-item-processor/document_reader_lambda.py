@@ -50,6 +50,8 @@ from document_reader import (
     parse_image_file,
     parse_pages,
 )
+from pdf_extras import has_hidden_content
+
 import digest_store
 
 logger = logging.getLogger()
@@ -68,6 +70,7 @@ IMAGE_EXTENSIONS = (
 # そのまま渡せる書類の目安。review_documents の上限と同じにしてある
 PAGE_LIMIT = 100
 BYTE_LIMIT = 4_500_000
+DOCUMENTS_PER_REQUEST = 5
 
 _s3 = None
 _bedrock = None
@@ -106,6 +109,8 @@ def plan(event: dict[str, Any]) -> dict[str, Any]:
     tasks: list[dict[str, Any]] = []
     documents: list[dict[str, Any]] = []
     pictures: list[dict[str, Any]] = []
+    # 1回で渡せるかを、ジョブ全体で見るための材料
+    facts: list[dict[str, Any]] = []
 
     for document in event.get("documents") or []:
         # 審査の準備処理は s3Path という名前で渡してくる。呼び出し側に
@@ -117,9 +122,11 @@ def plan(event: dict[str, Any]) -> dict[str, Any]:
         lowered = name.lower()
 
         if lowered.endswith(".pdf"):
-            tasks_for, page_count = _plan_pdf(bucket, key, name)
+            tasks_for, page_count, fact = _plan_pdf(bucket, key, name)
+            facts.append(fact)
         elif lowered.endswith((".docx", ".xlsx", ".pptx")):
             tasks_for, page_count = _plan_office(bucket, key, name)
+            facts.append({"kind": "office"})
         elif lowered.endswith(IMAGE_EXTENSIONS):
             # 画像は、ほかの書類の都合で道具経路に回るときだけ読む。下で判断する
             pictures.append({"key": key, "name": name})
@@ -136,8 +143,12 @@ def plan(event: dict[str, Any]) -> dict[str, Any]:
     # 中身が一切見られないまま判定される。先に読んでおけば、文字は画像の枠を
     # 使わずに読め、見る必要があるときだけ開ける。
     #
-    # ほかの書類が1回で渡せるジョブでは、画像はそのままモデルに届くので読まない
-    if tasks and pictures:
+    # ほかの書類が1回で渡せるジョブでは、画像はそのままモデルに届くので読まない。
+    #
+    # 「道具経路に入るか」は、書類1件ずつでは決まらない。ページ数の上限は
+    # ジョブ全体の合計で効くので、40ページの PDF が3件あれば、どれも単体では
+    # 収まるのにジョブは収まらない
+    if (bool(tasks) or uses_tools(facts)) and pictures:
         for picture in pictures:
             tasks.append(
                 {"kind": "picture", "key": picture["key"], "name": picture["name"]}
@@ -148,18 +159,28 @@ def plan(event: dict[str, Any]) -> dict[str, Any]:
     return {"tasks": tasks, "documents": documents, "anyToRead": bool(tasks)}
 
 
-def _plan_pdf(bucket: str, key: str, name: str) -> tuple[list[dict], int]:
+def _plan_pdf(bucket: str, key: str, name: str) -> tuple[list[dict], int, dict]:
     with _downloaded(bucket, key, ".pdf") as path:
         survey = survey_pdf(path)
         size = os.path.getsize(path)
+        hidden = has_hidden_content(path)
+
+    fact = {
+        "kind": "pdf",
+        "pages": len(survey),
+        "bytes": size,
+        # 記入値や注釈のある PDF は、そのまま渡す経路に載せない決まりなので、
+        # そのジョブは道具で読むことになる
+        "hidden": hidden,
+    }
 
     if not survey:
-        return ([], 0)
+        return ([], 0, fact)
     if not needs_digest(
         survey, size_bytes=size, page_limit=PAGE_LIMIT, byte_limit=BYTE_LIMIT
     ):
         logger.info("%s can be sent as it is, so it is not read ahead", name)
-        return ([], 0)
+        return ([], 0, fact)
 
     batches = plan_batches(len(survey))
     return (
@@ -174,7 +195,27 @@ def _plan_pdf(bucket: str, key: str, name: str) -> tuple[list[dict], int]:
             for batch in batches
         ],
         len(survey),
+        fact,
     )
+
+
+def uses_tools(facts: list[dict[str, Any]]) -> bool:
+    """このジョブは道具で読む経路に入るか。
+
+    review_documents の上限と同じ見方をする。ずれると、道具で読むのに
+    画像を読んでいない（＝写真が見えない）ジョブが生まれる
+    """
+    pdfs = [fact for fact in facts if fact.get("kind") == "pdf"]
+    if any(fact.get("hidden") for fact in pdfs):
+        return True
+    if any(fact.get("bytes", 0) > BYTE_LIMIT for fact in pdfs):
+        return True
+    # ページ数はジョブ全体の合計で効く
+    if sum(fact.get("pages", 0) for fact in pdfs) > PAGE_LIMIT:
+        return True
+    # 1回に載せられる文書は5つまで。まとめれば収まることもあるが、
+    # ここは多めに見ておく（読みすぎても、画像1枚あたり数円で済む）
+    return len(facts) > DOCUMENTS_PER_REQUEST
 
 
 def _plan_office(bucket: str, key: str, name: str) -> tuple[list[dict], int]:
