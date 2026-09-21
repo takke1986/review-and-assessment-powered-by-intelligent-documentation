@@ -21,6 +21,7 @@ describe("getCheckFailureTrends", () => {
   it("returns the rows and how many jobs they come from", async () => {
     const statisticsRepo = repo();
     const checkRepo = {
+      findCheckListSetOwner: vi.fn().mockResolvedValue("u-1"),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({ userId: "u-1" }),
     };
 
@@ -38,6 +39,7 @@ describe("getCheckFailureTrends", () => {
 
   it("refuses someone else's checklist", async () => {
     const checkRepo = {
+      findCheckListSetOwner: vi.fn().mockResolvedValue("u-1"),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({ userId: "u-1" }),
     };
 
@@ -52,6 +54,7 @@ describe("getCheckFailureTrends", () => {
 
   it("lets an admin read it", async () => {
     const checkRepo = {
+      findCheckListSetOwner: vi.fn().mockResolvedValue("u-1"),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({ userId: "u-1" }),
     };
 

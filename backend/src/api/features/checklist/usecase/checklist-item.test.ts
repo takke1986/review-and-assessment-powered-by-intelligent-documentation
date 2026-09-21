@@ -21,6 +21,7 @@ const makeRequest = (): CreateChecklistItemRequest => ({
 describe("createChecklistItem authorization", () => {
   it("throws ForbiddenError when user is not owner", async () => {
     const repo = {
+      findCheckListSetOwner: vi.fn().mockResolvedValue("owner-1"),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({
         userId: "owner-1",
       }),
@@ -40,6 +41,7 @@ describe("createChecklistItem authorization", () => {
 
   it("allows owner to create checklist item", async () => {
     const repo = {
+      findCheckListSetOwner: vi.fn().mockResolvedValue("owner-1"),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({
         userId: "owner-1",
       }),
@@ -61,6 +63,7 @@ describe("createChecklistItem authorization", () => {
 describe("checklist item edit/delete authorization", () => {
   it("throws ForbiddenError when non-owner modifies item", async () => {
     const repo = {
+      findCheckListSetOwner: vi.fn().mockResolvedValue("owner-1"),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({
         userId: "owner-1",
       }),
@@ -92,6 +95,7 @@ describe("checklist item edit/delete authorization", () => {
 
   it("throws ForbiddenError when non-owner deletes item", async () => {
     const repo = {
+      findCheckListSetOwner: vi.fn().mockResolvedValue("owner-1"),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({
         userId: "owner-1",
       }),
@@ -187,6 +191,7 @@ describe("updateCheckListItemModel", () => {
 
   it("updates modelId for a valid item owned by the user", async () => {
     const repo = {
+      findCheckListSetOwner: vi.fn().mockResolvedValue("owner-1"),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({
         userId: "owner-1",
       }),
@@ -214,6 +219,7 @@ describe("updateCheckListItemModel", () => {
 
   it("resets modelId to null (default fallback)", async () => {
     const repo = {
+      findCheckListSetOwner: vi.fn().mockResolvedValue("owner-1"),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({
         userId: "owner-1",
       }),
@@ -241,6 +247,7 @@ describe("updateCheckListItemModel", () => {
 
   it("throws NotFoundError when item does not exist", async () => {
     const repo = {
+      findCheckListSetOwner: vi.fn().mockResolvedValue("owner-1"),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({
         userId: "owner-1",
       }),
@@ -265,6 +272,7 @@ describe("updateCheckListItemModel", () => {
 
   it("throws ForbiddenError when non-owner updates model", async () => {
     const repo = {
+      findCheckListSetOwner: vi.fn().mockResolvedValue("owner-1"),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({
         userId: "owner-1",
       }),
@@ -291,6 +299,7 @@ describe("updateCheckListItemModel", () => {
 
   it("throws ValidationError when modelId is not in availableModels", async () => {
     const repo = {
+      findCheckListSetOwner: vi.fn().mockResolvedValue("owner-1"),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({
         userId: "owner-1",
       }),

@@ -1,4 +1,5 @@
 import { ulid } from "ulid";
+import { normalizeForStorage } from "../../../../core/utils/search-text";
 import {
   CreateChecklistItemRequest,
   CreateChecklistSetRequest,
@@ -256,7 +257,8 @@ export const CheckListItemDomain = {
   toPrismaCheckListItem: (item: CheckListItemEntity): PrismaCheckList => {
     return {
       id: item.id,
-      name: item.name,
+      // 保存も表示もこの名前を使う。検索と突き合わせられるよう、ここでそろえる
+      name: normalizeForStorage(item.name),
       description: item.description ?? null,
       checkListSetId: item.setId,
       parentId: item.parentId ?? null,

@@ -48,7 +48,18 @@ export const makePrismaReviewResultRepository = async (
     const result = await client.reviewResult.findUnique({
       where: { id: resultId },
       include: {
-        checkList: true,
+        // 使うのは6列だけ。全列だと着眼点やフィードバック要約（Text）まで
+        // 結果1件ごとに運ぶことになる
+        checkList: {
+          select: {
+            id: true,
+            checkListSetId: true,
+            name: true,
+            description: true,
+            parentId: true,
+            importance: true,
+          },
+        },
         previousResult: { select: ReviewResultDomain.previousResultSelect },
       },
     });
@@ -131,7 +142,18 @@ export const makePrismaReviewResultRepository = async (
     const results = await client.reviewResult.findMany({
       where: whereCondition,
       include: {
-        checkList: true,
+        // 使うのは6列だけ。全列だと着眼点やフィードバック要約（Text）まで
+        // 結果1件ごとに運ぶことになる
+        checkList: {
+          select: {
+            id: true,
+            checkListSetId: true,
+            name: true,
+            description: true,
+            parentId: true,
+            importance: true,
+          },
+        },
         previousResult: { select: ReviewResultDomain.previousResultSelect },
       },
       orderBy: {

@@ -29,10 +29,7 @@ const assertChecklistSetOwner = async (params: {
   api: string;
   resourceId?: string;
 }): Promise<void> => {
-  const checkListSet = await params.repo.findCheckListSetDetailById(
-    params.setId
-  );
-  const ownerUserId = checkListSet.userId;
+  const ownerUserId = await params.repo.findCheckListSetOwner(params.setId);
   assertHasOwnerAccessOrThrow(params.user, ownerUserId, {
     api: params.api,
     resourceId: params.resourceId ?? params.setId,
@@ -193,15 +190,11 @@ export const bulkAssignToolConfiguration = async (params: {
     return 0;
   }
 
-  const setIds = new Set<string>();
-  for (const checkId of params.checkIds) {
-    const item = await repo.findCheckListItemById(checkId);
-    setIds.add(item.setId);
-  }
-  if (setIds.size > 1) {
+  const setIds = await repo.findSetIdsForCheckItems(params.checkIds);
+  if (setIds.length > 1) {
     throw new ValidationError("Mixed checklist set ids are not supported");
   }
-  const [setId] = Array.from(setIds);
+  const [setId] = setIds;
   await assertChecklistSetOwner({
     user: params.user,
     setId,

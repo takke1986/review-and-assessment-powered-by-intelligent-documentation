@@ -41,6 +41,10 @@ export interface CheckRepository {
     importanceFilter?: CHECK_ITEM_IMPORTANCE
   ): Promise<CheckListItemDetail[]>;
   findCheckListSetDetailById(setId: string): Promise<CheckListSetDetailModel>;
+  /** 所有者だけを見る。権限の確認に詳細（文書全件と審査回数）まで読む必要はない */
+  findCheckListSetOwner(setId: string): Promise<string>;
+  /** 複数の項目がどのセットに属するかをまとめて引く。一括操作で1件ずつ読まないため */
+  findSetIdsForCheckItems(checkIds: string[]): Promise<string[]>;
   storeCheckListItem(params: { item: CheckListItemEntity }): Promise<void>;
   bulkStoreCheckListItems(params: {
     items: CheckListItemEntity[];
@@ -520,6 +524,33 @@ export const makePrismaCheckRepository = async (
     return mappedItems;
   };
 
+  const findSetIdsForCheckItems = async (
+    checkIds: string[]
+  ): Promise<string[]> => {
+    const rows = await client.checkList.findMany({
+      where: { id: { in: checkIds } },
+      select: { id: true, checkListSetId: true },
+    });
+    // 1件ずつ読んでいたときは見つからない項目で例外になっていた。同じにする
+    const found = new Set(rows.map((row) => row.id));
+    const missing = checkIds.find((id) => !found.has(id));
+    if (missing) {
+      throw new NotFoundError(`CheckListItem not found`, missing);
+    }
+    return Array.from(new Set(rows.map((row) => row.checkListSetId)));
+  };
+
+  const findCheckListSetOwner = async (setId: string): Promise<string> => {
+    const found = await client.checkListSet.findUnique({
+      where: { id: setId },
+      select: { userId: true },
+    });
+    if (!found) {
+      throw new NotFoundError(`CheckListSet not found`, setId);
+    }
+    return found.userId;
+  };
+
   const findCheckListSetDetailById = async (
     setId: string
   ): Promise<CheckListSetDetailModel> => {
@@ -624,7 +655,7 @@ export const makePrismaCheckRepository = async (
       await client.checkList.createMany({
         data: items.map((item) => ({
           id: item.id,
-          name: item.name,
+          name: normalizeForStorage(item.name),
           description: item.description,
           parentId: item.parentId,
           checkListSetId: item.setId,
@@ -835,6 +866,8 @@ export const makePrismaCheckRepository = async (
     deleteCheckListSetById,
     findAllCheckListSets,
     findCheckListItems,
+    findCheckListSetOwner,
+    findSetIdsForCheckItems,
     findCheckListSetDetailById,
     storeCheckListItem,
     bulkStoreCheckListItems,

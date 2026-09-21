@@ -1,4 +1,5 @@
 import { ulid } from "ulid";
+import { normalizeForStorage } from "../../../../core/utils/search-text";
 
 export interface KnowledgeBaseConfig {
   knowledgeBaseId: string;
@@ -26,7 +27,8 @@ export const ToolConfigurationDomain = {
   }): ToolConfigurationEntity => {
     return {
       id: ulid(),
-      name: req.name,
+      // 保存も表示もこの名前を使う。検索と突き合わせられるよう、ここでそろえる
+      name: normalizeForStorage(req.name),
       description: req.description,
       knowledgeBase: req.knowledgeBase,
       codeInterpreter: req.codeInterpreter,

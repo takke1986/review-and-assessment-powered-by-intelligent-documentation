@@ -7,19 +7,9 @@ import {
   ReviewJobSummary,
   ReviewJobDetail,
   REVIEW_JOB_STATUS,
-  ReviewResultEntity,
-  ReviewResultDetail,
-  REVIEW_RESULT,
-  REVIEW_RESULT_STATUS,
   REVIEW_FILE_TYPE,
-  ReviewResultDomain,
 } from "./model/review";
-import {
-  CHECK_LIST_STATUS,
-  CHECK_ITEM_IMPORTANCE,
-  DEFAULT_CHECK_ITEM_IMPORTANCE,
-  parseCheckItemImportance,
-} from "../../checklist/domain/model/checklist";
+import { CHECK_LIST_STATUS } from "../../checklist/domain/model/checklist";
 import { countCheckItems } from "./service/check-item-selection";
 import { countReviewProgress } from "./service/review-progress";
 import {
@@ -440,11 +430,9 @@ export const makePrismaReviewJobRepository = async (
     const [jobResults, checkItems] = await Promise.all([
       client.reviewResult.findMany({
         where: { reviewJobId },
-        select: {
-          checkId: true,
-          status: true,
-          checkList: { select: { parentId: true } },
-        },
+        // 親子は下で読む項目一覧から引くので結合しない。結果1件ごとに結合すると
+        // 項目数に比例した行を毎回読むことになる
+        select: { checkId: true, status: true },
       }),
       client.checkList.findMany({
         where: { checkListSetId: job.checkListSetId },
@@ -452,8 +440,8 @@ export const makePrismaReviewJobRepository = async (
       }),
     ]);
 
-    console.log(
-      `[DEBUG REPO] Full job data from database: ${JSON.stringify(job)}`
+    const parentByCheckId = new Map(
+      checkItems.map((item) => [item.id, item.parentId ?? null])
     );
 
     return {
@@ -507,7 +495,7 @@ export const makePrismaReviewJobRepository = async (
         jobResults.map((r) => ({
           checkId: r.checkId,
           status: r.status,
-          parentId: r.checkList.parentId,
+          parentId: parentByCheckId.get(r.checkId) ?? null,
         }))
       ),
     };

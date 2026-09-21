@@ -37,10 +37,9 @@ const assertChecklistSetOwner = async (params: {
   api: string;
   resourceId?: string;
 }): Promise<void> => {
-  const checkListSet = await params.repo.findCheckListSetDetailById(
+  const ownerUserId = await params.repo.findCheckListSetOwner(
     params.checkListSetId
   );
-  const ownerUserId = checkListSet.userId;
   assertHasOwnerAccessOrThrow(params.user, ownerUserId, {
     api: params.api,
     resourceId: params.resourceId ?? params.checkListSetId,

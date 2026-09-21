@@ -1,5 +1,5 @@
 import { PrismaClient, getPrismaClient, Prisma } from "../../../core/db";
-import { normalizeForStorage, normalizeSearchTerm } from "../../../core/utils/search-text";
+import { normalizeSearchTerm } from "../../../core/utils/search-text";
 import { PaginatedResponse } from "../../../common/types";
 import { NotFoundError } from "../../../core/errors";
 import { ToolConfigurationEntity } from "./model/tool-configuration";
@@ -27,7 +27,7 @@ export const makePrismaToolConfigurationRepository = async (
     await client.toolConfiguration.create({
       data: {
         id: config.id,
-        name: normalizeForStorage(config.name),
+        name: config.name,
         description: config.description,
         knowledgeBase: config.knowledgeBase
           ? (config.knowledgeBase as unknown as Prisma.InputJsonValue)

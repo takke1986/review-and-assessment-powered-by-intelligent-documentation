@@ -123,10 +123,9 @@ export default function CheckListItemTreeNode({
     setIsExpanded(!isExpanded);
   };
 
-  // 字下げ。段ごとに幅が削られるので、携帯では刻みを小さくする。
-  // 390px の画面で 20px ずつ削ると、3段目には題名の幅が残らない
-  const indentStyle = { "--tree-level": level } as React.CSSProperties;
-  const indentClass = "ml-[calc(var(--tree-level)*0.75rem)] sm:ml-[calc(var(--tree-level)*1.25rem)]";
+  // 字下げ。段ごとに幅が削られる。CheckItemPicker と ReviewReportPage も
+  // 同じ刻みなので、書き方をそろえる
+  const indent = (depth: number) => ({ marginLeft: `${depth * 1.25}rem` });
 
   const { t } = useTranslation();
   const { showConfirm, showError, AlertModal } = useAlert();
@@ -158,7 +157,7 @@ export default function CheckListItemTreeNode({
   return (
     <>
       <div>
-        <div className={indentClass} style={indentStyle}>
+        <div style={indent(level)}>
           <ResultCard
             variant={item.ambiguityReview && isEditable ? "error" : "default"}
             className={isOpenTarget ? "ring-2 ring-aws-sea-blue-light" : ""}>
@@ -214,7 +213,7 @@ export default function CheckListItemTreeNode({
                   )}
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-nowrap sm:gap-0 sm:space-x-2">
+              <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-nowrap">
                 {/* 重要度 - リーフノードのみ。判定に使わないので、編集できないチェックリストでも変えられる */}
                 {!item.hasChildren && (
                   <ImportanceSelector
@@ -346,14 +345,14 @@ export default function CheckListItemTreeNode({
           <div className="mt-2 space-y-2">
             {isLoadingChildren ? (
               <div
-                className={`flex justify-center py-4 ${indentClass}`}
-                style={{ "--tree-level": level + 1 } as React.CSSProperties}>
+                className="flex justify-center py-4"
+                style={indent(level + 1)}>
                 <Spinner size="md" />
               </div>
             ) : errorChildren ? (
               <div
-                className={`text-red-500 py-2 ${indentClass}`}
-                style={{ "--tree-level": level + 1 } as React.CSSProperties}>
+                className="text-red-500 py-2"
+                style={indent(level + 1)}>
                 {t("checklist.childItemsLoadError")}
               </div>
             ) : (

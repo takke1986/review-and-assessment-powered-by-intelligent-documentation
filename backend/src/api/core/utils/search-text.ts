@@ -15,6 +15,7 @@ export const normalizeForStorage = (value: string): string =>
 export const normalizeSearchTerm = (
   value: string | undefined
 ): string | undefined => {
-  const trimmed = value?.trim().normalize("NFC");
+  // 保存と同じ正規化を通す。別に書くと、片方だけ直したときに食い違う
+  const trimmed = normalizeForStorage(value ?? "").trim();
   return trimmed ? trimmed : undefined;
 };

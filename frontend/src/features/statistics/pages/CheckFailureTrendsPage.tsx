@@ -107,11 +107,15 @@ export default function CheckFailureTrendsPage() {
     }
   }, [sets, setId]);
 
-  // 数が増えるとドロップダウンでは探せないので、名前で絞り込む
+  // 数が増えるとドロップダウンでは探せないので、名前で絞り込む。
+  // ここは画面側で絞るので、サーバと同じように合成方法をそろえる。
+  // macOS が作る名前は「カ」+ 結合濁点の分解形で、打つ文字は合成済みの「ガ」
   const matchedSets = useMemo(() => {
-    const needle = query.trim().toLowerCase();
+    const needle = query.trim().normalize("NFC").toLowerCase();
     if (!needle) return sets;
-    return sets.filter((set) => set.name.toLowerCase().includes(needle));
+    return sets.filter((set) =>
+      set.name.normalize("NFC").toLowerCase().includes(needle)
+    );
   }, [sets, query]);
 
   // この表はページで区切らず全件を持っているので、画面側で並べても正しい。

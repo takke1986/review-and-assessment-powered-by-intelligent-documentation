@@ -46,6 +46,8 @@ model CheckListSet {
   createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamp(0)
 
   @@index([userId], map: "idx_check_list_sets_user_id")
+  /// 一覧の既定の並び
+  @@index([createdAt], map: "idx_check_list_sets_created")
   @@map("check_list_sets")
 }
 
@@ -176,12 +178,11 @@ model ReviewJob {
 
   @@index([checkListSetId], map: "review_jobs_check_list_set_id_fkey")
   @@index([sourceReviewJobId], map: "idx_review_jobs_source_review_job")
-  /// 部署で絞る一覧が主な使い道
-  @@index([departmentId], map: "idx_review_jobs_department")
-  /// 一覧は作成日時の新しい順に出すので、並べ替えを索引順にたどる
+  /// 一覧は作成日時の新しい順に出すので、並べ替えを索引順にたどる。
+  /// 絞り込みは user_id と department_id なので、その2つには並べ替えも載せる
   @@index([createdAt], map: "idx_review_jobs_created")
   @@index([userId, createdAt], map: "idx_review_jobs_user_created")
-  @@index([sharedWithOrg, createdAt], map: "idx_review_jobs_shared_created")
+  @@index([departmentId, createdAt], map: "idx_review_jobs_dept_created")
   @@index([status, createdAt], map: "idx_review_jobs_status_created")
   @@map("review_jobs")
 }
