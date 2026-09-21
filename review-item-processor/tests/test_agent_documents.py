@@ -186,3 +186,77 @@ def test_images_are_shrunk_before_the_image_reader_reads_them(tmp_path, monkeypa
     )
 
     assert seen == {"formats": ["JPEG"], "names": ["現場写真.bmp"]}
+
+
+def test_a_transcribed_file_is_read_through_document_tools(tmp_path, monkeypatch):
+    """先に読み取ってある書類は、1回で渡せる大きさでも道具で読ませる。
+
+    スキャンした短い PDF は、そのまま渡しても上限に当たらない。この分岐が
+    ないと、せっかくの書き起こしを使わずに中身の薄い判定になる
+    """
+    from document_digest import PageDigest
+
+    sent = {}
+
+    class FakeAgent:
+        def __init__(self, **kwargs):
+            sent["tools"] = [tool.tool_name for tool in kwargs["tools"]]
+
+        def __call__(self, prompt):
+            sent["prompt"] = prompt
+            raise Sent
+
+    monkeypatch.setattr(agent, "Agent", FakeAgent)
+    # そのまま渡せる、と判断される状況をあえて作る
+    monkeypatch.setattr(agent, "_should_use_document_block", lambda *args: True)
+    pdf = tmp_path / "scan.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+
+    with pytest.raises(Sent):
+        agent._execute_review_core(
+            files=[ReviewFile(str(pdf), "申込書.pdf")],
+            has_images=False,
+            check_name="check",
+            check_description="description",
+            language_name="日本語",
+            model_id=MODEL_ID,
+            toolConfiguration=None,
+            feedback_summary=None,
+            digests={str(pdf): [PageDigest(page=1, text="申込者 山田")]},
+        )
+
+    assert sent["tools"][:2] == ["list_documents", "search_documents"]
+
+
+def test_a_file_with_no_transcription_is_sent_as_it_is(tmp_path, monkeypatch):
+    """読み取りを回していない書類の扱いは変わらない"""
+    sent = {}
+
+    class FakeAgent:
+        def __init__(self, **kwargs):
+            pass
+
+        def __call__(self, content):
+            sent["content"] = content
+            raise Sent
+
+    monkeypatch.setattr(agent, "Agent", FakeAgent)
+    monkeypatch.setattr(agent, "_should_use_document_block", lambda *args: True)
+    pdf = tmp_path / "plain.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+
+    with pytest.raises(Sent):
+        agent._execute_review_core(
+            files=[ReviewFile(str(pdf), "契約書.pdf")],
+            has_images=False,
+            check_name="check",
+            check_description="description",
+            language_name="日本語",
+            model_id=MODEL_ID,
+            toolConfiguration=None,
+            feedback_summary=None,
+            digests={},
+        )
+
+    # そのまま渡す経路は、中身を組み立ててモデルに渡す
+    assert any("document" in block for block in sent["content"])

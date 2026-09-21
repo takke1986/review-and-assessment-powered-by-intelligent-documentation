@@ -28,6 +28,7 @@ from review_documents import (
     write_office_files_as_markdown,
 )
 from review_images import prepare_image_file
+import digest_store
 from tool_history_collector import ToolHistoryCollector
 from tools.factory import create_custom_tools
 
@@ -323,6 +324,7 @@ def _execute_review_core(
     toolConfiguration: dict[str, Any] | None,
     feedback_summary: str | None,
     review_guidance: str | None = None,
+    digests: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Execute review from local files (common logic).
@@ -344,6 +346,41 @@ def _execute_review_core(
     use_document_block = _should_use_document_block(
         [file.path for file in files], model_id, has_images
     )
+
+    # 先に読み取ってある書類は、道具で読ませる。読み取りは「1回で渡せない」
+    # か「文字が取り出せない」書類にしか作られていない。とくにスキャンした
+    # 短い PDF は、そのまま渡しても上限に当たらないので、この分岐がないと
+    # 読み取り結果を使わないまま、中身の薄い判定になる。
+    # 画像そのものを審査するジョブは別の道（画像を直接見る）なので触らない
+    if digests and not has_images:
+        logger.info(
+            "Reading the files through document tools: %s of them were "
+            "transcribed before the review",
+            len(digests),
+        )
+        result = _run_agent_with_document_tools(
+            prompt=get_document_review_prompt(
+                language_name,
+                check_name,
+                check_description,
+                use_citations=False,
+                tool_config=toolConfiguration,
+                feedback_summary=feedback_summary,
+                review_guidance=review_guidance,
+                document_access=_DOCUMENT_TOOLS_ACCESS,
+            ),
+            files=files,
+            model_id=model_id,
+            system_prompt=(
+                "You are an expert document reviewer. "
+                "Analyze the provided files and evaluate the check item. "
+                f"All responses must be in {language_name}."
+            ),
+            toolConfiguration=toolConfiguration,
+            digests=digests,
+        )
+        result["reviewType"] = "PDF"
+        return result
 
     logger.debug(
         f"Processing method: "
@@ -398,6 +435,7 @@ def _execute_review_core(
                 model_id=model_id,
                 system_prompt=system_prompt,
                 toolConfiguration=toolConfiguration,
+                digests=digests,
             )
         result["reviewType"] = "PDF"
 
@@ -653,6 +691,7 @@ def _run_agent_with_document_tools(
     temperature: float = 0.0,
     toolConfiguration: Optional[Dict[str, Any]] = None,
     converted: Optional[Dict[str, Any]] = None,
+    digests: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Run Strands agent that reads the files through document tools.
@@ -665,7 +704,7 @@ def _run_agent_with_document_tools(
     meta_tracker = ReviewMetaTracker(model_id)
     history_collector = ToolHistoryCollector(truncate_length=TOOL_TEXT_TRUNCATE_LENGTH)
 
-    library = DocumentLibrary(files, converted=converted)
+    library = DocumentLibrary(files, converted=converted, digests=digests)
     tools = create_document_tools(library) + create_custom_tools(toolConfiguration)
 
     bedrock_config = {
@@ -1314,6 +1353,8 @@ def process_review_from_s3(
     temp_dir = tempfile.mkdtemp()
     logger.debug(f"Created temporary directory: {temp_dir}")
     files: list[ReviewFile] = []
+    # S3 のキー → 手元に落としたファイル。読み取り結果を手元の名前で引くため
+    local_paths: dict[str, str] = {}
 
     try:
         # Download files from S3
@@ -1332,6 +1373,14 @@ def process_review_from_s3(
             logger.debug(f"Downloading {path} to {sanitized_path}")
             s3_client.download_file(document_bucket, path, sanitized_path)
             files.append(ReviewFile(path=sanitized_path, name=original_basename))
+            local_paths[path] = sanitized_path
+
+        # 先に読み取ってあれば受け取る。無ければ空で、今までどおりの審査になる
+        digests = digest_store.load_for_documents(
+            document_bucket, local_paths, s3=s3_client
+        )
+        if digests:
+            logger.info("Using the transcription of %s files", len(digests))
 
         # Detect file types
         has_images = _detect_image_file([file.path for file in files])
@@ -1351,6 +1400,7 @@ def process_review_from_s3(
             toolConfiguration=toolConfiguration,
             feedback_summary=feedback_summary,
             review_guidance=review_guidance,
+            digests=digests,
         )
 
         logger.info("S3 review completed successfully")
