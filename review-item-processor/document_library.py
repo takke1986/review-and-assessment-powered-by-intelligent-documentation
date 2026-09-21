@@ -34,6 +34,7 @@ from office_documents import (
     OfficeFileError,
     convert_office_file,
 )
+from document_digest import PageDigest, figure_pages, unread_pages
 from review_documents import ReviewFile
 from review_images import encode_image
 
@@ -77,6 +78,9 @@ class _Document:
     sections: Optional[list[Section]] = None
     reader: Optional[PdfReader] = None
     page_texts: dict[int, str] = field(default_factory=dict)
+    # 先に読み取っておいた結果。ページ番号 → その1枚ぶん。
+    # 大きい書類やスキャンした書類でだけ作られるので、普段は空
+    digest: dict[int, PageDigest] = field(default_factory=dict)
 
 
 def _normalize(text: str) -> str:
@@ -136,6 +140,7 @@ class DocumentLibrary:
         self,
         files: list[ReviewFile],
         converted: Optional[dict[str, OfficeDocument]] = None,
+        digests: Optional[dict[str, list[PageDigest]]] = None,
     ):
         # Strands はツールを並行して呼ぶ。pypdf と PDFium はスレッドセーフではない
         self._lock = threading.RLock()
@@ -146,8 +151,15 @@ class DocumentLibrary:
             counts[key] = counts.get(key, 0) + 1
             name = file.name if counts[key] == 1 else f"{file.name} ({counts[key]})"
             kind = _KINDS.get(os.path.splitext(file.path.lower())[1], "other")
+            pages = (digests or {}).get(file.path) or []
             self._documents.append(
-                _Document(file, name, kind, office=(converted or {}).get(file.path))
+                _Document(
+                    file,
+                    name,
+                    kind,
+                    office=(converted or {}).get(file.path),
+                    digest={page.page: page for page in pages},
+                )
             )
         self.chars_returned = 0
         self.images_returned = 0
@@ -162,6 +174,15 @@ class DocumentLibrary:
                 try:
                     if document.kind == "pdf":
                         entry["pages"] = len(self._pdf(document).pages)
+                        if document.digest:
+                            # どのページに図があるかを先に見せる。探すために
+                            # ページを開くと、それだけで画像の枠が減る
+                            figures = figure_pages(document.digest.values())
+                            if figures:
+                                entry["figurePages"] = figures
+                            missing = unread_pages(document.digest.values())
+                            if missing:
+                                entry["pagesNotRead"] = missing
                     elif document.kind in _OFFICE_KINDS:
                         office, sections = self._office(document)
                         entry["sections"] = [
@@ -249,10 +270,28 @@ class DocumentLibrary:
             blocks = []
             for page in range(first_page, last + 1):
                 text = self._page_text(document, page)
-                if len(text) < _SCANNED_PAGE_CHARS:
+                read = document.digest.get(page)
+                if len(text) < _SCANNED_PAGE_CHARS and read and read.text.strip():
+                    # ファイルから文字が取れないページ。先に読み取っておいた
+                    # 書き起こしを渡す。これがないと、スキャンした書類は
+                    # ページを画像で開くしかなく、20枚の枠を文字読みで使い切る
+                    text = (
+                        f"{read.text}\n(Transcribed from the page image before the "
+                        "review, because no text could be taken from the file.)"
+                    )
+                elif len(text) < _SCANNED_PAGE_CHARS:
                     text += (
                         "\n(Little or no text could be taken from this page. It may be "
                         "scanned or made of figures: use view_pdf_page to see it.)"
+                    )
+                if read and read.figures:
+                    # 図がある目印。どんな図かまで書いておくと、見るべき
+                    # ページを選べる。20枚の枠を探すために使わずに済む
+                    listed = "; ".join(read.figures)
+                    text += (
+                        f"\n(Figures on this page: {listed}. "
+                        "Use view_pdf_page to see the page itself when the drawing "
+                        "matters.)"
                     )
                 blocks.append(
                     f"--- {document.name}, page {page} of {count} ---\n{text}"

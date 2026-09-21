@@ -181,3 +181,60 @@ class TestSurveyPdf:
 
     def test_says_nothing_about_a_file_that_is_not_there(self):
         assert survey_pdf("/no/such/file.pdf") == []
+
+
+class TestUsingTheDigestWhileReviewing:
+    """読み取っておいた結果が、審査のときにどう効くか"""
+
+    def library(self, tmp_path, digests):
+        import document_library as dl
+        from review_documents import ReviewFile
+
+        writer = PdfWriter()
+        writer.add_blank_page(width=200, height=200)
+        path = tmp_path / "scan.pdf"
+        with open(path, "wb") as handle:
+            writer.write(handle)
+        file = ReviewFile(path=str(path), name="scan.pdf")
+        return dl.DocumentLibrary([file], digests={str(path): digests})
+
+    # スキャンしたページは、本来ページを画像で開くしかない。それだと
+    # 20枚の枠を文字読みで使い切る
+    def test_gives_the_transcription_for_a_page_with_no_text(self, tmp_path):
+        library = self.library(tmp_path, [PageDigest(page=1, text="申込者 山田")])
+        text = library.pdf_pages_text("scan.pdf", 1)
+        assert "申込者 山田" in text
+        assert "Transcribed from the page image" in text
+
+    def test_reading_the_transcription_does_not_use_the_image_budget(self, tmp_path):
+        library = self.library(tmp_path, [PageDigest(page=1, text="申込者 山田")])
+        library.pdf_pages_text("scan.pdf", 1)
+        assert library.images_returned == 0
+
+    def test_says_what_the_figures_on_a_page_show(self, tmp_path):
+        library = self.library(
+            tmp_path, [PageDigest(page=1, text="本文", figures=["配置図。北が上"])]
+        )
+        text = library.pdf_pages_text("scan.pdf", 1)
+        assert "配置図。北が上" in text
+        assert "view_pdf_page" in text
+
+    # 探すためにページを開くと、それだけで枠が減る
+    def test_lists_where_the_figures_are_up_front(self, tmp_path):
+        library = self.library(
+            tmp_path,
+            [PageDigest(page=1, text="本文", figures=["断面図"])],
+        )
+        entry = library.overview()["files"][0]
+        assert entry["figurePages"] == [{"page": 1, "figures": ["断面図"]}]
+
+    def test_says_which_pages_could_not_be_read(self, tmp_path):
+        library = self.library(tmp_path, [PageDigest(page=1)])
+        assert library.overview()["files"][0]["pagesNotRead"] == [1]
+
+    # 読み取りを回していない書類（短くて文字のある PDF）は今までどおり
+    def test_changes_nothing_when_there_is_no_digest(self, tmp_path):
+        library = self.library(tmp_path, [])
+        text = library.pdf_pages_text("scan.pdf", 1)
+        assert "Little or no text could be taken" in text
+        assert "figurePages" not in library.overview()["files"][0]
