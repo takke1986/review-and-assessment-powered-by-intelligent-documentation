@@ -94,6 +94,53 @@ class PageDigest:
         return bool(self.figures)
 
 
+@dataclass
+class ImageDigest:
+    """埋め込み画像1枚の説明。Word・Excel・PowerPoint 用"""
+
+    name: str
+    description: str = ""
+
+
+@dataclass
+class DocumentDigest:
+    """書類1つぶんの読み取り結果。
+
+    PDF はページごと、Office は埋め込み画像ごと。Office の文字は XML から
+    そのまま取れるので書き起こさない（正確でただ）。足りないのは
+    「画像に何が描かれているか」だけ
+    """
+
+    pages: list[PageDigest] = field(default_factory=list)
+    images: list[ImageDigest] = field(default_factory=list)
+
+    def __bool__(self) -> bool:
+        return bool(self.pages or self.images)
+
+    @property
+    def image_descriptions(self) -> dict[str, str]:
+        return {
+            image.name: image.description for image in self.images if image.description
+        }
+
+
+# 埋め込み画像がこれより多い書類は、先に説明しておく。
+# 1回の審査で見られる画像は20枚まで。何が写っているかを知るためだけに
+# 開いていくと、それだけで枠が尽きる
+IMAGES_WORTH_DESCRIBING = 3
+
+
+def needs_image_digest(
+    image_count: int, threshold: int = IMAGES_WORTH_DESCRIBING
+) -> bool:
+    """Office の埋め込み画像を、先に説明しておくか。
+
+    数枚なら、モデルが必要に応じて開けば足りる。多いと「どれを見るべきか」
+    を知るために開くことになり、20枚の枠が探索で消える
+    """
+    return image_count > threshold
+
+
 def needs_digest(
     survey: Iterable[PageSurvey],
     *,
@@ -174,20 +221,24 @@ def figure_pages(digests: Iterable[PageDigest]) -> list[dict[str, Any]]:
     ]
 
 
-def to_json(digests: Iterable[PageDigest]) -> str:
+def to_json(
+    pages: Iterable[PageDigest], images: Iterable[ImageDigest] = ()
+) -> str:
     return json.dumps(
         {
             "version": 1,
             "pages": [
-                {"page": d.page, "text": d.text, "figures": d.figures}
-                for d in digests
+                {"page": d.page, "text": d.text, "figures": d.figures} for d in pages
+            ],
+            "images": [
+                {"name": i.name, "description": i.description} for i in images
             ],
         },
         ensure_ascii=False,
     )
 
 
-def from_json(payload: str) -> list[PageDigest]:
+def from_json(payload: str) -> DocumentDigest:
     """保存した読み取り結果を読み戻す。
 
     壊れていたら空で返す。読み取りは補助なので、読めないことで審査を
@@ -195,13 +246,15 @@ def from_json(payload: str) -> list[PageDigest]:
     """
     try:
         data = json.loads(payload)
-        pages = data.get("pages") or []
-    except (json.JSONDecodeError, AttributeError):
-        return []
-    digests = []
-    for page in pages:
+    except (json.JSONDecodeError, TypeError):
+        return DocumentDigest()
+    if not isinstance(data, dict):
+        return DocumentDigest()
+
+    pages = []
+    for page in data.get("pages") or []:
         try:
-            digests.append(
+            pages.append(
                 PageDigest(
                     page=int(page["page"]),
                     text=str(page.get("text") or ""),
@@ -210,7 +263,20 @@ def from_json(payload: str) -> list[PageDigest]:
             )
         except (KeyError, TypeError, ValueError):
             continue
-    return digests
+
+    images = []
+    for image in data.get("images") or []:
+        try:
+            images.append(
+                ImageDigest(
+                    name=str(image["name"]),
+                    description=str(image.get("description") or ""),
+                )
+            )
+        except (KeyError, TypeError, ValueError):
+            continue
+
+    return DocumentDigest(pages=pages, images=images)
 
 
 def survey_pdf(path: str) -> list[PageSurvey]:

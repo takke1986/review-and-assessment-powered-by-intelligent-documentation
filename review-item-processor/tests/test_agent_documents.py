@@ -194,7 +194,7 @@ def test_a_transcribed_file_is_read_through_document_tools(tmp_path, monkeypatch
     スキャンした短い PDF は、そのまま渡しても上限に当たらない。この分岐が
     ないと、せっかくの書き起こしを使わずに中身の薄い判定になる
     """
-    from document_digest import PageDigest
+    from document_digest import DocumentDigest, PageDigest
 
     sent = {}
 
@@ -222,7 +222,9 @@ def test_a_transcribed_file_is_read_through_document_tools(tmp_path, monkeypatch
             model_id=MODEL_ID,
             toolConfiguration=None,
             feedback_summary=None,
-            digests={str(pdf): [PageDigest(page=1, text="申込者 山田")]},
+            digests={
+                str(pdf): DocumentDigest(pages=[PageDigest(page=1, text="申込者 山田")])
+            },
         )
 
     assert sent["tools"][:2] == ["list_documents", "search_documents"]

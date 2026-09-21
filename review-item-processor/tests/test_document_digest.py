@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from document_digest import (  # noqa: E402
     DigestBatch,
+    DocumentDigest,
     PageDigest,
     PageSurvey,
     figure_pages,
@@ -135,7 +136,7 @@ class TestStoring:
             PageDigest(page=1, text="一ページ目", figures=[]),
             PageDigest(page=2, text="", figures=["配置図"]),
         ]
-        restored = from_json(to_json(digests))
+        restored = from_json(to_json(digests)).pages
         assert [(d.page, d.text, d.figures) for d in restored] == [
             (1, "一ページ目", []),
             (2, "", ["配置図"]),
@@ -143,11 +144,11 @@ class TestStoring:
 
     # 読み取りは補助。読めないことで審査を止めない
     def test_returns_nothing_when_the_stored_file_is_broken(self):
-        assert from_json("{not json") == []
+        assert not from_json("{not json")
 
     def test_skips_a_page_that_does_not_make_sense(self):
         payload = '{"pages": [{"text": "no page number"}, {"page": 2, "text": "ok"}]}'
-        assert [d.page for d in from_json(payload)] == [2]
+        assert [d.page for d in from_json(payload).pages] == [2]
 
 
 SAMPLE_PDF = os.path.join(
@@ -196,7 +197,9 @@ class TestUsingTheDigestWhileReviewing:
         with open(path, "wb") as handle:
             writer.write(handle)
         file = ReviewFile(path=str(path), name="scan.pdf")
-        return dl.DocumentLibrary([file], digests={str(path): digests})
+        return dl.DocumentLibrary(
+            [file], digests={str(path): DocumentDigest(pages=digests)}
+        )
 
     # スキャンしたページは、本来ページを画像で開くしかない。それだと
     # 20枚の枠を文字読みで使い切る

@@ -18,7 +18,7 @@ import logging
 import re
 from typing import Any, Optional
 
-from document_digest import DigestBatch, PageDigest
+from document_digest import DigestBatch, ImageDigest, PageDigest
 
 logger = logging.getLogger(__name__)
 
@@ -187,4 +187,74 @@ def build_read_content(
     content.append(
         {"text": build_read_prompt(name=name, batch=batch, language=language)}
     )
+    return content
+
+
+IMAGE_PROMPT = """You are describing the pictures inside "{name}" so that the
+document can be reviewed later.
+
+You are given the pictures embedded in the file, each after its name.
+
+For each picture, say what it shows and what can be read off it: the kind of
+drawing or chart, what it depicts, the labels, figures and units on it, and how
+the parts relate. Someone who cannot see it should be able to answer questions
+about it from your description. Write in {language}.
+
+Return only JSON, in this shape:
+{{"images": [{{"name": "image1.png", "description": "..."}}]}}
+
+Use the names exactly as they were given to you. Never invent a name."""
+
+
+def build_image_prompt(*, name: str, language: str = "Japanese") -> str:
+    return IMAGE_PROMPT.format(name=name, language=language)
+
+
+def parse_image_descriptions(reply: str, names: list[str]) -> list[ImageDigest]:
+    """モデルの返事から、画像の説明を取り出す。
+
+    渡していない名前は捨てる。見ていない画像の説明を、見たことに
+    してしまうため
+    """
+    data = _load_json(reply)
+    if not isinstance(data, dict):
+        return []
+    entries = data.get("images")
+    if not isinstance(entries, list):
+        return []
+
+    known = set(names)
+    described: list[ImageDigest] = []
+    seen: set[str] = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        name = str(entry.get("name") or "")
+        if name not in known or name in seen:
+            continue
+        description = str(entry.get("description") or "").strip()
+        if not description:
+            continue
+        seen.add(name)
+        described.append(ImageDigest(name=name, description=description))
+    return described
+
+
+def build_image_content(
+    images: list[Any], *, name: str, language: str = "Japanese"
+) -> list[dict[str, Any]]:
+    """埋め込み画像をモデルに渡す形にする。
+
+    1回に渡せる画像は20枚までなので、呼び出し側が20枚ずつに分けて渡す。
+    画像の前に名前を置くのは、返事をどの画像のものか対応づけるため
+    """
+    content: list[dict[str, Any]] = []
+    for image in images:
+        content.append({"text": f"{image.name}:"})
+        content.append(
+            {"image": {"format": image.format, "source": {"bytes": image.data}}}
+        )
+    if not content:
+        return []
+    content.append({"text": build_image_prompt(name=name, language=language)})
     return content

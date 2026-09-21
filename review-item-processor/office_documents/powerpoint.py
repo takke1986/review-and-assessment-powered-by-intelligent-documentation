@@ -10,6 +10,7 @@ from xml.etree import ElementTree as ET
 from . import limits
 from .converter import Converter
 from .drawing import drawing_paragraphs, drawing_text
+from .shapes import geometry_note
 from .ooxml import (
     MC_ALTERNATE,
     Relationships,
@@ -52,7 +53,8 @@ class _SlideContent:
     placed: list[tuple[float, float, str]] = field(default_factory=list)
     # 図形の ID → 文字。コネクタの両端を名前で書くのに使う
     labels: dict[str, str] = field(default_factory=dict)
-    connections: list[tuple[str, str]] = field(default_factory=list)
+    # (始点の図形ID, 終点の図形ID, 矢印に書かれた文字)
+    connections: list[tuple[str, str, str]] = field(default_factory=list)
 
 
 class PowerPointConverter(Converter):
@@ -103,10 +105,12 @@ class PowerPointConverter(Converter):
         content.placed.sort(key=lambda item: (item[0], item[1]))
         lines = [heading] + [text for _, _, text in content.placed]
         # コネクタは、つないだ図形の ID を持っている。図を画像で読むと矢印の両端を読み違える
-        for start, end in content.connections:
+        for start, end, label in content.connections:
             if content.labels.get(start) and content.labels.get(end):
+                note = f" ({label})" if label else ""
                 lines.append(
-                    f"[connection] {content.labels[start]} -> {content.labels[end]}"
+                    f"[connection] {content.labels[start]} -> "
+                    f"{content.labels[end]}{note}"
                 )
         lines += self._notes(relationships)
         return "\n".join(lines)
@@ -133,7 +137,12 @@ class PowerPointConverter(Converter):
             elif tag == q("p:cxnSp"):
                 start, end = first(shape, "a:stCxn"), first(shape, "a:endCxn")
                 if start is not None and end is not None:
-                    content.connections.append((start.get("id", ""), end.get("id", "")))
+                    # 矢印に書かれた文字（「はい」「いいえ」）も拾う。
+                    # これが無いと、分岐のどちらへ進む線なのか分からない
+                    label = " ".join(drawing_text(child(shape, "p:txBody")).split())
+                    content.connections.append(
+                        (start.get("id", ""), end.get("id", ""), label)
+                    )
 
     def _text_shape(self, shape: ET.Element, content: _SlideContent) -> None:
         text = "\n".join(
@@ -152,6 +161,14 @@ class PowerPointConverter(Converter):
         ):
             content.title = one_line
         else:
+            # 差し込み枠（タイトルや箇条書き）はスライドの文章なので、そのまま。
+            # それ以外は描かれた図形なので、形と位置を添える。間取りや配置は
+            # 文字だけでは分からず、位置が無いと「隣り合っているか」を
+            # 判断できない
+            if _placeholder_type(shape, "p:nvSpPr") is None:
+                note = geometry_note(shape)
+                if note:
+                    text = f"{text} {note}"
             content.placed.append((*_position(shape), text))
 
     def _picture(

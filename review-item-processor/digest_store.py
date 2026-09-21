@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from document_digest import PageDigest, from_json, to_json
+from document_digest import DocumentDigest, ImageDigest, PageDigest, from_json, to_json
 
 logger = logging.getLogger(__name__)
 
@@ -24,20 +24,29 @@ def key_for(document_key: str) -> str:
     return f"{DIGEST_PREFIX}{document_key}.json"
 
 
-def save(bucket: str, document_key: str, digests: list[PageDigest], s3=None) -> None:
+def save(
+    bucket: str,
+    document_key: str,
+    pages: list[PageDigest] | None = None,
+    images: list[ImageDigest] | None = None,
+    s3=None,
+) -> None:
     client = s3 or _client()
     client.put_object(
         Bucket=bucket,
         Key=key_for(document_key),
-        Body=to_json(digests).encode("utf-8"),
+        Body=to_json(pages or [], images or []).encode("utf-8"),
         ContentType="application/json",
     )
     logger.info(
-        "Stored the transcription of %s (%s pages)", document_key, len(digests)
+        "Stored what was read from %s (%s pages, %s pictures)",
+        document_key,
+        len(pages or []),
+        len(images or []),
     )
 
 
-def load(bucket: str, document_key: str, s3=None) -> list[PageDigest]:
+def load(bucket: str, document_key: str, s3=None) -> DocumentDigest:
     """1件読み戻す。無ければ空。
 
     読み取りは補助なので、取れなくても審査は続ける。そのかわり審査は
@@ -47,18 +56,18 @@ def load(bucket: str, document_key: str, s3=None) -> list[PageDigest]:
     try:
         body = client.get_object(Bucket=bucket, Key=key_for(document_key))["Body"]
     except Exception as error:  # NoSuchKey を含む。読めない理由で分けない
-        logger.debug("No transcription for %s: %s", document_key, error)
-        return []
+        logger.debug("Nothing was read ahead for %s: %s", document_key, error)
+        return DocumentDigest()
     try:
         return from_json(body.read().decode("utf-8"))
     except Exception as error:
-        logger.warning("Could not read the transcription of %s: %s", document_key, error)
-        return []
+        logger.warning("Could not read what was stored for %s: %s", document_key, error)
+        return DocumentDigest()
 
 
 def load_for_documents(
     bucket: str, local_paths: dict[str, str], s3=None
-) -> dict[str, list[PageDigest]]:
+) -> dict[str, DocumentDigest]:
     """{S3 のキー: 手元のファイル} を渡すと、{手元のファイル: 読み取り結果} を返す。
 
     審査側はファイルを手元に落としてから読むので、手元の名前で引けないと
@@ -66,11 +75,11 @@ def load_for_documents(
     判断できるように）
     """
     client = s3 or _client()
-    digests: dict[str, list[PageDigest]] = {}
+    digests: dict[str, DocumentDigest] = {}
     for document_key, local_path in local_paths.items():
-        pages = load(bucket, document_key, s3=client)
-        if pages:
-            digests[local_path] = pages
+        digest = load(bucket, document_key, s3=client)
+        if digest:
+            digests[local_path] = digest
     return digests
 
 

@@ -24,6 +24,8 @@ import unicodedata
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
+from document_digest import PageDigest as PageDigestType
+
 import pypdfium2
 from pypdf import PdfReader
 from strands import tool
@@ -34,7 +36,7 @@ from office_documents import (
     OfficeFileError,
     convert_office_file,
 )
-from document_digest import PageDigest, figure_pages, unread_pages
+from document_digest import DocumentDigest, figure_pages, unread_pages
 from review_documents import ReviewFile
 from review_images import encode_image
 
@@ -80,7 +82,9 @@ class _Document:
     page_texts: dict[int, str] = field(default_factory=dict)
     # 先に読み取っておいた結果。ページ番号 → その1枚ぶん。
     # 大きい書類やスキャンした書類でだけ作られるので、普段は空
-    digest: dict[int, PageDigest] = field(default_factory=dict)
+    digest: dict[int, "PageDigestType"] = field(default_factory=dict)
+    # 埋め込み画像の説明。名前 → 何が描かれているか（Office 用）
+    image_notes: dict[str, str] = field(default_factory=dict)
 
 
 def _normalize(text: str) -> str:
@@ -140,7 +144,7 @@ class DocumentLibrary:
         self,
         files: list[ReviewFile],
         converted: Optional[dict[str, OfficeDocument]] = None,
-        digests: Optional[dict[str, list[PageDigest]]] = None,
+        digests: Optional[dict[str, DocumentDigest]] = None,
     ):
         # Strands はツールを並行して呼ぶ。pypdf と PDFium はスレッドセーフではない
         self._lock = threading.RLock()
@@ -151,14 +155,15 @@ class DocumentLibrary:
             counts[key] = counts.get(key, 0) + 1
             name = file.name if counts[key] == 1 else f"{file.name} ({counts[key]})"
             kind = _KINDS.get(os.path.splitext(file.path.lower())[1], "other")
-            pages = (digests or {}).get(file.path) or []
+            read = (digests or {}).get(file.path) or DocumentDigest()
             self._documents.append(
                 _Document(
                     file,
                     name,
                     kind,
                     office=(converted or {}).get(file.path),
-                    digest={page.page: page for page in pages},
+                    digest={page.page: page for page in read.pages},
+                    image_notes=read.image_descriptions,
                 )
             )
         self.chars_returned = 0
@@ -200,7 +205,18 @@ class DocumentLibrary:
                                 len(sections) - MAX_SECTIONS_LISTED
                             )
                         if office.images:
-                            entry["images"] = [image.name for image in office.images]
+                            # 名前（image1.png）だけでは、どれを見るべきか
+                            # 分からない。先に説明してあれば添える。
+                            # 探すために開くと、それだけで画像の枠が減る
+                            entry["images"] = [
+                                {
+                                    "name": image.name,
+                                    "shows": document.image_notes[image.name],
+                                }
+                                if image.name in document.image_notes
+                                else {"name": image.name}
+                                for image in office.images
+                            ]
                     else:
                         entry["error"] = (
                             "This file type cannot be read with these tools."
