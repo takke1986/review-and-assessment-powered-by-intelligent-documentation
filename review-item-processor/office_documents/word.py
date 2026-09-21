@@ -8,7 +8,7 @@ from xml.etree import ElementTree as ET
 
 from .converter import Converter
 from .model import OfficeFileError
-from .shapes import geometry_note
+from .shapes import connection_lines, geometry_note
 from .ooxml import (
     MC_ALTERNATE,
     MC_FALLBACK,
@@ -269,6 +269,10 @@ class WordConverter(Converter):
             text = " / ".join(self._blocks(box, relationships))
             if text:
                 parts.append(f"[text box] {text}")
+
+        # 図形どうしのつながり。描画キャンバスの中では、箱の文字だけ読めても
+        # どこからどこへ向かうのか分からない
+        parts += connection_lines(element)
         return " ".join(parts)
 
     def _table(self, table: ET.Element, relationships: Relationships) -> str:

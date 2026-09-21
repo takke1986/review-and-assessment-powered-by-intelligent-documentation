@@ -286,3 +286,86 @@ class TestGroupedShapes:
     def test_leaves_an_ungrouped_shape_alone(self):
         found = shapes_in(tree(shape(2, "箱", "rect", "そのまま", 3, 4)))
         assert (found[0].left, found[0].top) == (3.0, 4.0)
+
+
+# --- 回転・反転 ---
+
+
+def turned(shape_id, prst, text, rot=None, flip=""):
+    emu = 360000
+    attrs = f' rot="{rot}"' if rot is not None else ""
+    if flip:
+        attrs += f' {flip}="1"'
+    return f"""
+    <p:sp>
+      <p:nvSpPr><p:cNvPr id="{shape_id}" name="箱"/></p:nvSpPr>
+      <p:spPr>
+        <a:xfrm{attrs}>
+          <a:off x="{emu}" y="{emu}"/><a:ext cx="{emu}" cy="{emu}"/>
+        </a:xfrm>
+        <a:prstGeom prst="{prst}"/>
+      </p:spPr>
+      <p:txBody><a:p><a:r><a:t>{text}</a:t></a:r></a:p></p:txBody>
+    </p:sp>"""
+
+
+class TestRotation:
+    # 回っている図形は、左上の座標だけではどこを占めているか分からない。
+    # 矢印では向きそのものが意味を持つ
+    def test_reads_the_angle(self):
+        found = shapes_in(tree(turned(2, "rightArrow", "次へ", rot=5400000)))
+        assert found[0].rotation == 90
+
+    def test_says_zero_when_the_shape_is_not_turned(self):
+        found = shapes_in(tree(turned(2, "rect", "まっすぐ")))
+        assert found[0].rotation == 0
+
+    def test_writes_the_angle_next_to_the_shape(self):
+        lines = describe(tree(turned(2, "rightArrow", "次へ", rot=5400000)))
+        assert "回転90度" in "\n".join(lines)
+
+    def test_says_when_the_shape_is_flipped(self):
+        from office_documents.shapes import geometry_note
+        import xml.etree.ElementTree as ET
+
+        element = ET.fromstring(
+            f"<p:spTree {NS}>{turned(2, 'rightArrow', '逆', flip='flipH')}</p:spTree>"
+        )
+        note = geometry_note(list(element)[0])
+        assert "左右反転" in note
+
+
+# --- Word と Excel のつながり ---
+
+
+class TestConnectionsInOtherFormats:
+    def test_reads_a_connector_written_as_a_shape(self):
+        """Word はコネクタを図形（wsp）の形で持つ"""
+        ns = NS.replace(
+            'xmlns:p=',
+            'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:p=',
+        )
+        body = f"""<wpc {ns}>
+          {shape(2, "開始", "flowChartTerminator", "受付", 1, 1)}
+          {shape(3, "処理", "flowChartProcess", "確認", 1, 4)}
+          <wps:wsp>
+            <wps:cNvPr id="9" name="コネクタ"/>
+            <wps:spPr><a:prstGeom prst="straightConnector1"/></wps:spPr>
+            <wps:cNvCnPr><a:stCxn id="2" idx="0"/><a:endCxn id="3" idx="0"/></wps:cNvCnPr>
+          </wps:wsp>
+        </wpc>"""
+        import xml.etree.ElementTree as ET
+        from office_documents.shapes import connection_lines
+
+        lines = connection_lines(ET.fromstring(body))
+        assert lines == ["[connection] 受付 -> 確認"]
+
+    # 線は「箱」ではない。図形としては並べない
+    def test_does_not_list_a_connector_as_a_shape(self):
+        found = shapes_in(
+            tree(
+                shape(2, "開始", "flowChartTerminator", "受付", 1, 1),
+                connector(2, 3),
+            )
+        )
+        assert [s.text for s in found] == ["受付"]

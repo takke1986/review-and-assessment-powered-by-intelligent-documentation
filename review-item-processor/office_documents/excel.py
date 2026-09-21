@@ -12,7 +12,7 @@ from xml.etree import ElementTree as ET
 from . import limits
 from .converter import Converter
 from .drawing import drawing_text
-from .shapes import kind_of
+from .shapes import connection_lines, kind_of
 from .model import OfficeFileError
 from .ooxml import (
     child,
@@ -572,6 +572,8 @@ class ExcelConverter(Converter):
                 if found:
                     first_line, _, rest = found.partition("\n")
                     lines.append(first_line + where + ("\n" + rest if rest else ""))
+            # 図形どうしのつながり。シートに描いたフロー図で効く
+            lines += connection_lines(anchor)
         return lines
 
 

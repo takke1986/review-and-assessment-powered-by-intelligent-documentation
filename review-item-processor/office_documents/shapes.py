@@ -33,6 +33,18 @@ from .ooxml import child, first, q, to_int, walk
 
 EMU_PER_CM = 360000
 
+# 図形の入れ物は形式ごとに名前空間が違う（PowerPoint は p:sp、Word は
+# wps:wsp、Excel は xdr:sp、SmartArt は dsp:sp）。中身の DrawingML は
+# 同じなので、名前の部分だけで見分ける
+SHAPE_TAGS = ("sp", "wsp")
+GROUP_TAGS = ("grpSp",)
+CONNECTOR_TAGS = ("cxnSp",)
+
+
+def _local(tag: str) -> str:
+    """'{名前空間}sp' の 'sp' の部分"""
+    return tag.rsplit("}", 1)[-1]
+
 # 形の名前（a:prstGeom@prst）を、読める言葉にする。
 # ここに無い形は名前をそのまま出す。訳せないより、生の名前のほうがまし
 SHAPE_NAMES = {
@@ -66,6 +78,8 @@ class Shape:
     name: str
     kind: str
     text: str = ""
+    # 時計回りの角度。0 なら回っていない
+    rotation: int = 0
     left: Optional[float] = None
     top: Optional[float] = None
     width: Optional[float] = None
@@ -109,6 +123,32 @@ def placement_of(element: Optional[ET.Element]) -> tuple[Optional[int], ...]:
     )
 
 
+def rotation_of(element: Optional[ET.Element]) -> int:
+    """図形の回転（時計回りの度）。
+
+    OOXML は 60000 分の1度で持つ。回っている図形は、左上の座標だけでは
+    どこを占めているか分からない。矢印や縦書きのラベルでは向きそのものが
+    意味を持つので、角度を伝える
+    """
+    transform = first(element, "a:xfrm")
+    if transform is None:
+        return 0
+    return round(to_int(transform.get("rot")) / 60000) % 360
+
+
+def flip_of(element: Optional[ET.Element]) -> str:
+    """左右・上下の反転。矢印の向きが逆になるので、伝えないと読み違える"""
+    transform = first(element, "a:xfrm")
+    if transform is None:
+        return ""
+    flipped = []
+    if transform.get("flipH") in ("1", "true"):
+        flipped.append("左右反転")
+    if transform.get("flipV") in ("1", "true"):
+        flipped.append("上下反転")
+    return " ".join(flipped)
+
+
 def kind_of(element: Optional[ET.Element]) -> str:
     geometry = first(element, "a:prstGeom")
     preset = geometry.get("prst") if geometry is not None else None
@@ -117,9 +157,11 @@ def kind_of(element: Optional[ET.Element]) -> str:
     return SHAPE_NAMES.get(preset, preset)
 
 
-def _identity(element: Optional[ET.Element], tag: str) -> tuple[str, str]:
+def _identity(element: Optional[ET.Element]) -> tuple[str, str]:
     """cNvPr から id と名前。名前は「四角形 3」のような既定の名前が入る"""
-    properties = first(element, tag)
+    properties = next(
+        (node for node in walk(element) if _local(node.tag) == "cNvPr"), None
+    )
     if properties is None:
         return ("", "")
     return (properties.get("id") or "", properties.get("name") or "")
@@ -196,7 +238,7 @@ def shapes_in(
     found: list[Shape] = []
     for node in _shapes_with_frames(tree, frame or GroupFrame()):
         node, node_frame = node
-        shape_id, name = _identity(node, "p:cNvPr")
+        shape_id, name = _identity(node)
         left, top, width, height = placement_of(node)
         left, top = node_frame.apply(left, top)
         width, height = node_frame.scale(width, height)
@@ -205,7 +247,10 @@ def shapes_in(
                 shape_id=shape_id,
                 name=name,
                 kind=kind_of(node),
-                text=" ".join(drawing_text(child(node, "p:txBody")).split()),
+                rotation=rotation_of(node),
+                # 図形そのものの文字。入れ物のタグは形式ごとに違うので、
+                # この図形の下にある文字をまとめて拾う（子の図形は別に数える）
+                text=" ".join(drawing_text(node).split()),
                 left=to_cm(left),
                 top=to_cm(top),
                 width=to_cm(width),
@@ -222,13 +267,23 @@ def shapes_in(
 
 
 def connections_in(tree: Optional[ET.Element]) -> list[Connection]:
-    """つながりの一覧。どちらの端も繋がっていない線は入れない"""
+    """つながりの一覧。どちらの端も繋がっていない線は入れない。
+
+    コネクタの入れ物も形式ごとに名前空間が違うので、タグ名では探さず、
+    「どの図形に繋がっているか（a:stCxn / a:endCxn）」を持つ要素を拾う
+    """
     found: list[Connection] = []
     for node in walk(tree):
-        if node.tag != q("p:cxnSp"):
+        local = _local(node.tag)
+        # コネクタそのものだけを見る。下の階層まで拾うと、同じ線を
+        # 包んでいる要素の数だけ数えてしまう。Word は図形（wsp）の形で
+        # コネクタを持つので、繋ぎ先のある図形も入れる
+        if local not in CONNECTOR_TAGS and local not in SHAPE_TAGS:
             continue
-        start = first(node, "a:stCxn")
-        end = first(node, "a:endCxn")
+        start = child_of(node, "stCxn")
+        end = child_of(node, "endCxn")
+        if start is None and end is None:
+            continue
         from_id = start.get("id") if start is not None else None
         to_id = end.get("id") if end is not None else None
         if from_id is None and to_id is None:
@@ -238,10 +293,17 @@ def connections_in(tree: Optional[ET.Element]) -> list[Connection]:
             Connection(
                 from_id=from_id,
                 to_id=to_id,
-                text=" ".join(drawing_text(child(node, "p:txBody")).split()),
+                text=" ".join(drawing_text(node).split()),
             )
         )
     return found
+
+
+def child_of(element: ET.Element, local_name: str) -> Optional[ET.Element]:
+    """この要素の下にある、名前の部分が一致する最初の要素"""
+    return next(
+        (node for node in walk(element) if _local(node.tag) == local_name), None
+    )
 
 
 def describe(tree: Optional[ET.Element]) -> list[str]:
@@ -269,7 +331,8 @@ def describe(tree: Optional[ET.Element]) -> list[str]:
             if shape.width is not None and shape.height is not None:
                 where += f" 幅{shape.width}cm 高さ{shape.height}cm"
         label = f"「{shape.text}」" if shape.text else ""
-        lines.append(f"[shape] {shape.kind}{label}{where}")
+        turned = f" 回転{shape.rotation}度" if shape.rotation else ""
+        lines.append(f"[shape] {shape.kind}{label}{where}{turned}")
 
     for connection in connections:
         source = by_id.get(connection.from_id or "")
@@ -305,6 +368,12 @@ def geometry_note(element: Optional[ET.Element]) -> str:
         parts.append(f"左{to_cm(left)}cm 上{to_cm(top)}cm")
     if width is not None and height is not None:
         parts.append(f"幅{to_cm(width)}cm 高さ{to_cm(height)}cm")
+    rotation = rotation_of(element)
+    if rotation:
+        parts.append(f"回転{rotation}度")
+    flipped = flip_of(element)
+    if flipped:
+        parts.append(flipped)
     return "[" + " ".join(parts) + "]"
 
 
@@ -316,10 +385,31 @@ def _shapes_with_frames(
         return []
     found: list[tuple[ET.Element, GroupFrame]] = []
     for node in list(container):
-        if node.tag == q("p:sp"):
-            found.append((node, frame))
-        elif node.tag == q("p:grpSp"):
+        local = _local(node.tag)
+        if local in SHAPE_TAGS:
+            # 繋ぎ先を持つ図形は、線であって箱ではない。つながりとして
+            # 数えるので、図形としては並べない
+            if child_of(node, "stCxn") is None and child_of(node, "endCxn") is None:
+                found.append((node, frame))
+        elif local in GROUP_TAGS:
             found += _shapes_with_frames(node, frame_of(node, frame))
         else:
             found += _shapes_with_frames(node, frame)
     return found
+
+
+def connection_lines(tree: Optional[ET.Element]) -> list[str]:
+    """つながりだけを行にする。図形そのものは呼び出し側が並べている場合に使う"""
+    shapes = {shape.shape_id: shape for shape in shapes_in(tree) if shape.shape_id}
+    lines = []
+    for connection in connections_in(tree):
+        source = shapes.get(connection.from_id or "")
+        target = shapes.get(connection.to_id or "")
+        if source is None and target is None:
+            continue
+        note = f" ({connection.text})" if connection.text else ""
+        lines.append(
+            f"[connection] {source.label if source else '(unknown)'} -> "
+            f"{target.label if target else '(unknown)'}{note}"
+        )
+    return lines

@@ -10,7 +10,7 @@ from xml.etree import ElementTree as ET
 from . import limits
 from .converter import Converter
 from .drawing import drawing_paragraphs, drawing_text
-from .shapes import geometry_note
+from .shapes import describe, geometry_note
 from .ooxml import (
     MC_ALTERNATE,
     Relationships,
@@ -209,10 +209,33 @@ class PowerPointConverter(Converter):
             return self._image_or_chart(chart, relationships) or ""
         diagram = first(frame, "dgm:relIds")
         if diagram is not None:
-            target = relationships.get(diagram.get(q("r:dm")) or "")
-            text = drawing_text(self._package.xml(target[1])) if target else ""
-            return "[diagram] " + " / ".join(text.split("\n")) if text else ""
+            return self._diagram(diagram, relationships)
         return ""
+
+    def _diagram(
+        self, diagram: ET.Element, relationships: Relationships
+    ) -> str:
+        """SmartArt。文字と、置かれている位置を読む。
+
+        文字は元データ（dgm:dataModel）にあるが、どこに置かれたかは別の
+        部品（diagramDrawing）にしかない。位置が分からないと、組織図で
+        どれが上でどれが下かが落ちる
+        """
+        drawing_part = related_part(relationships, "diagramDrawing")
+        if drawing_part:
+            tree = self._package.xml(drawing_part)
+            lines = [
+                line
+                for line in describe(tree)
+                if line.startswith("[shape]") or line.startswith("[flow]")
+            ]
+            if lines:
+                return "[diagram]\n" + "\n".join(lines)
+
+        # 位置の部品が無い SmartArt もある。そのときは文字だけ
+        target = relationships.get(diagram.get(q("r:dm")) or "")
+        text = drawing_text(self._package.xml(target[1])) if target else ""
+        return "[diagram] " + " / ".join(text.split("\n")) if text else ""
 
     def _notes(self, relationships: Relationships) -> list[str]:
         part = related_part(relationships, "notesSlide")
