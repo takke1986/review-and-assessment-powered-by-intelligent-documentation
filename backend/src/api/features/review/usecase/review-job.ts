@@ -45,6 +45,7 @@ import {
 } from "../domain/service/review-job-visibility";
 import { canCancel } from "../domain/service/review-job-cancel";
 import { canReviewAgain } from "../domain/service/review-again";
+import { canResume } from "../domain/service/review-resume";
 import { resolveDepartment } from "../domain/service/departments";
 import { stopStateMachineExecution } from "../../../core/sfn";
 
@@ -177,6 +178,75 @@ export const cancelReviewJob = async (params: {
 
   if (job.executionArn) {
     await stopStateMachineExecution(job.executionArn, "Cancelled by the user");
+  }
+};
+
+/**
+ * 途中で終わった審査を、そのジョブのまま続きから流す。
+ *
+ * 判定の済んだ項目はそのまま残り、審査の準備処理が未判定の項目だけを
+ * 拾う。だからここでは、状態を待ちに戻して、もう一度待ち行列に入れる
+ * だけでよい。
+ *
+ * 状態を先に書くのは、準備処理が「中止」を見つけたら何もせずに終わる
+ * ようにしてあるため。待ちに戻さずに送ると、送った先で止められる
+ */
+export const resumeReviewJob = async (params: {
+  reviewJobId: string;
+  user?: RequestUser;
+  deps?: { repo?: ReviewJobRepository };
+}): Promise<void> => {
+  const repo = params.deps?.repo || (await makePrismaReviewJobRepository());
+  const job = await repo.findReviewJobById({ reviewJobId: params.reviewJobId });
+  assertHasOwnerAccessOrThrow(params.user, job.userId, {
+    api: "resumeReviewJob",
+    resourceId: job.id,
+    logger: console,
+  });
+
+  if (!canResume(job.status)) {
+    throw new ValidationError(
+      `This review job did not end early, so there is nothing to carry on with: ${job.status}`
+    );
+  }
+
+  const queueUrl = process.env.REVIEW_QUEUE_URL;
+  if (!queueUrl) {
+    throw new ApplicationError("REVIEW_QUEUE_URL is not defined");
+  }
+
+  // 読んでから書くまでの隙間に状態が変わっていたら、ここで止まる。
+  // 二重に押されたときに、同じジョブを2回待ち行列へ入れないため
+  const reopened = await repo.reopenJob({ reviewJobId: params.reviewJobId });
+  if (!reopened) {
+    throw new ValidationError(
+      "This review job is no longer waiting to be carried on with"
+    );
+  }
+
+  try {
+    await sendMessage(
+      queueUrl,
+      { reviewJobId: job.id, userId: job.userId },
+      job.id,
+      // 1回目と同じ本文なので、識別子を変えないと重複と見なされて捨てられる
+      ulid()
+    );
+  } catch (error) {
+    // キューに入らなかったジョブは動かない。待ちのまま残さず失敗にする
+    await repo
+      .updateJobStatus({
+        reviewJobId: job.id,
+        status: REVIEW_JOB_STATUS.FAILED,
+        errorDetail: "Failed to queue the review job",
+      })
+      .catch((statusError) =>
+        console.error(
+          `Failed to mark review job ${job.id} as failed:`,
+          statusError
+        )
+      );
+    throw error;
   }
 };
 

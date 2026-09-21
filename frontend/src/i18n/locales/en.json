@@ -478,6 +478,8 @@
     "clearFilter": "Clear the filter",
     "searchPlaceholderJobs": "Job name, or a document name",
     "overriddenByOn": "changed by {{who}} ({{when}})",
+    "resumed": "The review is carrying on from where it stopped",
+    "resumeError": "Could not carry on with the review",
     "resumeReview": "Carry on with the review",
     "resumeSelectionHelp": "Starts with the items that were not reviewed. What already finished is carried over, so you do not pay for it twice.",
     "department": "Department for this review",

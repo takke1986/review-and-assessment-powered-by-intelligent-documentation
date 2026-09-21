@@ -3,7 +3,7 @@ import Button from "../../../components/Button";
 import ReviewResultExportButton from "./ReviewResultExportButton";
 import ReviewResultTextButton from "./ReviewResultTextButton";
 import { useReviewJobActions } from "../hooks/useReviewJobActions";
-import { canReviewAgain, endedEarly } from "../reviewJobRules";
+import { canResume, canReviewAgain } from "../reviewJobRules";
 import { isJobRunning, type ReviewJobDetail } from "../types";
 
 interface ReviewJobActionsProps {
@@ -60,16 +60,29 @@ export default function ReviewJobActions({
 
       {canReviewAgain(job.status) && (
         <div className="flex flex-col items-stretch gap-2 self-start">
-          {/* 完了なら不合格を審査し直す。途中で終わっていれば続きから。
-              することが違うので、言い回しを変える */}
-          <Button
-            to={`/review/create?source=${job.id}`}
-            variant="primary"
-            outline>
-            {endedEarly(job.status)
-              ? t("review.resumeReview")
-              : t("review.rerunFailedItems")}
-          </Button>
+          {/* 途中で終わった審査は、そのジョブのまま続きから埋める。
+              別のジョブを作ると、同じ書類の審査が履歴に2行並んで
+              どちらが本物か分からなくなる */}
+          {canResume(job.status) && canEdit && (
+            <Button
+              variant="primary"
+              outline
+              loading={actions.isWorking}
+              onClick={actions.resume}>
+              {t("review.resumeReview")}
+            </Button>
+          )}
+
+          {/* 完了した審査は、文書を直して見てもらうので別のジョブになる。
+              元の結果は残したまま、不合格だった項目だけを審査し直す */}
+          {!canResume(job.status) && (
+            <Button
+              to={`/review/create?source=${job.id}`}
+              variant="primary"
+              outline>
+              {t("review.rerunFailedItems")}
+            </Button>
+          )}
 
           {/* 紙に出す。顧客に渡したり綴じたりするのは画面の外 */}
           <Button to={`/review/${job.id}/report`} variant="secondary" outline>

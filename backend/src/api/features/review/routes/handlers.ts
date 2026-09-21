@@ -5,6 +5,7 @@ import {
   getAllReviewJobs,
   getReviewCostSummary,
   cancelReviewJob,
+  resumeReviewJob,
   getReviewJobById,
   getReviewDocumentPresignedUrl,
   getReviewDocumentsPresignedUrl,
@@ -365,6 +366,19 @@ export const cancelReviewJobHandler = async (
   reply: FastifyReply
 ): Promise<void> => {
   await cancelReviewJob({
+    reviewJobId: request.params.jobId,
+    user: request.user,
+  });
+
+  reply.code(200).send({ success: true, data: {} });
+};
+
+/** 途中で終わった審査を、そのジョブのまま続きから流す */
+export const resumeReviewJobHandler = async (
+  request: FastifyRequest<{ Params: { jobId: string } }>,
+  reply: FastifyReply
+): Promise<void> => {
+  await resumeReviewJob({
     reviewJobId: request.params.jobId,
     user: request.user,
   });

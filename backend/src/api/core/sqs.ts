@@ -25,17 +25,27 @@ export function getSqsClient(): SQSClient {
  * Send message to SQS queue
  * @param queueUrl Queue URL to send message to
  * @param messageBody Message body as object
+ * @param messageGroupId FIFO の順序を保つ単位
+ * @param deduplicationId 同じ内容をもう一度送るときに渡す。
+ *
+ * このキューは内容から重複を判定する設定（contentBasedDeduplication）
+ * なので、同じジョブをもう一度流すと本文が一致し、5分以内なら黙って
+ * 捨てられる。捨てられたことは誰にも分からず、ジョブは待ちのまま残る。
+ * 続きから流すときのように、同じ本文を意図して送る場面では、毎回違う
+ * 識別子を渡して重複と見なされないようにする
  */
 export async function sendMessage(
   queueUrl: string,
   messageBody: Record<string, any>,
-  messageGroupId?: string
+  messageGroupId?: string,
+  deduplicationId?: string
 ): Promise<void> {
   const client = getSqsClient();
   const command = new SendMessageCommand({
     QueueUrl: queueUrl,
     MessageBody: JSON.stringify(messageBody),
     ...(messageGroupId ? { MessageGroupId: messageGroupId } : {}),
+    ...(deduplicationId ? { MessageDeduplicationId: deduplicationId } : {}),
   });
 
   const response = await client.send(command);

@@ -6,6 +6,7 @@ import {
   getAllReviewJobsHandler,
   getReviewCostSummaryHandler,
   cancelReviewJobHandler,
+  resumeReviewJobHandler,
   getReviewJobByIdHandler,
   getReviewPresignedUrlHandler,
   getReviewDocumentsPresignedUrlHandler,
@@ -51,6 +52,11 @@ export function registerReviewRoutes(fastify: FastifyInstance): void {
   // 審査の中止。止められるのは作成者だけ
   fastify.post("/review-jobs/:jobId/cancel", {
     handler: cancelReviewJobHandler,
+  });
+
+  // 続きから流す。途中で終わった審査を、同じジョブのまま埋める
+  fastify.post("/review-jobs/:jobId/resume", {
+    handler: resumeReviewJobHandler,
   });
 
   fastify.get("/review-jobs/:jobId", {

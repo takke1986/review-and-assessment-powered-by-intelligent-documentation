@@ -478,6 +478,8 @@
     "clearFilter": "絞り込みを解除",
     "searchPlaceholderJobs": "ジョブ名か、審査した文書の名前",
     "overriddenByOn": "{{who}} が変更（{{when}}）",
+    "resumed": "続きから審査を始めました",
+    "resumeError": "続きから流せませんでした",
     "resumeReview": "続きから審査する",
     "resumeSelectionHelp": "まだ審査が終わっていない項目を選んだ状態から始まります。済んだ項目は元のジョブの結果を引き継ぐので、もう一度費用はかかりません。",
     "department": "この審査を行う部署",

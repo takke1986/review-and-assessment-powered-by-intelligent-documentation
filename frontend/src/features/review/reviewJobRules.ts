@@ -25,14 +25,25 @@ export const isSupersededByRerun = (
   (rerunJobs ?? []).some((rerun) => rerun.status !== REVIEW_JOB_STATUS.FAILED);
 
 /**
- * このジョブを元に、もう一度審査を流せるか。
+ * このジョブに対して、もう一度審査に関する操作ができるか。
  *
- * 途中で終わった審査も元にできる。引き継ぎの処理は「完了した項目は写し、
- * そうでない項目は審査し直す」作りなので、続きから流せる。
+ * 完了なら「不合格を審査し直す」（別のジョブを作る）、途中で終わって
+ * いれば「続きから」（同じジョブを埋める）。
  * まだ走っているものは対象にしない。同じ項目を二重に審査してしまう
  */
 export const canReviewAgain = (status: REVIEW_JOB_STATUS): boolean =>
   status === REVIEW_JOB_STATUS.COMPLETED ||
+  status === REVIEW_JOB_STATUS.FAILED ||
+  status === REVIEW_JOB_STATUS.CANCELLED;
+
+/**
+ * そのジョブのまま続きから流せるか。サーバの canResume と同じ決め方。
+ *
+ * 続きは条件が何も変わらない（同じ文書、同じチェックリスト、同じ部署）
+ * ので、ジョブを増やさずに未判定の項目だけを埋める。中止したジョブが
+ * 履歴に残り続けるのを避けるため
+ */
+export const canResume = (status: REVIEW_JOB_STATUS): boolean =>
   status === REVIEW_JOB_STATUS.FAILED ||
   status === REVIEW_JOB_STATUS.CANCELLED;
 

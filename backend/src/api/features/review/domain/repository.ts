@@ -102,6 +102,15 @@ export interface ReviewJobRepository {
     status: REVIEW_JOB_STATUS;
     errorDetail?: string;
   }): Promise<void>;
+  /**
+   * 途中で終わったジョブを待ちに戻す。書き換えられたら true。
+   *
+   * updateJobStatus は中止を自動更新から守るため、中止のジョブを
+   * 他の状態に書き換えない。続きから流すのは人が決めたことなので、
+   * ここだけは越える。ただし越えるのは「失敗」と「中止」からだけで、
+   * 走っているジョブを待ちに戻して二重に走らせることはしない
+   */
+  reopenJob(params: { reviewJobId: string }): Promise<boolean>;
   updateJobExecution(params: {
     reviewJobId: string;
     executionArn: string;
@@ -625,6 +634,27 @@ export const makePrismaReviewJobRepository = async (
     }
   };
 
+  const reopenJob = async (params: {
+    reviewJobId: string;
+  }): Promise<boolean> => {
+    const updated = await client.reviewJob.updateMany({
+      where: {
+        id: params.reviewJobId,
+        status: {
+          in: [REVIEW_JOB_STATUS.FAILED, REVIEW_JOB_STATUS.CANCELLED],
+        },
+      },
+      data: {
+        status: REVIEW_JOB_STATUS.PENDING,
+        // 前回の失敗の理由を残すと、今度こそ終わったときに画面が
+        // 「失敗した審査」に見える
+        errorDetail: null,
+        updatedAt: new Date(),
+      },
+    });
+    return updated.count > 0;
+  };
+
   const updateJobExecution = async (params: {
     reviewJobId: string;
     executionArn: string;
@@ -657,6 +687,7 @@ export const makePrismaReviewJobRepository = async (
   return {
     findAllReviewJobs,
     summarizeReviewCost,
+    reopenJob,
     updateJobExecution,
     findReviewJobById,
     createReviewJob,
