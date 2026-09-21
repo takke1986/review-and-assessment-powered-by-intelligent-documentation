@@ -12,9 +12,8 @@ export default function Layout() {
       
       {/* メインコンテンツエリア */}
       {/* 携帯では余白を詰める。p-8 のままだと中身の幅が残らない。
-          上だけ空けるのは、メニューのボタンが浮いていて見出しに重なるため
-          （ボタンは top-4 から高さ 2.5rem ほど） */}
-      <main className="min-w-0 flex-1 p-4 pt-16 transition-all duration-300 md:ml-64 md:p-8">
+          上を空けるのは、メニューの帯を固定しているため（帯の高さ h-14） */}
+      <main className="min-w-0 flex-1 p-4 pt-[4.5rem] transition-all duration-300 md:ml-64 md:p-8 md:pt-8">
         <div className="mx-auto max-w-7xl">
           <Outlet />
         </div>

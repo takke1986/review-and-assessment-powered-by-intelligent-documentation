@@ -123,10 +123,10 @@ export default function CheckListItemTreeNode({
     setIsExpanded(!isExpanded);
   };
 
-  // インデントのスタイル
-  const indentStyle = {
-    marginLeft: `${level * 20}px`,
-  };
+  // 字下げ。段ごとに幅が削られるので、携帯では刻みを小さくする。
+  // 390px の画面で 20px ずつ削ると、3段目には題名の幅が残らない
+  const indentStyle = { "--tree-level": level } as React.CSSProperties;
+  const indentClass = "ml-[calc(var(--tree-level)*0.75rem)] sm:ml-[calc(var(--tree-level)*1.25rem)]";
 
   const { t } = useTranslation();
   const { showConfirm, showError, AlertModal } = useAlert();
@@ -158,11 +158,13 @@ export default function CheckListItemTreeNode({
   return (
     <>
       <div>
-        <div style={indentStyle}>
+        <div className={indentClass} style={indentStyle}>
           <ResultCard
             variant={item.ambiguityReview && isEditable ? "error" : "default"}
             className={isOpenTarget ? "ring-2 ring-aws-sea-blue-light" : ""}>
-            <div className="flex items-center justify-between gap-2">
+            {/* 携帯では縦に積む。操作の列は縮まないので、横に並べると題名の幅が
+                  1文字分まで潰れて縦書きのようになってしまう */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-center">
                 {/* チェックボックス - リーフノードのみ */}
                 {!item.hasChildren && onToggleSelect && (
@@ -185,8 +187,8 @@ export default function CheckListItemTreeNode({
                     )}
                   </button>
                 )}
-                <div>
-                  <div className="flex items-center gap-2 font-medium text-aws-squid-ink-light">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 break-words font-medium text-aws-squid-ink-light">
                     {item.name}
 
                     {/* ツール設定アイコン - 名前の厳密な右 */}
@@ -212,7 +214,7 @@ export default function CheckListItemTreeNode({
                   )}
                 </div>
               </div>
-              <div className="flex shrink-0 items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-nowrap sm:gap-0 sm:space-x-2">
                 {/* 重要度 - リーフノードのみ。判定に使わないので、編集できないチェックリストでも変えられる */}
                 {!item.hasChildren && (
                   <ImportanceSelector
@@ -344,14 +346,14 @@ export default function CheckListItemTreeNode({
           <div className="mt-2 space-y-2">
             {isLoadingChildren ? (
               <div
-                className="flex justify-center py-4"
-                style={{ marginLeft: `${(level + 1) * 20}px` }}>
+                className={`flex justify-center py-4 ${indentClass}`}
+                style={{ "--tree-level": level + 1 } as React.CSSProperties}>
                 <Spinner size="md" />
               </div>
             ) : errorChildren ? (
               <div
-                className="text-red-500 py-2"
-                style={{ marginLeft: `${(level + 1) * 20}px` }}>
+                className={`text-red-500 py-2 ${indentClass}`}
+                style={{ "--tree-level": level + 1 } as React.CSSProperties}>
                 {t("checklist.childItemsLoadError")}
               </div>
             ) : (
