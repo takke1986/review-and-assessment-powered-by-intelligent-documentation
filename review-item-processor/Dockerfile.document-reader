@@ -1,0 +1,23 @@
+# 審査の前に書類を読み取る Lambda。
+#
+# ビルドの土台をこのディレクトリにしているのは、審査側と同じ読み取りの
+# 決まり（document_digest / document_reader / digest_store / pdf_extras）と
+# 同じ変換器（office_documents/）を使うため。経路によって同じファイルが
+# 違って見えないようにしている。
+#
+# エージェント本体（Dockerfile）とは別物で、Strands も MCP も要らない。
+# ページを絵にする pypdfium2 と、PDF を読む pypdf と、画像の pillow だけ。
+FROM --platform=linux/arm64 public.ecr.aws/lambda/python:3.13
+
+# 版はエージェント側の uv.lock に合わせる。ずれると、同じ PDF から
+# 違うページ数や違う文字が出てくる
+RUN pip install --no-cache-dir \
+    "pillow==11.3.0" \
+    "pypdf==6.18.1" \
+    "pypdfium2==5.13.0"
+
+COPY office_documents ${LAMBDA_TASK_ROOT}/office_documents
+COPY document_digest.py document_reader.py digest_store.py pdf_extras.py \
+     review_images.py document_reader_lambda.py ${LAMBDA_TASK_ROOT}/
+
+CMD ["document_reader_lambda.handler"]

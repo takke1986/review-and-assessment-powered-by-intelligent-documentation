@@ -1,0 +1,237 @@
+#!/usr/bin/env python3
+"""読み取り Lambda の3つの役（plan / read / store）のテスト。
+
+S3 と Bedrock は差し替える。ここで確かめたいのは、
+- 読む必要のない書類に費用をかけないこと
+- 途中の結果を状態に載せず S3 に置くこと（256KB で審査ごと落ちるため）
+- まとめたときにページがずれないこと
+"""
+
+import json
+import os
+import sys
+
+import pytest
+from pypdf import PdfWriter
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import document_reader_lambda as reader  # noqa: E402
+
+SAMPLE_PDF = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "office_planning.pdf"
+)
+
+
+class FakeS3:
+    """置いたもの・消したものを覚えるだけの S3"""
+
+    def __init__(self, files=None):
+        self.objects = dict(files or {})
+        self.deleted = []
+
+    def download_file(self, bucket, key, path):
+        with open(path, "wb") as handle:
+            handle.write(self.objects[key])
+
+    def put_object(self, Bucket, Key, Body, ContentType=None):
+        self.objects[Key] = Body
+
+    def get_object(self, Bucket, Key):
+        import io
+
+        return {"Body": io.BytesIO(self.objects[Key])}
+
+    def delete_object(self, Bucket, Key):
+        self.deleted.append(Key)
+        self.objects.pop(Key, None)
+
+
+class FakeBedrock:
+    def __init__(self, reply):
+        self.reply = reply
+        self.calls = 0
+
+    def converse(self, **kwargs):
+        self.calls += 1
+        return {
+            "output": {"message": {"content": [{"text": self.reply}]}},
+            "usage": {"inputTokens": 10, "outputTokens": 5},
+        }
+
+
+def scanned_pdf_bytes(pages=3):
+    """文字の取り出せない PDF。スキャンした書類はこう見える"""
+    import io
+
+    writer = PdfWriter()
+    for _ in range(pages):
+        writer.add_blank_page(width=200, height=200)
+    buffer = io.BytesIO()
+    writer.write(buffer)
+    return buffer.getvalue()
+
+
+@pytest.fixture
+def wired(monkeypatch):
+    def use(files=None, reply="{}"):
+        fake_s3 = FakeS3(files)
+        fake_bedrock = FakeBedrock(reply)
+        monkeypatch.setattr(reader, "s3", lambda: fake_s3)
+        monkeypatch.setattr(reader, "bedrock", lambda: fake_bedrock)
+        monkeypatch.setattr(reader.digest_store, "_client", lambda: fake_s3)
+        return fake_s3, fake_bedrock
+
+    return use
+
+
+class TestPlan:
+    # 普段の審査に費用も時間も足さない
+    def test_leaves_a_small_readable_pdf_alone(self, wired):
+        with open(SAMPLE_PDF, "rb") as handle:
+            wired({"docs/a.pdf": handle.read()})
+        result = reader.plan(
+            {
+                "action": "plan",
+                "bucket": "b",
+                "documents": [{"key": "docs/a.pdf", "filename": "a.pdf"}],
+            }
+        )
+        assert result["tasks"] == []
+        assert result["anyToRead"] is False
+
+    def test_splits_a_scanned_pdf_into_runs(self, wired):
+        wired({"docs/scan.pdf": scanned_pdf_bytes(pages=45)})
+        result = reader.plan(
+            {
+                "bucket": "b",
+                "documents": [{"key": "docs/scan.pdf", "filename": "scan.pdf"}],
+            }
+        )
+        assert [(t["first"], t["last"]) for t in result["tasks"]] == [
+            (1, 20),
+            (21, 40),
+            (41, 45),
+        ]
+        assert result["documents"][0]["pageCount"] == 45
+
+    def test_ignores_a_file_it_cannot_read_ahead(self, wired):
+        wired({"docs/a.txt": b"plain text"})
+        result = reader.plan(
+            {"bucket": "b", "documents": [{"key": "docs/a.txt", "filename": "a.txt"}]}
+        )
+        assert result["tasks"] == []
+
+
+class TestRead:
+    def test_puts_the_result_in_s3_and_returns_only_where(self, wired):
+        reply = '{"pages": [{"page": 1, "text": "申込者 山田", "figures": []}]}'
+        fake_s3, fake_bedrock = wired({"docs/scan.pdf": scanned_pdf_bytes(1)}, reply)
+
+        result = reader.read(
+            {
+                "bucket": "b",
+                "task": {
+                    "kind": "pages",
+                    "key": "docs/scan.pdf",
+                    "name": "scan.pdf",
+                    "first": 1,
+                    "last": 1,
+                },
+            }
+        )
+
+        # 状態に載るのは置き場所だけ。中身を載せると 256KB を超える
+        assert set(result) == {"key", "partial"}
+        assert result["partial"].startswith("digest/partials/")
+        stored = json.loads(fake_s3.objects[result["partial"]].decode("utf-8"))
+        assert stored["pages"][0]["text"] == "申込者 山田"
+        assert fake_bedrock.calls == 1
+
+    def test_does_not_call_the_model_when_no_page_could_be_drawn(self, wired):
+        _, fake_bedrock = wired({"docs/scan.pdf": scanned_pdf_bytes(1)})
+        reader.read(
+            {
+                "bucket": "b",
+                "task": {
+                    "kind": "pages",
+                    "key": "docs/scan.pdf",
+                    "name": "scan.pdf",
+                    "first": 9,
+                    "last": 9,
+                },
+            }
+        )
+        assert fake_bedrock.calls == 0
+
+
+class TestStore:
+    def test_puts_the_runs_back_together_in_page_order(self, wired):
+        partials = {
+            "p/second.json": json.dumps(
+                {"pages": [{"page": 3, "text": "three"}]}
+            ).encode(),
+            "p/first.json": json.dumps(
+                {"pages": [{"page": 1, "text": "one"}]}
+            ).encode(),
+        }
+        fake_s3, _ = wired(partials)
+
+        reader.store(
+            {
+                "bucket": "b",
+                "documents": [{"key": "docs/scan.pdf", "pageCount": 3}],
+                "partials": [
+                    {"key": "docs/scan.pdf", "partial": "p/second.json"},
+                    {"key": "docs/scan.pdf", "partial": "p/first.json"},
+                ],
+            }
+        )
+
+        saved = json.loads(
+            fake_s3.objects["digest/docs/scan.pdf.json"].decode("utf-8")
+        )
+        assert [p["text"] for p in saved["pages"]] == ["one", "", "three"]
+
+    def test_clears_the_partials_away(self, wired):
+        fake_s3, _ = wired(
+            {"p/a.json": json.dumps({"pages": [{"page": 1, "text": "x"}]}).encode()}
+        )
+        reader.store(
+            {
+                "bucket": "b",
+                "documents": [{"key": "docs/a.pdf", "pageCount": 1}],
+                "partials": [{"key": "docs/a.pdf", "partial": "p/a.json"}],
+            }
+        )
+        assert fake_s3.deleted == ["p/a.json"]
+
+    # 1つ読めなくても、読めた分はまとめる
+    def test_keeps_going_when_one_run_cannot_be_read_back(self, wired):
+        fake_s3, _ = wired(
+            {"p/ok.json": json.dumps({"pages": [{"page": 2, "text": "two"}]}).encode()}
+        )
+        reader.store(
+            {
+                "bucket": "b",
+                "documents": [{"key": "docs/a.pdf", "pageCount": 2}],
+                "partials": [
+                    {"key": "docs/a.pdf", "partial": "p/missing.json"},
+                    {"key": "docs/a.pdf", "partial": "p/ok.json"},
+                ],
+            }
+        )
+        saved = json.loads(fake_s3.objects["digest/docs/a.pdf.json"].decode("utf-8"))
+        assert [p["text"] for p in saved["pages"]] == ["", "two"]
+
+    def test_does_nothing_when_there_was_nothing_to_read(self, wired):
+        fake_s3, _ = wired()
+        assert reader.store({"bucket": "b", "documents": [], "partials": []}) == {
+            "stored": 0
+        }
+        assert fake_s3.objects == {}
+
+
+def test_handler_refuses_an_unknown_action():
+    with pytest.raises(ValueError):
+        reader.handler({"action": "dance"})

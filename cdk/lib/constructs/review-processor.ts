@@ -213,6 +213,45 @@ export class ReviewProcessor extends Construct {
       }),
     );
 
+    // 審査の前に書類を読み取る Lambda。
+    //
+    // 1回の呼び出しに渡せるページ数（100）と画像の枚数（20）は引き上げ
+    // られないので、区切って読み、結果を書類ごとにまとめておく。スキャン
+    // した書類や大きい書類でだけ動き、そうでなければ何もしない。
+    //
+    // エージェント本体とは別のイメージ。Strands も MCP も要らず、
+    // ページを絵にする pypdfium2 と pypdf と pillow だけ積んでいる
+    const documentReaderLambda = new lambda.DockerImageFunction(
+      this,
+      "DocumentReaderFunction",
+      {
+        code: lambda.DockerImageCode.fromImageAsset(
+          path.join(__dirname, "../../../review-item-processor/"),
+          {
+            file: "Dockerfile.document-reader",
+            platform: Platform.LINUX_ARM64,
+          },
+        ),
+        // 20ページを同時に絵にするので、余裕を見る
+        memorySize: 2048,
+        // 20ページ分をモデルに読ませる1回ぶん。待てる長さにしておく
+        timeout: cdk.Duration.minutes(10),
+        architecture: cdk.aws_lambda.Architecture.ARM_64,
+        environment: {
+          DOCUMENT_BUCKET: props.documentBucket.bucketName,
+          BEDROCK_REGION: cdk.Stack.of(this).region,
+        },
+      },
+    );
+    // 元のファイルを読み、読み取り結果を書き戻す
+    props.documentBucket.grantReadWrite(documentReaderLambda);
+    documentReaderLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["bedrock:InvokeModel"],
+        resources: ["*"],
+      }),
+    );
+
     // 審査準備Lambda - チェックリスト項目を取得し、処理項目を準備
     const prepareReviewTask = new tasks.LambdaInvoke(this, "PrepareReview", {
       lambdaFunction: this.reviewLambda,
@@ -223,6 +262,66 @@ export class ReviewProcessor extends Construct {
         executionArn: sfn.JsonPath.stringAt("$$.Execution.Id"),
       }),
       resultPath: "$.prepareResult",
+      resultSelector: {
+        "Payload.$": "$.Payload",
+      },
+    });
+
+    // 何をどこまで読むかを決める。モデルを呼ばないので一瞬で終わる。
+    // 読む必要が無ければ空を返し、このあとの Map は0回になる
+    const planReadingTask = new tasks.LambdaInvoke(this, "PlanReading", {
+      lambdaFunction: documentReaderLambda,
+      payload: sfn.TaskInput.fromObject({
+        action: "plan",
+        bucket: props.documentBucket.bucketName,
+        documents: sfn.JsonPath.objectAt("$.prepareResult.Payload.documents"),
+      }),
+      resultPath: "$.readPlan",
+      resultSelector: {
+        "Payload.$": "$.Payload",
+      },
+    });
+
+    // 区切った範囲をモデルに読ませる。1回に渡せる上限に収まるよう
+    // plan が区切ってあるので、ここは並べて走らせるだけ
+    const readDocumentsMap = new sfn.Map(this, "ReadDocuments", {
+      maxConcurrency: maxConcurrency,
+      itemsPath: sfn.JsonPath.stringAt("$.readPlan.Payload.tasks"),
+      resultPath: "$.readResults",
+      itemSelector: {
+        "task.$": "$$.Map.Item.Value",
+      },
+    });
+    const readDocumentTask = new tasks.LambdaInvoke(this, "ReadDocumentPages", {
+      lambdaFunction: documentReaderLambda,
+      payload: sfn.TaskInput.fromObject({
+        action: "read",
+        bucket: props.documentBucket.bucketName,
+        task: sfn.JsonPath.objectAt("$.task"),
+      }),
+      outputPath: "$.Payload",
+    });
+    // 読み取りが落ちても審査は続ける。読めなかったページは「読めなかった」
+    // として残り、審査は元のファイルを見に行く。ここで止めると、読み取りの
+    // 不調で審査そのものができなくなる
+    readDocumentTask.addRetry({
+      errors: ["States.ALL"],
+      interval: cdk.Duration.seconds(5),
+      maxAttempts: 2,
+      backoffRate: 2,
+    });
+    readDocumentsMap.itemProcessor(readDocumentTask);
+
+    // 置いた結果を書類ごとにまとめる。読むものが無ければ何もしない
+    const storeReadingTask = new tasks.LambdaInvoke(this, "StoreReading", {
+      lambdaFunction: documentReaderLambda,
+      payload: sfn.TaskInput.fromObject({
+        action: "store",
+        bucket: props.documentBucket.bucketName,
+        documents: sfn.JsonPath.objectAt("$.readPlan.Payload.documents"),
+        partials: sfn.JsonPath.objectAt("$.readResults"),
+      }),
+      resultPath: "$.readStored",
       resultSelector: {
         "Payload.$": "$.Payload",
       },
@@ -357,13 +456,21 @@ export class ReviewProcessor extends Construct {
       errors: ["States.ALL"],
       resultPath: "$.error",
     });
+    // 読み取りは審査の補助なので、失敗しても審査は続ける。読めなかった分は
+    // 元のファイルを見に行くだけで、判定そのものはできる
+    planReadingTask.addCatch(processItemsMap, { errors: ["States.ALL"] });
+    readDocumentsMap.addCatch(processItemsMap, { errors: ["States.ALL"] });
+    storeReadingTask.addCatch(processItemsMap, { errors: ["States.ALL"] });
     finalizeReviewTask.addCatch(handleErrorTask, {
       errors: ["States.ALL"],
       resultPath: "$.error",
     });
 
-    // ワークフロー定義
+    // ワークフロー定義。読み取りは審査の前に1回だけ通す
     const definition = prepareReviewTask
+      .next(planReadingTask)
+      .next(readDocumentsMap)
+      .next(storeReadingTask)
       .next(processItemsMap)
       .next(finalizeReviewTask);
 
