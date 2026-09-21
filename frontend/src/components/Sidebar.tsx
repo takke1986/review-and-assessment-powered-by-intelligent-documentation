@@ -46,17 +46,13 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* モバイル用のメニュー。ボタンだけを浮かせると、画面を送ったときに
-          見出しの上に重なって字が読めなくなる。帯ごと固定して、本文は
-          その下に流す（Layout 側で同じ高さだけ上を空けている） */}
-      <div className="fixed left-0 top-0 z-50 flex h-14 w-full items-center bg-aws-squid-ink-light px-4 md:hidden">
-        <button
-          className="rounded-md p-2 text-aws-font-color-white-light"
-          onClick={toggleSidebar}
-          aria-label={t("sidebar.menu")}>
-          {isOpen ? <HiX className="h-6 w-6" /> : <HiMenu className="h-6 w-6" />}
-        </button>
-      </div>
+      {/* モバイル用のハンバーガーメニュー */}
+      <button
+        className="fixed left-4 top-4 z-50 rounded-md bg-aws-squid-ink-light p-2 text-aws-font-color-white-light md:hidden"
+        onClick={toggleSidebar}
+        aria-label={t("sidebar.menu")}>
+        {isOpen ? <HiX className="h-6 w-6" /> : <HiMenu className="h-6 w-6" />}
+      </button>
 
       {/* サイドバー */}
       <div
