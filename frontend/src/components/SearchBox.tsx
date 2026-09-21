@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { HiSearch } from "react-icons/hi";
 
@@ -31,8 +31,10 @@ export default function SearchBox({
 }: SearchBoxProps) {
   const { t } = useTranslation();
   const [text, setText] = useState(value);
-  // 変換中かどうか。日本語入力では確定するまで検索しない
-  const isComposing = useRef(false);
+  // 変換中かどうか。日本語入力では確定するまで検索しない。
+  // ref ではなく state で持つ。ref だと確定しても再描画が起きず、
+  // 確定後の文字が変換中と同じ（「テ」→「テ」）ときに検索が走らなかった
+  const [isComposing, setIsComposing] = useState(false);
 
   // 画面側が値を変えたとき（別の条件で絞り直したなど）に追従する
   useEffect(() => {
@@ -40,14 +42,14 @@ export default function SearchBox({
   }, [value]);
 
   useEffect(() => {
-    if (isComposing.current || text === value) {
+    if (isComposing || text === value) {
       return;
     }
     const timer = setTimeout(() => onChange(text), SETTLE_MS);
     return () => clearTimeout(timer);
     // onChange は画面側で作り直されることがあるので、値の変化だけを見る
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, value]);
+  }, [text, value, isComposing]);
 
   return (
     <div className={`relative ${className}`}>
@@ -61,11 +63,9 @@ export default function SearchBox({
         type="search"
         value={text}
         onChange={(event) => setText(event.target.value)}
-        onCompositionStart={() => {
-          isComposing.current = true;
-        }}
+        onCompositionStart={() => setIsComposing(true)}
         onCompositionEnd={(event) => {
-          isComposing.current = false;
+          setIsComposing(false);
           setText(event.currentTarget.value);
         }}
         placeholder={t("common.searchPlaceholder")}

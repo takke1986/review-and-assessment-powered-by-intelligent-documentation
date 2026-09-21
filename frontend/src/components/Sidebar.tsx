@@ -59,7 +59,10 @@ export default function Sidebar() {
         className={`fixed left-0 top-0 z-40 h-full w-64 transform bg-aws-squid-ink-light text-aws-font-color-white-light transition-transform duration-300 ease-in-out ${
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}>
-        <div className="p-6">
+        {/* 携帯ではメニューのボタンが左上に浮いているので、その分だけ空ける。
+            空けないと一番上の項目がボタンに重なって読めない
+            （ボタンは top-4 から高さ 2.5rem ほど） */}
+        <div className="p-6 pt-[4.5rem] md:pt-6">
           <nav>
             <ul className="space-y-2">
               <li className="mb-1">
