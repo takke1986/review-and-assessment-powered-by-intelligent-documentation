@@ -1,4 +1,5 @@
 import { FastifyRequest, FastifyReply } from "fastify";
+import { parseListQuery } from "../../../common/pagination";
 import {
   getPromptTemplates,
   getPromptTemplateById,
@@ -54,6 +55,13 @@ export interface DeletePromptTemplateRequest {
   };
 }
 
+const SORTABLE_FIELDS = [
+  "name",
+  "description",
+  "createdAt",
+  "updatedAt",
+] as const;
+
 export const getPromptTemplatesHandler = async (
   request: FastifyRequest<GetPromptTemplatesRequest>,
   reply: FastifyReply
@@ -71,28 +79,10 @@ export const getPromptTemplatesHandler = async (
     return;
   }
 
-  const {
-    page = 1,
-    limit = 10,
-    sortBy = "updatedAt",
-    sortOrder = "desc",
-    search,
-  } = request.query;
-
-  const pageNum = typeof page === "string" ? parseInt(page, 10) : page;
-  const limitNum = typeof limit === "string" ? parseInt(limit, 10) : limit;
-
-  const validSortFields = ["name", "description", "createdAt", "updatedAt"];
-  const validSortBy = validSortFields.includes(sortBy) ? sortBy : "updatedAt";
-
   const result = await getPromptTemplates({
     userId,
     type: type as PromptTemplateType,
-    page: pageNum,
-    limit: limitNum,
-    sortBy: validSortBy,
-    sortOrder,
-    search,
+    ...parseListQuery(request.query, SORTABLE_FIELDS, "updatedAt"),
   });
 
   reply.code(200).send({

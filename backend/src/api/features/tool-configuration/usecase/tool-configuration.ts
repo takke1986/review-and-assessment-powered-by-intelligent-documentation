@@ -1,4 +1,5 @@
 import { PaginatedResponse } from "../../../common/types";
+import { ListParams } from "../../../common/pagination";
 import {
   ToolConfigurationEntity,
   ToolConfigurationDomain,
@@ -29,26 +30,16 @@ export const createToolConfiguration = async (params: {
   return config;
 };
 
-export const getAllToolConfigurations = async (params: {
-  page?: number;
-  limit?: number;
-  sortBy?: string;
-  sortOrder?: "asc" | "desc";
-  /** 名前の一部での絞り込み */
-  search?: string;
-  deps?: {
-    repo?: ToolConfigurationRepository;
-  };
-}): Promise<PaginatedResponse<ToolConfigurationEntity>> => {
-  const repo =
-    params.deps?.repo || (await makePrismaToolConfigurationRepository());
-  return repo.findAll({
-    page: params.page,
-    limit: params.limit,
-    sortBy: params.sortBy,
-    sortOrder: params.sortOrder,
-    search: params.search,
-  });
+export const getAllToolConfigurations = async (
+  params: ListParams & {
+    deps?: {
+      repo?: ToolConfigurationRepository;
+    };
+  }
+): Promise<PaginatedResponse<ToolConfigurationEntity>> => {
+  const { deps, ...list } = params;
+  const repo = deps?.repo || (await makePrismaToolConfigurationRepository());
+  return repo.findAll(list);
 };
 
 export const getToolConfigurationById = async (params: {

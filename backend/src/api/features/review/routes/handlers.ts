@@ -1,4 +1,5 @@
 import { FastifyReply, FastifyRequest } from "fastify";
+import { parseListQuery } from "../../../common/pagination";
 import {
   computeGlobalConcurrency,
   createReviewJob,
@@ -26,6 +27,20 @@ import { getDocumentDownloadUrl } from "../usecase/document";
 import { MAX_REVIEW_DOCUMENTS } from "../../../constants";
 import { resolveDepartment } from "../domain/service/departments";
 
+/**
+ * 並べられる列。一覧の主役の列なので名前でも並べられるようにする。
+ * checkListSet は関連先の名前で並べる
+ */
+const SORTABLE_FIELDS = [
+  "id",
+  "name",
+  "createdAt",
+  "status",
+  "checkListSet",
+  "totalCost",
+  "departmentId",
+] as const;
+
 export const getAllReviewJobsHandler = async (
   request: FastifyRequest<{
     Querystring: {
@@ -41,45 +56,14 @@ export const getAllReviewJobsHandler = async (
   }>,
   reply: FastifyReply
 ): Promise<void> => {
-  const {
-    page = 1,
-    limit = 10,
-    sortBy = "id",
-    sortOrder = "desc",
-    status,
-    search,
-    checkListSetId,
-    departmentId,
-  } = request.query;
-
-  // Convert string query parameters to numbers
-  const pageNum = typeof page === "string" ? parseInt(page, 10) : page;
-  const limitNum = typeof limit === "string" ? parseInt(limit, 10) : limit;
-
-  // Validate sortBy parameter - only allow valid fields
-  // 一覧の主役の列なので名前でも並べられるようにする。
-  // checkListSet は関連先の名前で並べる
-  const validSortFields = [
-    "id",
-    "name",
-    "createdAt",
-    "status",
-    "checkListSet",
-    "totalCost",
-    "departmentId",
-  ];
-  const validSortBy = validSortFields.includes(sortBy) ? sortBy : "id";
+  const { status, checkListSetId, departmentId } = request.query;
 
   const result = await getAllReviewJobs({
-    page: pageNum,
-    limit: limitNum,
-    sortBy: validSortBy,
-    sortOrder,
     status,
-    search,
     checkListSetId,
     departmentId,
     user: request.user,
+    ...parseListQuery(request.query, SORTABLE_FIELDS, "id"),
   });
 
   reply.code(200).send({

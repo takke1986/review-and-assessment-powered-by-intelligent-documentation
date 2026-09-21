@@ -13,6 +13,7 @@ import {
   parseCheckItemImportance,
 } from "../domain/model/checklist";
 import { PaginatedResponse } from "../../../common/types";
+import { ListParams } from "../../../common/pagination";
 import { ulid } from "ulid";
 import { getPresignedUrl, getS3ObjectSize } from "../../../core/s3";
 import { getChecklistOriginalKey } from "../../../../checklist-workflow/common/storage-paths";
@@ -241,19 +242,15 @@ export const removeChecklistSet = async (params: {
   });
 };
 
-export const getAllChecklistSets = async (params: {
-  status?: CHECK_LIST_STATUS;
-  page?: number;
-  limit?: number;
-  sortBy?: string;
-  sortOrder?: "asc" | "desc";
-  ownerUserId?: string;
-  /** 名前の一部での絞り込み */
-  search?: string;
-  deps?: {
-    repo?: CheckRepository;
-  };
-}): Promise<PaginatedResponse<CheckListSetSummary>> => {
+export const getAllChecklistSets = async (
+  params: ListParams & {
+    status?: CHECK_LIST_STATUS;
+    ownerUserId?: string;
+    deps?: {
+      repo?: CheckRepository;
+    };
+  }
+): Promise<PaginatedResponse<CheckListSetSummary>> => {
   const repo = params.deps?.repo || (await makePrismaCheckRepository());
 
   const result = await repo.findAllCheckListSets({

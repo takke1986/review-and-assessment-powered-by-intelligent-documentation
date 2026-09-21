@@ -10,20 +10,17 @@ import {
 import { NotFoundError } from "../../../core/errors";
 import { getChecklistExtractionPrompt } from "../../../../checklist-workflow/document-processing/llm-processing";
 import { PaginatedResponse } from "../../../common/types";
+import { ListParams } from "../../../common/pagination";
 
-export const getPromptTemplates = async (params: {
-  userId: string;
-  type: PromptTemplateType;
-  page?: number;
-  limit?: number;
-  sortBy?: string;
-  sortOrder?: "asc" | "desc";
-  /** 名前の一部での絞り込み */
-  search?: string;
-  deps?: {
-    repo?: PromptTemplateRepository;
-  };
-}): Promise<PaginatedResponse<PromptTemplateEntity>> => {
+export const getPromptTemplates = async (
+  params: ListParams & {
+    userId: string;
+    type: PromptTemplateType;
+    deps?: {
+      repo?: PromptTemplateRepository;
+    };
+  }
+): Promise<PaginatedResponse<PromptTemplateEntity>> => {
   const repo =
     params.deps?.repo || (await makePrismaPromptTemplateRepository());
   return repo.getPromptTemplates(params.userId, params.type, {

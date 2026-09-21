@@ -1,18 +1,17 @@
 import { PrismaClient, getPrismaClient, Prisma } from "../../../core/db";
 import { normalizeSearchTerm } from "../../../core/utils/search-text";
 import { PaginatedResponse } from "../../../common/types";
+import {
+  ListParams,
+  resolvePaging,
+  toPaginatedResponse,
+} from "../../../common/pagination";
 import { NotFoundError } from "../../../core/errors";
 import { ToolConfigurationEntity } from "./model/tool-configuration";
 
 export interface ToolConfigurationRepository {
   create(config: ToolConfigurationEntity): Promise<void>;
-  findAll(params?: {
-    page?: number;
-    limit?: number;
-    sortBy?: string;
-    sortOrder?: "asc" | "desc";
-    search?: string;
-  }): Promise<PaginatedResponse<ToolConfigurationEntity>>;
+  findAll(params?: ListParams): Promise<PaginatedResponse<ToolConfigurationEntity>>;
   findById(id: string): Promise<ToolConfigurationEntity>;
   delete(id: string): Promise<void>;
   isUsedByCheckLists(id: string): Promise<boolean>;
@@ -43,24 +42,12 @@ export const makePrismaToolConfigurationRepository = async (
   };
 
   const findAll = async (
-    params: {
-      page?: number;
-      limit?: number;
-      sortBy?: string;
-      sortOrder?: "asc" | "desc";
-      /** 名前の一部。増えてくると一覧から探せないため */
-      search?: string;
-    } = {}
+    params: ListParams = {}
   ): Promise<PaginatedResponse<ToolConfigurationEntity>> => {
-    const {
-      page = 1,
-      limit = 10,
-      sortBy = "createdAt",
-      sortOrder = "desc",
-      search,
-    } = params;
+    const paging = resolvePaging(params, "createdAt");
+    const { sortBy, sortOrder } = paging;
 
-    const needle = normalizeSearchTerm(search);
+    const needle = normalizeSearchTerm(params.search);
     const where = needle ? { name: { contains: needle } } : {};
 
     const [configs, total] = await Promise.all([
@@ -71,8 +58,8 @@ export const makePrismaToolConfigurationRepository = async (
           sortBy === "usageCount"
             ? { checkLists: { _count: sortOrder } }
             : { [sortBy]: sortOrder },
-        skip: (page - 1) * limit,
-        take: limit,
+        skip: paging.skip,
+        take: paging.take,
         include: {
           _count: {
             select: { checkLists: true },
@@ -96,13 +83,7 @@ export const makePrismaToolConfigurationRepository = async (
       usageCount: (config as any)._count.checkLists,
     }));
 
-    return {
-      items,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+    return toPaginatedResponse(items, total, paging);
   };
 
   const findById = async (id: string): Promise<ToolConfigurationEntity> => {

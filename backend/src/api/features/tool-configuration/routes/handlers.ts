@@ -1,4 +1,5 @@
 import { FastifyRequest, FastifyReply } from "fastify";
+import { parseListQuery } from "../../../common/pagination";
 import {
   createToolConfiguration,
   getAllToolConfigurations,
@@ -16,6 +17,9 @@ export interface CreateToolConfigurationRequest {
   mcpConfig?: any;
 }
 
+/** 並べられるのは列と、関連の件数（使用状況）だけ */
+const SORTABLE_FIELDS = ["name", "createdAt", "updatedAt", "usageCount"] as const;
+
 export const getAllToolConfigurationsHandler = async (
   request: FastifyRequest<{
     Querystring: {
@@ -28,28 +32,9 @@ export const getAllToolConfigurationsHandler = async (
   }>,
   reply: FastifyReply
 ): Promise<void> => {
-  const {
-    page = 1,
-    limit = 10,
-    sortBy = "createdAt",
-    sortOrder = "desc",
-    search,
-  } = request.query;
-
-  const pageNum = typeof page === "string" ? parseInt(page, 10) : page;
-  const limitNum = typeof limit === "string" ? parseInt(limit, 10) : limit;
-
-  // 並べられるのは列と、関連の件数（使用状況）だけ
-  const validSortFields = ["name", "createdAt", "updatedAt", "usageCount"];
-  const validSortBy = validSortFields.includes(sortBy) ? sortBy : "createdAt";
-
-  const result = await getAllToolConfigurations({
-    page: pageNum,
-    limit: limitNum,
-    sortBy: validSortBy,
-    sortOrder,
-    search,
-  });
+  const result = await getAllToolConfigurations(
+    parseListQuery(request.query, SORTABLE_FIELDS, "createdAt")
+  );
   reply.code(200).send({ success: true, data: result });
 };
 

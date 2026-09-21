@@ -1,6 +1,11 @@
 import { PrismaClient, getPrismaClient } from "../../../core/db";
 import { normalizeSearchTerm } from "../../../core/utils/search-text";
 import { PaginatedResponse } from "../../../common/types";
+import {
+  ListParams,
+  resolvePaging,
+  toPaginatedResponse,
+} from "../../../common/pagination";
 import { NotFoundError } from "../../../core/errors";
 import { PromptTemplateEntity, PromptTemplateType } from "./model/template";
 
@@ -8,13 +13,7 @@ export interface PromptTemplateRepository {
   getPromptTemplates(
     userId: string,
     type: PromptTemplateType,
-    params?: {
-      page?: number;
-      limit?: number;
-      sortBy?: string;
-      sortOrder?: "asc" | "desc";
-      search?: string;
-    }
+    params?: ListParams
   ): Promise<PaginatedResponse<PromptTemplateEntity>>;
   getPromptTemplateById(id: string): Promise<PromptTemplateEntity>;
   createPromptTemplate(template: PromptTemplateEntity): Promise<void>;
@@ -30,24 +29,12 @@ export const makePrismaPromptTemplateRepository = async (
   const getPromptTemplates = async (
     userId: string,
     type: PromptTemplateType,
-    params: {
-      page?: number;
-      limit?: number;
-      sortBy?: string;
-      sortOrder?: "asc" | "desc";
-      /** 名前の一部。増えてくると一覧から探せないため */
-      search?: string;
-    } = {}
+    params: ListParams = {}
   ): Promise<PaginatedResponse<PromptTemplateEntity>> => {
-    const {
-      page = 1,
-      limit = 10,
-      sortBy = "updatedAt",
-      sortOrder = "desc",
-      search,
-    } = params;
+    const paging = resolvePaging(params, "updatedAt");
+    const { sortBy, sortOrder } = paging;
 
-    const needle = normalizeSearchTerm(search);
+    const needle = normalizeSearchTerm(params.search);
     const where = {
       userId,
       type,
@@ -58,8 +45,8 @@ export const makePrismaPromptTemplateRepository = async (
       client.promptTemplate.findMany({
         where,
         orderBy: { [sortBy]: sortOrder },
-        skip: (page - 1) * limit,
-        take: limit,
+        skip: paging.skip,
+        take: paging.take,
       }),
       client.promptTemplate.count({ where }),
     ]);
@@ -75,13 +62,7 @@ export const makePrismaPromptTemplateRepository = async (
       updatedAt: template.updatedAt,
     }));
 
-    return {
-      items,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+    return toPaginatedResponse(items, total, paging);
   };
 
   const getPromptTemplateById = async (

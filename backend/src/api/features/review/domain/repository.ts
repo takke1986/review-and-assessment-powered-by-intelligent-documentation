@@ -3,6 +3,11 @@ import { normalizeForStorage, normalizeSearchTerm } from "../../../core/utils/se
 import { NotFoundError } from "../../../core/errors";
 import { PaginatedResponse } from "../../../common/types";
 import {
+  ListParams,
+  resolvePaging,
+  toPaginatedResponse,
+} from "../../../common/pagination";
+import {
   ReviewJobEntity,
   ReviewJobSummary,
   ReviewJobDetail,
@@ -60,11 +65,7 @@ export interface ReviewCostSummary {
 }
 
 export interface ReviewJobRepository {
-  findAllReviewJobs(params?: {
-    page?: number;
-    limit?: number;
-    sortBy?: string;
-    sortOrder?: "asc" | "desc";
+  findAllReviewJobs(params?: ListParams & {
     status?: string;
     // ownerUserId が指定された場合、そのユーザのジョブのみ返す（管理者は未指定）
     /** 見える範囲。管理者は指定しない */
@@ -138,29 +139,16 @@ export const makePrismaReviewJobRepository = async (
   const client = clientInput || (await getPrismaClient());
 
   const findAllReviewJobs = async (
-    params: {
-      page?: number;
-      limit?: number;
-      sortBy?: string;
-      sortOrder?: "asc" | "desc";
+    params: ListParams & {
       status?: string;
       visibleTo?: Viewer;
-      /** 名前か、審査した文書の名前の一部。増えてくると一覧から探せないため */
-      search?: string;
       checkListSetId?: string;
       departmentId?: string;
     } = {}
   ): Promise<PaginatedResponse<ReviewJobSummary>> => {
-    const {
-      page = 1,
-      limit = 10,
-      sortBy = "id",
-      sortOrder = "desc",
-      status,
-      search,
-      checkListSetId,
-      departmentId,
-    } = params;
+    const paging = resolvePaging(params, "id");
+    const { sortBy, sortOrder } = paging;
+    const { status, search, checkListSetId, departmentId } = params;
 
     // WHERE条件を構築
     const whereCondition: {
@@ -207,8 +195,8 @@ export const makePrismaReviewJobRepository = async (
             : sortBy === "documents"
               ? { documents: { _count: sortOrder } }
               : { [sortBy]: sortOrder },
-        skip: (page - 1) * limit,
-        take: limit,
+        skip: paging.skip,
+        take: paging.take,
         include: {
           documents: {
             select: {
@@ -309,15 +297,7 @@ export const makePrismaReviewJobRepository = async (
       };
     });
 
-    const totalPages = Math.ceil(total / limit);
-
-    return {
-      items: mappedJobs,
-      total,
-      page,
-      limit,
-      totalPages,
-    };
+    return toPaginatedResponse(mappedJobs, total, paging);
   };
 
   const summarizeReviewCost = async (

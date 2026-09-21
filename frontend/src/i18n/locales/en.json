@@ -169,6 +169,8 @@
     "promptTemplateDescription": "Custom prompts allow you to customize how checklists are extracted from documents.",
     "systemDefault": "System Default",
     "systemDefaultDescription": "Standard template for checklist extraction",
+    "promptTemplateSearch": "Filter templates",
+    "promptTemplateNoMatch": "No matching templates",
     "lastUpdated": "Last updated",
     "previewTemplate": "Preview template",
     "promptPreview": "Prompt Preview",

@@ -16,6 +16,11 @@ import {
   CHECK_ITEM_IMPORTANCE,
 } from "./model/checklist";
 import { PaginatedResponse } from "../../../common/types";
+import {
+  ListParams,
+  resolvePaging,
+  toPaginatedResponse,
+} from "../../../common/pagination";
 
 export interface CheckRepository {
   storeCheckListSet(params: {
@@ -23,16 +28,12 @@ export interface CheckRepository {
     ownerUserId: string;
   }): Promise<void>;
   deleteCheckListSetById(params: { checkListSetId: string }): Promise<void>;
-  findAllCheckListSets(params: {
-    page?: number;
-    limit?: number;
-    sortBy?: string;
-    sortOrder?: "asc" | "desc";
-    status?: CHECK_LIST_STATUS;
-    ownerUserId?: string;
-    /** 名前の一部での絞り込み */
-    search?: string;
-  }): Promise<PaginatedResponse<CheckListSetSummary>>;
+  findAllCheckListSets(
+    params: ListParams & {
+      status?: CHECK_LIST_STATUS;
+      ownerUserId?: string;
+    }
+  ): Promise<PaginatedResponse<CheckListSetSummary>>;
   findCheckListItems(
     setId: string,
     parentId?: string,
@@ -217,26 +218,14 @@ export const makePrismaCheckRepository = async (
   };
 
   const findAllCheckListSets = async (
-    params: {
-      page?: number;
-      limit?: number;
-      sortBy?: string;
-      sortOrder?: "asc" | "desc";
+    params: ListParams & {
       status?: CHECK_LIST_STATUS;
       ownerUserId?: string;
-      /** 名前の一部。増えてくると一覧から探せないため */
-      search?: string;
     } = {}
   ): Promise<PaginatedResponse<CheckListSetSummary>> => {
-    const {
-      page = 1,
-      limit = 10,
-      sortBy = "id",
-      sortOrder = "desc",
-      status,
-      ownerUserId,
-      search,
-    } = params;
+    const paging = resolvePaging(params, "id");
+    const { sortBy, sortOrder } = paging;
+    const { status, ownerUserId, search } = params;
     // ステータスフィルタリングのためのサブクエリを準備
     let whereCondition: Record<string, any> = {};
 
@@ -341,8 +330,8 @@ export const makePrismaCheckRepository = async (
           sortBy === "documents"
             ? { documents: { _count: sortOrder } }
             : { [sortBy]: sortOrder },
-        skip: (page - 1) * limit,
-        take: limit,
+        skip: paging.skip,
+        take: paging.take,
       }),
       client.checkListSet.count({
         where: whereCondition,
@@ -389,15 +378,7 @@ export const makePrismaCheckRepository = async (
       };
     });
 
-    const totalPages = Math.ceil(total / limit);
-
-    return {
-      items: mappedSets,
-      total,
-      page,
-      limit,
-      totalPages,
-    };
+    return toPaginatedResponse(mappedSets, total, paging);
   };
 
   const findCheckListItems = async (

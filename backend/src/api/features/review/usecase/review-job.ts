@@ -6,6 +6,7 @@ import {
   ReviewResultDetail,
 } from "../domain/model/review";
 import { PaginatedResponse } from "../../../common/types";
+import { ListParams } from "../../../common/pagination";
 import {
   ReviewCostSummary,
   ReviewJobRepository,
@@ -81,14 +82,8 @@ export const computeGlobalConcurrency = async (): Promise<{
   return { isLimit: false };
 };
 
-export const getAllReviewJobs = async (params: {
-  page?: number;
-  limit?: number;
-  sortBy?: string;
-  sortOrder?: "asc" | "desc";
+export const getAllReviewJobs = async (params: ListParams & {
   status?: string;
-  /** 名前か、審査した文書の名前の一部での絞り込み */
-  search?: string;
   /** このチェックリストを使ったジョブだけ */
   checkListSetId?: string;
   /** この部署の審査だけ。部署ごとの履歴を見るのに使う */

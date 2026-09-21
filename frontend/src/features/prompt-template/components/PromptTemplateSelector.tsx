@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PromptTemplate } from "../types";
 import Modal from "../../../components/Modal";
 import { PromptPreview } from "./PromptPreview";
 import { FiEye } from "react-icons/fi";
+import SearchBox from "../../../components/SearchBox";
 
 interface PromptTemplateSelectorProps {
   templates: PromptTemplate[];
@@ -19,6 +20,7 @@ export const PromptTemplateSelector: React.FC<PromptTemplateSelectorProps> = ({
   isLoading,
 }) => {
   const { t } = useTranslation();
+  const [query, setQuery] = useState("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<PromptTemplate | null>(
     null
@@ -41,6 +43,19 @@ export const PromptTemplateSelector: React.FC<PromptTemplateSelectorProps> = ({
     onChange(undefined);
   };
 
+  // 呼ぶ側が全件を一度に読んでいるので、絞り込みは画面側で足りる。
+  // 合成方法をそろえるのは、macOS が作る名前が「カ」+ 結合濁点の分解形で
+  // 入るのに対し、打つ文字は合成済みの「ガ」になるため
+  const matchedTemplates = useMemo(() => {
+    const needle = query.trim().normalize("NFC").toLowerCase();
+    if (!needle) return templates;
+    return templates.filter((template) =>
+      [template.name, template.description ?? ""].some((text) =>
+        text.normalize("NFC").toLowerCase().includes(needle)
+      )
+    );
+  }, [templates, query]);
+
   if (isLoading) {
     return (
       <div className="h-40 w-full animate-pulse rounded-md border border-light-gray bg-light-gray shadow-sm"></div>
@@ -56,6 +71,19 @@ export const PromptTemplateSelector: React.FC<PromptTemplateSelectorProps> = ({
         <p className="mt-1 text-sm text-aws-font-color-gray">
           {t("checklist.promptTemplateDescription")}
         </p>
+        {/* 数が増えると一覧から探せないので名前と説明で絞れるようにする。
+            変換の確定を待つ作りは SearchBox 側に入っている */}
+        <label
+          htmlFor="prompt-template-search"
+          className="mt-3 block text-sm text-aws-font-color-gray">
+          {t("checklist.promptTemplateSearch", "Filter templates")}
+        </label>
+        <SearchBox
+          id="prompt-template-search"
+          value={query}
+          onChange={setQuery}
+          className="mt-1 w-full max-w-md"
+        />
       </div>
 
       <div className="divide-y divide-light-gray">
@@ -93,7 +121,7 @@ export const PromptTemplateSelector: React.FC<PromptTemplateSelectorProps> = ({
         </div>
 
         {/* Available Templates */}
-        {templates.map((template) => (
+        {matchedTemplates.map((template) => (
           <div
             key={template.id}
             className={`cursor-pointer p-4 transition-colors ${
@@ -143,6 +171,14 @@ export const PromptTemplateSelector: React.FC<PromptTemplateSelectorProps> = ({
               "checklist.noTemplatesAvailable",
               "No custom templates available"
             )}
+          </div>
+        )}
+
+        {/* 1件も無いのと、絞り込んで残らなかったのは別のこと。
+            後者で「テンプレートが無い」と出すと、作った覚えを疑わせてしまう */}
+        {templates.length > 0 && matchedTemplates.length === 0 && (
+          <div className="p-4 text-center text-aws-font-color-gray">
+            {t("checklist.promptTemplateNoMatch", "No matching templates")}
           </div>
         )}
       </div>

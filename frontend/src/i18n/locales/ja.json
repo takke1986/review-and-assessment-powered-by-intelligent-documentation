@@ -169,6 +169,8 @@
     "promptTemplateDescription": "カスタムプロンプトを使用すると、チェックリストの抽出方法をカスタマイズできます。",
     "systemDefault": "システムデフォルト",
     "systemDefaultDescription": "チェックリスト抽出の標準テンプレート",
+    "promptTemplateSearch": "テンプレートを絞り込む",
+    "promptTemplateNoMatch": "該当するテンプレートがありません",
     "lastUpdated": "最終更新",
     "previewTemplate": "プレビュー",
     "promptPreview": "プロンプトプレビュー",

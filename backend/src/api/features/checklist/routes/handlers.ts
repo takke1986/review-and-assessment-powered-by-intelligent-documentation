@@ -1,4 +1,5 @@
 import { FastifyReply, FastifyRequest } from "fastify";
+import { parseListQuery } from "../../../common/pagination";
 import {
   createChecklistSet,
   removeChecklistSet,
@@ -127,6 +128,8 @@ export const duplicateChecklistSetHandler = async (
 /**
  * チェックリストセット一覧取得ハンドラー
  */
+const SORTABLE_FIELDS = ["id", "name", "description", "createdAt"] as const;
+
 export const getAllChecklistSetsHandler = async (
   request: FastifyRequest<{
     Querystring: {
@@ -142,32 +145,15 @@ export const getAllChecklistSetsHandler = async (
 ): Promise<void> => {
   const {
     status,
-    page = 1,
-    limit = 10,
-    sortBy = "id",
-    sortOrder = "desc",
-    search,
   } = request.query;
-
-  // Convert string query parameters to numbers
-  const pageNum = typeof page === "string" ? parseInt(page, 10) : page;
-  const limitNum = typeof limit === "string" ? parseInt(limit, 10) : limit;
-
-  // Validate sortBy parameter - only allow valid fields
-  const validSortFields = ["id", "name", "description", "createdAt"];
-  const validSortBy = validSortFields.includes(sortBy) ? sortBy : "id";
 
   // 管理者は全件、それ以外は自分の所有物のみを取得する
   const ownerUserId = request.user?.isAdmin ? undefined : request.user?.userId;
 
   const result = await getAllChecklistSets({
     status,
-    page: pageNum,
-    limit: limitNum,
-    search,
-    sortBy: validSortBy,
-    sortOrder,
     ownerUserId,
+    ...parseListQuery(request.query, SORTABLE_FIELDS, "id"),
   });
 
   reply.code(200).send({
