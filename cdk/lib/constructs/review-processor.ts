@@ -464,10 +464,19 @@ export class ReviewProcessor extends Construct {
       resultPath: "$.error",
     });
     // 読み取りは審査の補助なので、失敗しても審査は続ける。読めなかった分は
-    // 元のファイルを見に行くだけで、判定そのものはできる
-    planReadingTask.addCatch(processItemsMap, { errors: ["States.ALL"] });
-    readDocumentsMap.addCatch(processItemsMap, { errors: ["States.ALL"] });
-    storeReadingTask.addCatch(processItemsMap, { errors: ["States.ALL"] });
+    // 元のファイルを見に行くだけで、判定そのものはできる。
+    //
+    // resultPath を捨てるのは、そうしないとエラーの中身が入力を丸ごと
+    // 置き換えてしまうため。置き換わると、次の審査が探す prepareResult が
+    // 無くなり States.ReferencePathConflict で実行ごと落ちる。しかも
+    // ジョブは「処理中」のまま残り、利用者はいつまでも待つことになる
+    const keepInput = {
+      errors: ["States.ALL"],
+      resultPath: sfn.JsonPath.DISCARD,
+    };
+    planReadingTask.addCatch(processItemsMap, keepInput);
+    readDocumentsMap.addCatch(processItemsMap, keepInput);
+    storeReadingTask.addCatch(processItemsMap, keepInput);
     finalizeReviewTask.addCatch(handleErrorTask, {
       errors: ["States.ALL"],
       resultPath: "$.error",
