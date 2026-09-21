@@ -169,6 +169,36 @@ def supports_caching(model_id: str) -> bool:
     return model.supports_caching
 
 
+def _pictures_already_read(files: List[ReviewFile], digests: Optional[Dict[str, Any]]) -> str:
+    """先に読んである画像の中身を、指示に添える形にする。
+
+    画像だけの審査では道具で書類を読む仕組みを使わないので、読み取った
+    ものをここで渡さないと使われない
+    """
+    if not digests:
+        return ""
+
+    parts = []
+    for file in files:
+        digest = digests.get(file.path)
+        if not digest:
+            continue
+        for note in (digest.image_descriptions or {}).values():
+            parts.append(f"- {file.name}: {note}")
+    if not parts:
+        return ""
+
+    listed = "\n".join(parts)
+    return (
+        "\n\n## WHAT WAS READ FROM THE PICTURES BEFORE THIS REVIEW\n"
+        f"{listed}\n"
+        f"You can see at most {MAX_IMAGES_PER_REVIEW} images in one review, and "
+        "looking at the same picture again counts too. Use what is written above "
+        "when it is enough, and open a picture with image_reader only when you "
+        "have to see it yourself.\n"
+    )
+
+
 def _should_use_document_block(
     document_paths: list, model_id: str, has_images: bool
 ) -> bool:
@@ -490,6 +520,11 @@ def _execute_review_core(
                 feedback_summary=feedback_summary,
                 review_guidance=review_guidance,
             )
+            # 先に読んである画像は、その中身を指示に添える。開かずに判断
+            # できるものが増え、1回に見られる20枚の枠が、本当に見る必要の
+            # あるものに残る。枠は見直した分も数に入るので、ここを言わないと
+            # 素直に全部開いて上限に当たる
+            prompt += _pictures_already_read(files, digests)
             tools = [file_read, image_reader]
             review_type = "IMAGE"
         else:

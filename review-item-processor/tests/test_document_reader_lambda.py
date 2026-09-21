@@ -413,3 +413,61 @@ def _readable_page(number):
     from document_digest import PageSurvey
 
     return PageSurvey(page=number, characters=2000)
+
+
+class TestManyPictures:
+    """画像だけのジョブ。審査では1回に20枚までしか見られず、見直した分も
+    数に入る。読み取りは1回1枚で走るので、その上限に縛られない"""
+
+    def _plan(self, wired, count):
+        files = {f"docs/p{n}.png": png_bytes() for n in range(count)}
+        wired(files)
+        return reader.plan(
+            {
+                "bucket": "b",
+                "documents": [
+                    {"key": key, "filename": key.split("/")[-1]} for key in files
+                ],
+            }
+        )
+
+    def test_reads_ahead_when_there_are_more_pictures_than_fit(self, wired):
+        result = self._plan(wired, 12)
+        assert len(result["tasks"]) == 12
+        assert {task["kind"] for task in result["tasks"]} == {"picture"}
+
+    # 数枚なら、審査のときに開けば足りる。費用をかけない
+    def test_leaves_a_few_pictures_alone(self, wired):
+        assert self._plan(wired, 3)["tasks"] == []
+
+
+class TestTellingTheModelWhatWasRead:
+    def test_puts_what_was_read_into_the_instructions(self):
+        import agent
+        from document_digest import DocumentDigest, ImageDigest
+        from review_documents import ReviewFile
+
+        note = agent._pictures_already_read(
+            [ReviewFile(path="/tmp/a.png", name="現場写真.png")],
+            {
+                "/tmp/a.png": DocumentDigest(
+                    images=[
+                        ImageDigest(
+                            name="現場写真.png",
+                            description="足場の写真",
+                            text="安全第一",
+                        )
+                    ]
+                )
+            },
+        )
+        assert "現場写真.png" in note
+        assert "足場の写真" in note
+        # 上限を言わないと、素直に全部開いて当たる
+        assert "at most 20 images" in note
+        assert "looking at the same picture again counts" in note
+
+    def test_says_nothing_when_no_picture_was_read(self):
+        import agent
+
+        assert agent._pictures_already_read([], None) == ""

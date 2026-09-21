@@ -71,6 +71,9 @@ IMAGE_EXTENSIONS = (
 PAGE_LIMIT = 100
 BYTE_LIMIT = 4_500_000
 DOCUMENTS_PER_REQUEST = 5
+# 審査のとき1回に見られる画像は20枚。1枚ずつ開いて、いくつか見直せば
+# それだけで尽きる。これを超える枚数なら、先に読んでおく
+PICTURES_THAT_MAY_NOT_FIT = 10
 
 _s3 = None
 _bedrock = None
@@ -148,7 +151,12 @@ def plan(event: dict[str, Any]) -> dict[str, Any]:
     # 「道具経路に入るか」は、書類1件ずつでは決まらない。ページ数の上限は
     # ジョブ全体の合計で効くので、40ページの PDF が3件あれば、どれも単体では
     # 収まるのにジョブは収まらない
-    if (bool(tasks) or uses_tools(facts)) and pictures:
+    # 画像だけのジョブでも、枚数が多ければ読んでおく。審査のときは1回の
+    # 呼び出しで20枚までしか見られず、しかも見直した分も数に入る。読み取りは
+    # 1回1枚で走るので、この上限に縛られない。先に読んでおけば、開かずに
+    # 判断できるものが増え、枠は本当に見る必要があるものに残る
+    too_many_pictures = len(pictures) > PICTURES_THAT_MAY_NOT_FIT
+    if pictures and (tasks or uses_tools(facts) or too_many_pictures):
         for picture in pictures:
             tasks.append(
                 {"kind": "picture", "key": picture["key"], "name": picture["name"]}
