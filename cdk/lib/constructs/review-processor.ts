@@ -318,6 +318,8 @@ export class ReviewProcessor extends Construct {
       payload: sfn.TaskInput.fromObject({
         action: "store",
         bucket: props.documentBucket.bucketName,
+        // 読み取り結果はジョブごとに置く。ジョブをまたいで使い回さない
+        reviewJobId: sfn.JsonPath.stringAt("$.reviewJobId"),
         documents: sfn.JsonPath.objectAt("$.readPlan.Payload.documents"),
         partials: sfn.JsonPath.objectAt("$.readResults"),
       }),

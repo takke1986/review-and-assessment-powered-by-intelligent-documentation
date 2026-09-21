@@ -180,6 +180,7 @@ class TestStore:
         reader.store(
             {
                 "bucket": "b",
+                "reviewJobId": "job-1",
                 "documents": [{"key": "docs/scan.pdf", "pageCount": 3}],
                 "partials": [
                     {"key": "docs/scan.pdf", "partial": "p/second.json"},
@@ -189,7 +190,7 @@ class TestStore:
         )
 
         saved = json.loads(
-            fake_s3.objects["digest/docs/scan.pdf.json"].decode("utf-8")
+            fake_s3.objects["digest/job-1/docs/scan.pdf.json"].decode("utf-8")
         )
         assert [p["text"] for p in saved["pages"]] == ["one", "", "three"]
 
@@ -200,6 +201,7 @@ class TestStore:
         reader.store(
             {
                 "bucket": "b",
+                "reviewJobId": "job-1",
                 "documents": [{"key": "docs/a.pdf", "pageCount": 1}],
                 "partials": [{"key": "docs/a.pdf", "partial": "p/a.json"}],
             }
@@ -214,6 +216,7 @@ class TestStore:
         reader.store(
             {
                 "bucket": "b",
+                "reviewJobId": "job-1",
                 "documents": [{"key": "docs/a.pdf", "pageCount": 2}],
                 "partials": [
                     {"key": "docs/a.pdf", "partial": "p/missing.json"},
@@ -221,14 +224,16 @@ class TestStore:
                 ],
             }
         )
-        saved = json.loads(fake_s3.objects["digest/docs/a.pdf.json"].decode("utf-8"))
+        saved = json.loads(
+            fake_s3.objects["digest/job-1/docs/a.pdf.json"].decode("utf-8")
+        )
         assert [p["text"] for p in saved["pages"]] == ["", "two"]
 
     def test_does_nothing_when_there_was_nothing_to_read(self, wired):
         fake_s3, _ = wired()
-        assert reader.store({"bucket": "b", "documents": [], "partials": []}) == {
-            "stored": 0
-        }
+        assert reader.store(
+            {"bucket": "b", "reviewJobId": "job-1", "documents": [], "partials": []}
+        ) == {"stored": 0}
         assert fake_s3.objects == {}
 
 
@@ -464,10 +469,53 @@ class TestTellingTheModelWhatWasRead:
         assert "現場写真.png" in note
         assert "足場の写真" in note
         # 上限を言わないと、素直に全部開いて当たる
-        assert "at most 20 images" in note
+        from document_library import MAX_IMAGES_PER_REVIEW
+
+        assert f"at most {MAX_IMAGES_PER_REVIEW} images" in note
         assert "looking at the same picture again counts" in note
 
     def test_says_nothing_when_no_picture_was_read(self):
         import agent
 
         assert agent._pictures_already_read([], None) == ""
+
+
+class TestNotSharedBetweenJobs:
+    """読み取り結果はジョブごと。別のジョブに持ち越さない。
+
+    読み取りはそのジョブのチェックリストを踏まえて書くので、別の審査に
+    使うと、見るべき観点がずれたものを根拠にすることになる。書類が
+    差し替わっていないかも、ここでは分からない
+    """
+
+    def test_stores_under_the_job_it_was_read_for(self, wired):
+        fake_s3, _ = wired(
+            {"p/a.json": json.dumps({"pages": [{"page": 1, "text": "x"}]}).encode()}
+        )
+        reader.store(
+            {
+                "bucket": "b",
+                "reviewJobId": "job-A",
+                "documents": [{"key": "docs/a.pdf", "pageCount": 1}],
+                "partials": [{"key": "docs/a.pdf", "partial": "p/a.json"}],
+            }
+        )
+        assert "digest/job-A/docs/a.pdf.json" in fake_s3.objects
+
+    def test_another_job_does_not_find_it(self, wired):
+        import digest_store
+
+        fake_s3, _ = wired(
+            {"p/a.json": json.dumps({"pages": [{"page": 1, "text": "x"}]}).encode()}
+        )
+        reader.store(
+            {
+                "bucket": "b",
+                "reviewJobId": "job-A",
+                "documents": [{"key": "docs/a.pdf", "pageCount": 1}],
+                "partials": [{"key": "docs/a.pdf", "partial": "p/a.json"}],
+            }
+        )
+
+        assert digest_store.load("b", "docs/a.pdf", "job-A", s3=fake_s3).pages
+        assert not digest_store.load("b", "docs/a.pdf", "job-B", s3=fake_s3).pages

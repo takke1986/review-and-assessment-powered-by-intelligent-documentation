@@ -363,6 +363,7 @@ def _partial(bucket: str, key: str, payload: dict[str, Any]) -> dict[str, Any]:
 
 def store(event: dict[str, Any]) -> dict[str, Any]:
     bucket = event["bucket"]
+    job_id = event["reviewJobId"]
     partials = event.get("partials") or []
     by_document: dict[str, list[dict[str, Any]]] = {}
     for entry in partials:
@@ -401,7 +402,9 @@ def store(event: dict[str, Any]) -> dict[str, Any]:
             ]
 
         pages = merge_batches(pages_batches, page_count=page_counts.get(key, 0))
-        digest_store.save(bucket, key, pages=pages, images=images, s3=s3())
+        digest_store.save(
+            bucket, key, job_id, pages=pages, images=images, s3=s3()
+        )
         stored += 1
         _forget_partials(bucket, entries)
 

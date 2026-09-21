@@ -12,8 +12,11 @@ from strands import Agent
 from strands.models import BedrockModel
 from strands.models.model import CacheConfig
 from strands.tools.mcp import MCPClient
-from strands_tools import file_read, image_reader
+from strands_tools import file_read
 
+from PIL import Image
+
+from review_images import encode_image
 from document_library import (
     MAX_IMAGES_PER_REVIEW,
     DocumentLibrary,
@@ -169,6 +172,78 @@ def supports_caching(model_id: str) -> bool:
     return model.supports_caching
 
 
+class PictureViewer:
+    """審査に上げた画像を、枚数を数えながら見せる。
+
+    外の image_reader は枚数を数えないので、素直に全部開いて Converse の
+    上限に当たり、項目が失敗してジョブごと落ちていた。しかも上限は
+    モデルに伝えていなかったので、節約する理由が無かった。
+
+    ここで数えて断れば、審査は「見た範囲で」続く。何枚見たかと、断った
+    かどうかは結果に残すので、人が確かめられる
+    """
+
+    def __init__(self, files: List[ReviewFile]):
+        self._by_path = {file.path: file for file in files}
+        self._by_name = {file.name: file for file in files}
+        self.images_returned = 0
+        self.refused = False
+
+    def find(self, wanted: str) -> ReviewFile:
+        # モデルには、縮小した写しの置き場所を伝えてある。元のファイルとは
+        # 場所が違うので、置き場所・名前・ファイル名の順に当てる
+        file = (
+            self._by_path.get(wanted)
+            or self._by_name.get(wanted)
+            or self._by_name.get(os.path.basename(wanted))
+        )
+        if file is None:
+            known = ", ".join(sorted(self._by_name))
+            raise ValueError(f"No such picture: {wanted}. The pictures are: {known}")
+        return file
+
+    def take(self) -> None:
+        if self.images_returned >= MAX_IMAGES_PER_REVIEW:
+            self.refused = True
+            raise ValueError(
+                f"You have already looked at {MAX_IMAGES_PER_REVIEW} pictures, which "
+                "is all you may see for this check item. Make your judgment from what "
+                "you have seen and from what was read from the pictures before the "
+                "review."
+            )
+        self.images_returned += 1
+
+
+def create_picture_tools(viewer: PictureViewer) -> List[Any]:
+    from strands import tool
+
+    @tool
+    def view_picture(file: str) -> dict:
+        """
+        Look at a picture that was uploaded for review.
+
+        The number of pictures you may look at is limited, and looking at the same
+        one again counts. Use what was already read from the pictures when that is
+        enough.
+
+        Args:
+            file: The file name, as it was given to you.
+        """
+        found = viewer.find(file)
+        viewer.take()
+        with Image.open(found.path) as opened:
+            image_format, data = encode_image(opened.convert("RGB"))
+        return {
+            "status": "success",
+            "content": [
+                {"text": f"{found.name}:"},
+                {"image": {"format": image_format, "source": {"bytes": data}}},
+            ],
+        }
+
+    return [view_picture]
+
+
 def _pictures_already_read(files: List[ReviewFile], digests: Optional[Dict[str, Any]]) -> str:
     """先に読んである画像の中身を、指示に添える形にする。
 
@@ -194,7 +269,7 @@ def _pictures_already_read(files: List[ReviewFile], digests: Optional[Dict[str, 
         f"{listed}\n"
         f"You can see at most {MAX_IMAGES_PER_REVIEW} images in one review, and "
         "looking at the same picture again counts too. Use what is written above "
-        "when it is enough, and open a picture with image_reader only when you "
+        "when it is enough, and open a picture with view_picture only when you "
         "have to see it yourself.\n"
     )
 
@@ -525,7 +600,9 @@ def _execute_review_core(
             # あるものに残る。枠は見直した分も数に入るので、ここを言わないと
             # 素直に全部開いて上限に当たる
             prompt += _pictures_already_read(files, digests)
-            tools = [file_read, image_reader]
+            picture_viewer = PictureViewer(files)
+            tools = [file_read] + create_picture_tools(picture_viewer)
+
             review_type = "IMAGE"
         else:
             prompt = get_document_review_prompt(
@@ -537,6 +614,7 @@ def _execute_review_core(
                 feedback_summary=feedback_summary,
                 review_guidance=review_guidance,
             )
+            picture_viewer = None
             tools = [file_read]
             review_type = "PDF"
 
@@ -558,6 +636,7 @@ def _execute_review_core(
                 system_prompt=system_prompt,
                 base_tools=tools,
                 toolConfiguration=toolConfiguration,
+                picture_viewer=picture_viewer,
             )
         result["reviewType"] = review_type
         logger.debug("Used file_read tool processing")
@@ -600,6 +679,7 @@ def _run_agent_with_file_read_tool(
     temperature: float = 0.0,
     base_tools: Optional[List[Any]] = None,
     toolConfiguration: Optional[Dict[str, Any]] = None,
+    picture_viewer: Optional["PictureViewer"] = None,
 ) -> Dict[str, Any]:
     """Run Strands agent with traditional file_read approach"""
     logger.debug(f"Running Strands agent with {len(files)} files")
@@ -671,6 +751,12 @@ def _run_agent_with_file_read_tool(
 
     logger.debug("Extracting usage metrics from agent result")
     review_meta = meta_tracker.get_review_meta(response)
+    if picture_viewer is not None:
+        # 何枚見たか、上限で断ったかを残す。断ったなら「全部は見ていない
+        # 判定」なので、画面でそう分かるようにする
+        review_meta["images_seen"] = picture_viewer.images_returned
+        review_meta["image_limit"] = MAX_IMAGES_PER_REVIEW
+        review_meta["image_limit_reached"] = picture_viewer.refused
     result["reviewMeta"] = review_meta
     # キャッシュから読んだ分も含めた「実際に読ませた量」。inputTokens だけを
     # 入れると、キャッシュが効くほど読ませた量が小さく見える
@@ -807,6 +893,13 @@ def _run_agent_with_document_tools(
     result = _agent_message_to_dict_legacy(response.message, response)
     result["verificationDetails"] = {"sourcesDetails": history_collector.executions}
     review_meta = meta_tracker.get_review_meta(response)
+    # 何枚見たか、上限で断ったかを残す。断ったなら「全部は見ていない判定」
+    # なので、画面でそう分かるようにする
+    review_meta["images_seen"] = library.images_returned
+    review_meta["image_limit"] = MAX_IMAGES_PER_REVIEW
+    review_meta["image_limit_reached"] = (
+        library.images_returned >= MAX_IMAGES_PER_REVIEW
+    )
     result["reviewMeta"] = review_meta
     # キャッシュから読んだ分も含めた「実際に読ませた量」。inputTokens だけを
     # 入れると、キャッシュが効くほど読ませた量が小さく見える
@@ -1329,7 +1422,9 @@ Check item: {check_name}
 Description: {check_description}
 
 ## DOCUMENT ACCESS
-The actual files are attached. Use the *image_reader* tool to analyze them.
+The actual files are attached. Use the *view_picture* tool to look at one, giving
+the file name. You may look at {MAX_IMAGES_PER_REVIEW} pictures at most for this check item, and
+looking at the same one again counts.
 
 ## WHEN & HOW TO USE EXTERNAL TOOLS
 You have access to additional tools including MCP tools and knowledge_base_query.
@@ -1409,6 +1504,7 @@ def process_review_from_s3(
     toolConfiguration: Optional[Dict[str, Any]] = None,
     feedback_summary: Optional[str] = None,
     review_guidance: Optional[str] = None,
+    review_job_id: str = "",
 ) -> Dict[str, Any]:
     """
     Download files from S3 and execute review (for production environment).
@@ -1457,7 +1553,7 @@ def process_review_from_s3(
 
         # 先に読み取ってあれば受け取る。無ければ空で、今までどおりの審査になる
         digests = digest_store.load_for_documents(
-            document_bucket, local_paths, s3=s3_client
+            document_bucket, local_paths, review_job_id, s3=s3_client
         )
         if digests:
             logger.info("Using the transcription of %s files", len(digests))
@@ -1555,6 +1651,7 @@ def process_review_from_local(
         toolConfiguration=toolConfiguration,
         feedback_summary=feedback_summary,
         review_guidance=review_guidance,
+        review_job_id=review_job_id,
     )
 
     logger.info("Local review completed successfully")
@@ -1571,6 +1668,7 @@ def process_review(
     toolConfiguration: dict[str, Any] | None = None,
     feedback_summary: str | None = None,
     review_guidance: str | None = None,
+    review_job_id: str = "",
 ) -> dict[str, Any]:
     """
     Alias function for backward compatibility.

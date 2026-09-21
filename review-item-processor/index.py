@@ -103,6 +103,9 @@ def handler(event, context):
             toolConfiguration=tool_configuration,
             feedback_summary=feedback_summary,
             review_guidance=review_guidance,
+            # 読み取り結果はジョブごとに置いてある。ジョブをまたいでは
+            # 使い回さないので、どのジョブの審査かを渡す
+            review_job_id=review_job_id,
         )
 
         # Return results to Step Functions - handle both PDF and image results

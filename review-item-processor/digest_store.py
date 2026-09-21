@@ -1,9 +1,14 @@
 """先に読み取っておいた結果を S3 に置き、審査のときに読み戻す。
 
-書類ごとに1つ。チェック項目が何個あっても読み取りは1回で、全項目が
-同じものを使い回す。再審査で同じ文書を引き継いだときも作り直さない。
+審査ジョブごと・書類ごとに1つ。チェック項目が何個あっても読み取りは
+1回で、そのジョブの全項目が同じものを使い回す。
 
-元のファイルと同じバケットの、別の接頭辞に置く。キーは元のキーから
+ジョブをまたいでは使い回さない。読み取りはそのジョブのチェックリストを
+踏まえて書くので、別のチェックリストの審査に持ち越すと、見るべき観点が
+ずれたものを根拠にすることになる。書類が差し替わっていないかも、ここでは
+分からない。読み直す費用より、古いものを黙って使う危うさのほうが高い。
+
+元のファイルと同じバケットの、別の接頭辞に置く。キーはジョブと元のキーから
 決まるので、対応表を持たなくてよい。
 """
 
@@ -19,14 +24,15 @@ logger = logging.getLogger(__name__)
 DIGEST_PREFIX = "digest/"
 
 
-def key_for(document_key: str) -> str:
-    """元のファイルのキーから、読み取り結果のキーを決める"""
-    return f"{DIGEST_PREFIX}{document_key}.json"
+def key_for(document_key: str, job_id: str) -> str:
+    """ジョブと元のファイルのキーから、読み取り結果のキーを決める"""
+    return f"{DIGEST_PREFIX}{job_id}/{document_key}.json"
 
 
 def save(
     bucket: str,
     document_key: str,
+    job_id: str,
     pages: list[PageDigest] | None = None,
     images: list[ImageDigest] | None = None,
     s3=None,
@@ -34,7 +40,7 @@ def save(
     client = s3 or _client()
     client.put_object(
         Bucket=bucket,
-        Key=key_for(document_key),
+        Key=key_for(document_key, job_id),
         Body=to_json(pages or [], images or []).encode("utf-8"),
         ContentType="application/json",
     )
@@ -46,7 +52,7 @@ def save(
     )
 
 
-def load(bucket: str, document_key: str, s3=None) -> DocumentDigest:
+def load(bucket: str, document_key: str, job_id: str, s3=None) -> DocumentDigest:
     """1件読み戻す。無ければ空。
 
     読み取りは補助なので、取れなくても審査は続ける。そのかわり審査は
@@ -54,7 +60,9 @@ def load(bucket: str, document_key: str, s3=None) -> DocumentDigest:
     """
     client = s3 or _client()
     try:
-        body = client.get_object(Bucket=bucket, Key=key_for(document_key))["Body"]
+        body = client.get_object(
+            Bucket=bucket, Key=key_for(document_key, job_id)
+        )["Body"]
     except Exception as error:  # NoSuchKey を含む。読めない理由で分けない
         logger.debug("Nothing was read ahead for %s: %s", document_key, error)
         return DocumentDigest()
@@ -66,7 +74,7 @@ def load(bucket: str, document_key: str, s3=None) -> DocumentDigest:
 
 
 def load_for_documents(
-    bucket: str, local_paths: dict[str, str], s3=None
+    bucket: str, local_paths: dict[str, str], job_id: str, s3=None
 ) -> dict[str, DocumentDigest]:
     """{S3 のキー: 手元のファイル} を渡すと、{手元のファイル: 読み取り結果} を返す。
 
@@ -77,7 +85,7 @@ def load_for_documents(
     client = s3 or _client()
     digests: dict[str, DocumentDigest] = {}
     for document_key, local_path in local_paths.items():
-        digest = load(bucket, document_key, s3=client)
+        digest = load(bucket, document_key, job_id, s3=client)
         if digest:
             digests[local_path] = digest
     return digests

@@ -44,8 +44,17 @@ from review_images import encode_image
 MAX_PAGES_PER_READ = 20
 MAX_CHARS_PER_READ = 30_000
 MAX_CHARS_PER_REVIEW = 200_000
-# Converse は1回の呼び出しに画像20枚まで。履歴に積もった画像も数に入る
-MAX_IMAGES_PER_REVIEW = 20
+# 1つのチェック項目で見られる画像の枚数。
+#
+# Converse が1回に受け取れるのは20枚で、履歴に積もった分も数に入る。上限
+# そのものより先に費用が効く。枠は項目ごとに戻るので、20枚の写真を10項目で
+# 審査すると延べ200枚ぶん払うことになり、しかも項目ごとに別の会話なので
+# キャッシュも効きにくい。
+#
+# 先に読み取った文章で足りることが多いので、実際に目で見る回数を絞る。
+# 足りなければ「見た範囲で判断する」ことになるが、それは結果に残して
+# 人が確かめられるようにしてある
+MAX_IMAGES_PER_REVIEW = int(os.environ.get("MAX_IMAGES_PER_REVIEW", "5"))
 # Claude は長辺がこれより大きい画像を縮めて読むので、これより大きく描いても読みやすくならない
 PAGE_IMAGE_LONG_SIDE = 1568
 SECTION_PART_CHARS = 20_000
