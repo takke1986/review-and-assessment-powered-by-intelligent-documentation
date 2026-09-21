@@ -56,7 +56,7 @@ export default function Sidebar() {
 
       {/* サイドバー */}
       <div
-        className={`fixed left-0 top-0 z-40 h-full w-64 transform bg-aws-squid-ink-light text-aws-font-color-white-light transition-transform duration-300 ease-in-out ${
+        className={`fixed left-0 top-0 z-40 h-full w-64 transform overflow-y-auto bg-aws-squid-ink-light text-aws-font-color-white-light transition-transform duration-300 ease-in-out ${
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}>
         {/* 携帯ではメニューのボタンが左上に浮いているので、その分だけ空ける。
