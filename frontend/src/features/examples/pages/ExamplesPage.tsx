@@ -27,7 +27,7 @@ export default function ExamplesPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div>
       {/* ヘッダー */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-aws-font-color-light dark:text-aws-font-color-dark mb-2">

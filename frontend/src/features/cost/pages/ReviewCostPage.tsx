@@ -36,7 +36,7 @@ export default function ReviewCostPage() {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div>
         <ErrorAlert
           error={error}
           title={t("cost.loadError")}
@@ -48,10 +48,12 @@ export default function ReviewCostPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">{t("cost.title")}</h1>
+          <h1 className="text-3xl font-bold text-aws-font-color-light dark:text-aws-font-color-dark">
+            {t("cost.title")}
+          </h1>
           <p className="mt-2 text-aws-font-color-gray">
             {t("cost.description")}
           </p>
