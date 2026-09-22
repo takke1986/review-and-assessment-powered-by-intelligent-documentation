@@ -163,8 +163,9 @@ export class Auth extends Construct {
         // Cognito は IdP から写す属性が mutable であることを求める。しかも
         // **属性は後から変えられない**（足すことはできるが、直すことも消すことも
         // できない）ので、ここで決め損なうと別名の属性を作り直すことになる。
-        // 既存の rapid_role は mutable を指定しておらず false なので、
-        // IdP から写すことはできない
+        //
+        // 省いても Cognito 側の既定で true になるが、明示しておく。既定に
+        // 頼ると、既定が変わったときに直せない属性が黙って false で作られる
         departments: new StringAttribute({
           minLen: 0,
           maxLen: 2048,
