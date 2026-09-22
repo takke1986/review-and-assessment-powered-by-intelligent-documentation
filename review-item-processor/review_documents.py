@@ -272,9 +272,13 @@ def _markdown_document(
             f"and starting with a heading that names the file: {names}."
         )
     text = "\n\n".join(document.markdown for _, document in group)
+    # 引用を有効にすると、Bedrock は txt と pdf しか受け取らない。md で渡すと
+    # ValidationException になり、Word や Excel を含む審査が必ず失敗する。
+    # 中身は Markdown のままで、上の label と _MARKDOWN_GUIDE がそう伝える
+    document_format = "txt" if citations else "md"
     return [
         {"text": f"{label} {_MARKDOWN_GUIDE}"},
-        _document_block(number, "md", text.encode("utf-8"), citations),
+        _document_block(number, document_format, text.encode("utf-8"), citations),
     ]
 
 

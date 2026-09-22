@@ -48,9 +48,11 @@ def test_document_block_sends_office_files_as_markdown_after_their_names(
 
     content = sent["content"]
     assert content[0] == {"text": "Document 1 is the file 稟議書.pdf."}
+    # 引用に対応したモデルでは citations=True になり、Bedrock は txt と pdf しか
+    # 受け取らない。md を渡していたため Word や Excel の審査が必ず失敗していた
     assert [
         block["document"]["format"] for block in content if "document" in block
-    ] == ["pdf", "md"]
+    ] == ["pdf", "txt"]
     assert any("image" in block for block in content)
     assert content[-1] == {"text": "prompt"}
 

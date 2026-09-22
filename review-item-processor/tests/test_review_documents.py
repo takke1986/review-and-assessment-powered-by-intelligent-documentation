@@ -53,7 +53,8 @@ def test_each_file_is_its_own_document_when_they_fit(tmp_path):
 
     assert [(d["name"], d["format"]) for d in documents(blocks)] == [
         ("document-1", "pdf"),
-        ("document-2", "md"),
+        # 引用ありのときは txt。Bedrock が md を受け取らないため
+        ("document-2", "txt"),
     ]
     labels = texts(blocks)
     assert labels[0] == "Document 1 is the file 稟議書.pdf."
@@ -83,7 +84,7 @@ def test_office_files_are_joined_into_one_document_when_there_are_too_many(tmp_p
     blocks = rd.build_document_blocks(files, citations=True)
 
     assert len(documents(blocks)) == 5
-    joined = [d for d in documents(blocks) if d["format"] == "md"]
+    joined = [d for d in documents(blocks) if d["format"] == "txt"]
     assert len(joined) == 1
     markdown = joined[0]["source"]["bytes"].decode("utf-8")
     assert "# 見積書.xlsx" in markdown and "# 稟議書.docx" in markdown
@@ -225,3 +226,48 @@ def test_pdfs_over_the_page_limit_are_too_large_for_one_request(tmp_path, monkey
 
     with pytest.raises(rd.RequestTooLargeError, match="3 pages in total"):
         rd.build_document_blocks(files, citations=True)
+
+
+def test_office_goes_as_txt_when_citations_are_on(tmp_path):
+    """引用を有効にすると Bedrock は txt と pdf しか受け取らない。
+
+    md で渡していたため、Word や Excel を含む審査が必ず失敗していた。
+
+      ValidationException: Unsupported document format.
+      Only txt and pdf formats are supported when citations are enabled
+
+    中身は Markdown のままで、添える一文がそう伝える。
+    """
+    files = [
+        ReviewFile(write_package(tmp_path, "a.xlsx", workbook_parts()), "見積書.xlsx"),
+    ]
+
+    blocks = rd.build_document_blocks(files, citations=True)
+
+    formats = {d["format"] for d in documents(blocks)}
+    assert formats == {"txt"}, f"引用ありで受け取れない形式が混ざっている: {formats}"
+
+
+def test_office_keeps_md_when_citations_are_off(tmp_path):
+    """引用が無ければ形式の制限は無いので、md のまま渡して中身を正しく伝える"""
+    files = [
+        ReviewFile(write_package(tmp_path, "a.xlsx", workbook_parts()), "見積書.xlsx"),
+    ]
+
+    blocks = rd.build_document_blocks(files, citations=False)
+
+    assert {d["format"] for d in documents(blocks)} == {"md"}
+
+
+def test_citations_never_use_a_format_bedrock_refuses(tmp_path):
+    """引用ありのとき、txt と pdf 以外が混ざっていないかを一律で見る"""
+    files = [
+        pdf(tmp_path, "稟議書.pdf"),
+        ReviewFile(write_package(tmp_path, "a.xlsx", workbook_parts()), "見積書.xlsx"),
+        ReviewFile(write_package(tmp_path, "b.docx", document_parts()), "報告書.docx"),
+    ]
+
+    blocks = rd.build_document_blocks(files, citations=True)
+
+    refused = {d["format"] for d in documents(blocks)} - {"txt", "pdf"}
+    assert not refused, f"Bedrock が引用ありで受け取らない形式: {sorted(refused)}"
