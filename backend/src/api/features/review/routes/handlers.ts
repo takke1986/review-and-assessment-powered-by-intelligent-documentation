@@ -39,6 +39,9 @@ const SORTABLE_FIELDS = [
   "checkListSet",
   "totalCost",
   "departmentId",
+  // 文書は件数で並べる。画面に列があるのに許していなかったため、
+  // 押しても既定の並びに落ちていた
+  "documents",
 ] as const;
 
 export const getAllReviewJobsHandler = async (
