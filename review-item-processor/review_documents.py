@@ -284,14 +284,17 @@ def _markdown_document(
             f"and starting with a heading that names the file: {names}."
         )
     text = "\n\n".join(document.markdown for _, document in group)
-    # 引用を有効にすると、Bedrock は txt と pdf しか受け取らない。md で渡すと
-    # ValidationException になり、Word や Excel を含む審査が必ず失敗する。
-    # 中身は Markdown のままで、上の label と _MARKDOWN_GUIDE がそう伝える
-    document_format = "txt" if citations else "md"
-    return [
-        {"text": f"{label} {_MARKDOWN_GUIDE}"},
-        _document_block(number, document_format, text.encode("utf-8"), citations),
-    ]
+    # Office を文書ブロックで渡す道は塞がっている。
+    #
+    #   format="md"  + bytes → Bedrock が断る（引用ありは txt と pdf だけ）
+    #   format="txt" + bytes → Bedrock が断る（文字の形式は text で渡せ）
+    #   format="txt" + text  → Strands が落ちる（source.text を想定しておらず、
+    #                          変数が未設定のまま参照される。1.56.0 でも同じ）
+    #
+    # 変換した Markdown をそのまま文章として渡す。この仕組みの「引用」は
+    # Bedrock の citations ではなく、モデルが JSON で返す citations 配列を
+    # 読んでいる（_extract_citations_text）ので、渡し方を変えても残る。
+    return [{"text": f"{label} {_MARKDOWN_GUIDE}\n\n{text}"}]
 
 
 def _pdf_document(

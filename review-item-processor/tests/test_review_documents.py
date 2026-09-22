@@ -51,19 +51,17 @@ def test_each_file_is_its_own_document_when_they_fit(tmp_path):
 
     blocks = rd.build_document_blocks(files, citations=True)
 
+    # PDF は文書ブロック。Office は文章として渡す（下の test を参照）
     assert [(d["name"], d["format"]) for d in documents(blocks)] == [
         ("document-1", "pdf"),
-        # 引用ありのときは txt。Bedrock が md を受け取らないため
-        ("document-2", "txt"),
     ]
     labels = texts(blocks)
     assert labels[0] == "Document 1 is the file 稟議書.pdf."
     assert labels[1].startswith(
         "Document 2 is the file 見積書.xlsx, converted from its XML to Markdown."
     )
-    # 文字の形式は source.text で渡す
-    markdown = documents(blocks)[1]["source"]["text"]
-    assert markdown.startswith("# 見積書.xlsx\n")
+    markdown = "\n".join(texts(blocks))
+    assert "# 見積書.xlsx" in markdown
     assert all(d["citations"] == {"enabled": True} for d in documents(blocks))
 
 
@@ -84,10 +82,9 @@ def test_office_files_are_joined_into_one_document_when_there_are_too_many(tmp_p
 
     blocks = rd.build_document_blocks(files, citations=True)
 
-    assert len(documents(blocks)) == 5
-    joined = [d for d in documents(blocks) if d["format"] == "txt"]
-    assert len(joined) == 1
-    markdown = joined[0]["source"]["text"]
+    # 文書ブロックは PDF だけ。Office は文章に入る
+    assert len(documents(blocks)) == 4
+    markdown = "\n".join(texts(blocks))
     assert "# 見積書.xlsx" in markdown and "# 稟議書.docx" in markdown
     assert any(
         label.startswith("Document 5 joins these files") for label in texts(blocks)
@@ -229,37 +226,6 @@ def test_pdfs_over_the_page_limit_are_too_large_for_one_request(tmp_path, monkey
         rd.build_document_blocks(files, citations=True)
 
 
-def test_office_goes_as_txt_when_citations_are_on(tmp_path):
-    """引用を有効にすると Bedrock は txt と pdf しか受け取らない。
-
-    md で渡していたため、Word や Excel を含む審査が必ず失敗していた。
-
-      ValidationException: Unsupported document format.
-      Only txt and pdf formats are supported when citations are enabled
-
-    中身は Markdown のままで、添える一文がそう伝える。
-    """
-    files = [
-        ReviewFile(write_package(tmp_path, "a.xlsx", workbook_parts()), "見積書.xlsx"),
-    ]
-
-    blocks = rd.build_document_blocks(files, citations=True)
-
-    formats = {d["format"] for d in documents(blocks)}
-    assert formats == {"txt"}, f"引用ありで受け取れない形式が混ざっている: {formats}"
-
-
-def test_office_keeps_md_when_citations_are_off(tmp_path):
-    """引用が無ければ形式の制限は無いので、md のまま渡して中身を正しく伝える"""
-    files = [
-        ReviewFile(write_package(tmp_path, "a.xlsx", workbook_parts()), "見積書.xlsx"),
-    ]
-
-    blocks = rd.build_document_blocks(files, citations=False)
-
-    assert {d["format"] for d in documents(blocks)} == {"md"}
-
-
 def test_citations_never_use_a_format_bedrock_refuses(tmp_path):
     """引用ありのとき、txt と pdf 以外が混ざっていないかを一律で見る"""
     files = [
@@ -274,13 +240,47 @@ def test_citations_never_use_a_format_bedrock_refuses(tmp_path):
     assert not refused, f"Bedrock が引用ありで受け取らない形式: {sorted(refused)}"
 
 
-def test_text_formats_go_as_text_not_bytes(tmp_path):
-    """文字の形式は source.text で渡す。bytes では Bedrock が断る。
+def test_office_goes_as_text_not_a_document_block(tmp_path):
+    """Office は文章として渡す。文書ブロックで渡す道は3層とも塞がっている。
 
-      The document source bytes could not be parsed as the specified format.
-      If using a text-based format, try source.text instead of source.bytes.
+      format="md"  + bytes → Bedrock が断る（引用ありは txt と pdf だけ）
+      format="txt" + bytes → Bedrock が断る（文字の形式は text で渡せ）
+      format="txt" + text  → Strands が落ちる（source.text を想定していない）
 
-    PDF は今までどおり bytes。
+    この仕組みの引用は、モデルが JSON で返す citations 配列を読んでいるので、
+    渡し方を変えても引用は残る。
+    """
+    files = [
+        pdf(tmp_path, "稟議書.pdf"),
+        ReviewFile(write_package(tmp_path, "a.xlsx", workbook_parts()), "見積書.xlsx"),
+    ]
+
+    blocks = rd.build_document_blocks(files, citations=True)
+
+    # 文書ブロックは PDF だけ
+    assert [d["format"] for d in documents(blocks)] == ["pdf"]
+    # Office の中身は文章に入っている
+    assert any("見積書.xlsx" in text for text in texts(blocks))
+
+
+def test_document_blocks_never_use_a_format_bedrock_refuses(tmp_path):
+    """引用ありのとき、文書ブロックに txt と pdf 以外が混ざっていないか"""
+    files = [
+        pdf(tmp_path, "稟議書.pdf"),
+        ReviewFile(write_package(tmp_path, "a.xlsx", workbook_parts()), "見積書.xlsx"),
+        ReviewFile(write_package(tmp_path, "b.docx", document_parts()), "報告書.docx"),
+    ]
+
+    blocks = rd.build_document_blocks(files, citations=True)
+
+    refused = {d["format"] for d in documents(blocks)} - {"txt", "pdf"}
+    assert not refused, f"Bedrock が引用ありで受け取らない形式: {sorted(refused)}"
+
+
+def test_document_sources_are_bytes_only(tmp_path):
+    """文書ブロックに残るのは PDF だけなので、source は bytes で足りる。
+
+    text を渡すと Strands が UnboundLocalError で落ちる。
     """
     files = [
         pdf(tmp_path, "稟議書.pdf"),
@@ -290,10 +290,6 @@ def test_text_formats_go_as_text_not_bytes(tmp_path):
     blocks = rd.build_document_blocks(files, citations=True)
 
     for document in documents(blocks):
-        source = document["source"]
-        if document["format"] == "pdf":
-            assert "bytes" in source, "PDF は bytes で渡す"
-        else:
-            assert "text" in source, (
-                f"{document['format']} は文字の形式なので text で渡す必要がある"
-            )
+        assert "bytes" in document["source"], (
+            "source.text は Strands が扱えないので渡してはいけない"
+        )
