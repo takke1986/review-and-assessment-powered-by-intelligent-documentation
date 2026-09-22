@@ -1,5 +1,5 @@
-import { ValidationError } from "../../../../core/errors";
-import type { RequestUser } from "../../../../core/middleware/authorization";
+import { ValidationError } from "../errors";
+import type { RequestUser } from "../middleware/authorization";
 
 /**
  * その人がどの部署に属するかを読む。

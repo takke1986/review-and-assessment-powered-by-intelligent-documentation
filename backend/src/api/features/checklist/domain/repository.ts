@@ -16,6 +16,7 @@ import {
   CHECK_ITEM_IMPORTANCE,
 } from "./model/checklist";
 import { PaginatedResponse } from "../../../common/types";
+import { Viewer, visibilityFilter } from "../../../core/access/visibility";
 import {
   ListParams,
   resolvePaging,
@@ -26,12 +27,15 @@ export interface CheckRepository {
   storeCheckListSet(params: {
     checkListSet: CheckListSetEntity;
     ownerUserId: string;
+    /** どの部署の仕事か。部署を使わない運用では入らない */
+    departmentId?: string;
   }): Promise<void>;
   deleteCheckListSetById(params: { checkListSetId: string }): Promise<void>;
   findAllCheckListSets(
     params: ListParams & {
       status?: CHECK_LIST_STATUS;
-      ownerUserId?: string;
+      /** 見る人。自分のものと自分の部署のものだけが返る。管理者は全件 */
+      visibleTo?: Viewer;
     }
   ): Promise<PaginatedResponse<CheckListSetSummary>>;
   findCheckListItems(
@@ -95,8 +99,9 @@ export const makePrismaCheckRepository = async (
   const storeCheckListSet = async (params: {
     checkListSet: CheckListSetEntity;
     ownerUserId: string;
+    departmentId?: string;
   }): Promise<void> => {
-    const { checkListSet, ownerUserId } = params;
+    const { checkListSet, ownerUserId, departmentId } = params;
     const { id, name, description, documents, createdAt } = checkListSet;
 
     await client.checkListSet.create({
@@ -105,6 +110,7 @@ export const makePrismaCheckRepository = async (
         name: normalizeForStorage(name),
         description,
         userId: ownerUserId,
+        departmentId: departmentId ?? null,
         createdAt: createdAt,
         documents: {
           create: documents.map((doc: ChecklistDocumentEntity) => ({
@@ -220,12 +226,12 @@ export const makePrismaCheckRepository = async (
   const findAllCheckListSets = async (
     params: ListParams & {
       status?: CHECK_LIST_STATUS;
-      ownerUserId?: string;
+      visibleTo?: Viewer;
     } = {}
   ): Promise<PaginatedResponse<CheckListSetSummary>> => {
     const paging = resolvePaging(params, "id");
     const { sortBy, sortOrder } = paging;
-    const { status, ownerUserId, search } = params;
+    const { status, visibleTo, search } = params;
     // ステータスフィルタリングのためのサブクエリを準備
     let whereCondition: Record<string, any> = {};
 
@@ -270,11 +276,12 @@ export const makePrismaCheckRepository = async (
       };
     }
 
-    // ownerUserId が指定されている場合は作成者（documents.userId）でフィルタする
-    if (ownerUserId) {
-      // 既存の whereCondition と組み合わせる
+    // 見える範囲。自分のものと、自分の部署のもの。管理者は絞らない。
+    // 審査ジョブと同じ判定を使う（core/access/visibility.ts）
+    const visible = visibilityFilter(visibleTo);
+    if (visible) {
       whereCondition = {
-        AND: [whereCondition, { userId: ownerUserId }],
+        AND: [whereCondition, visible],
       };
     }
 

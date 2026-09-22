@@ -1,3 +1,4 @@
+import { resolveDepartment } from "../../../core/access/departments";
 import { FastifyReply, FastifyRequest } from "fastify";
 import { parseListQuery } from "../../../common/pagination";
 import {
@@ -49,6 +50,8 @@ export interface CreateChecklistSetRequest {
   name: string;
   description?: string;
   documents: Document[];
+  /** 兼務のときに画面で選ばれた部署。所属していなければ弾かれる */
+  departmentId?: string;
 }
 
 /**
@@ -74,6 +77,12 @@ export const createChecklistSetHandler = async (
   await createChecklistSet({
     req: request.body,
     userId: request.user!.userId,
+    // どの部署のものとして記録するかは、送られてきた値をそのまま信じず、
+    // その人が属している部署かどうかを見て決める（審査ジョブと同じ）
+    departmentId: resolveDepartment({
+      user: request.user,
+      chosen: request.body.departmentId,
+    }),
   });
 
   reply.code(200).send({
@@ -147,12 +156,11 @@ export const getAllChecklistSetsHandler = async (
     status,
   } = request.query;
 
-  // 管理者は全件、それ以外は自分の所有物のみを取得する
-  const ownerUserId = request.user?.isAdmin ? undefined : request.user?.userId;
-
   const result = await getAllChecklistSets({
     status,
-    ownerUserId,
+    // 見える範囲は判定を1か所に集めてある。管理者は全件、それ以外は
+    // 自分のものと自分の部署のもの
+    user: request.user,
     ...parseListQuery(request.query, SORTABLE_FIELDS, "id"),
   });
 

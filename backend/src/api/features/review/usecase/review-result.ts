@@ -17,7 +17,7 @@ import { isSupersededByRerun } from "../domain/service/superseded-by-rerun";
 import {
   assertCanViewOrThrow,
   toViewer,
-} from "../domain/service/review-job-visibility";
+} from "../../../core/access/visibility";
 import {
   assertHasOwnerAccessOrThrow,
   RequestUser,

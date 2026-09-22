@@ -27,11 +27,15 @@ model PromptTemplate {
   description String?  @db.Text
   prompt      String   @db.Text
   type        String   @db.VarChar(50) // "checklist", "review" など
+  /// どの部署のものか。同じ部署の人から見える。部署を使わない運用では入らない
+  departmentId String? @map("department_id") @db.VarChar(100)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(0)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamp(0)
 
   @@unique([userId, name, type])
   @@index([userId, type])
+  /// 部署の一覧を、種類で絞ったうえで並べ替えまで索引で返す
+  @@index([departmentId, type, updatedAt], map: "idx_prompt_templates_dept")
   @@map("prompt_templates")
 }
 
@@ -40,6 +44,8 @@ model CheckListSet {
   name        String              @db.VarChar(255)
   description String?             @db.Text
   userId      String              @map("user_id") @db.VarChar(50)
+  /// どの部署のものか。同じ部署の人から見える。部署を使わない運用では入らない
+  departmentId String?            @map("department_id") @db.VarChar(100)
   checkLists  CheckList[]
   documents   CheckListDocument[]
   reviewJobs  ReviewJob[]
@@ -48,6 +54,8 @@ model CheckListSet {
   @@index([userId], map: "idx_check_list_sets_user_id")
   /// 一覧の既定の並び
   @@index([createdAt], map: "idx_check_list_sets_created")
+  /// 部署の一覧を、並べ替えまで索引で返す
+  @@index([departmentId, createdAt], map: "idx_check_list_sets_dept_created")
   @@map("check_list_sets")
 }
 

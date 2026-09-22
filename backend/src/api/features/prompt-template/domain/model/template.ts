@@ -13,6 +13,8 @@ export interface PromptTemplateEntity {
   description?: string;
   prompt: string;
   type: PromptTemplateType;
+  /** どの部署のものか。同じ部署の人から見える */
+  departmentId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,6 +26,8 @@ export const PromptTemplateDomain = {
     description?: string;
     prompt: string;
     type: PromptTemplateType;
+    /** どの部署の仕事として記録するか。呼び出し側が resolveDepartment で決める */
+    departmentId?: string;
   }): PromptTemplateEntity => {
     return {
       id: ulid(),
@@ -31,6 +35,7 @@ export const PromptTemplateDomain = {
       // 保存も表示もこの名前を使う。検索と突き合わせられるよう、ここでそろえる
       name: normalizeForStorage(req.name),
       description: req.description,
+      departmentId: req.departmentId,
       prompt: req.prompt,
       type: req.type,
       createdAt: new Date(),

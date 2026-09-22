@@ -43,11 +43,11 @@ import {
   assertCanViewOrThrow,
   canEdit,
   toViewer,
-} from "../domain/service/review-job-visibility";
+} from "../../../core/access/visibility";
 import { canCancel } from "../domain/service/review-job-cancel";
 import { canReviewAgain } from "../domain/service/review-again";
 import { canResume } from "../domain/service/review-resume";
-import { resolveDepartment } from "../domain/service/departments";
+import { resolveDepartment } from "../../../core/access/departments";
 import { stopStateMachineExecution } from "../../../core/sfn";
 
 export const computeGlobalConcurrency = async (): Promise<{

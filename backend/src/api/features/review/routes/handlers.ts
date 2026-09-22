@@ -25,7 +25,7 @@ import {
 } from "../usecase/review-result";
 import { getDocumentDownloadUrl } from "../usecase/document";
 import { MAX_REVIEW_DOCUMENTS } from "../../../constants";
-import { resolveDepartment } from "../domain/service/departments";
+import { resolveDepartment } from "../../../core/access/departments";
 
 /**
  * 並べられる列。一覧の主役の列なので名前でも並べられるようにする。

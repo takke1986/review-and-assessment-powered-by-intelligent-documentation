@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { canEdit, canView, visibilityFilter } from "./review-job-visibility";
+import { canEdit, canView, visibilityFilter } from "./visibility";
 
 const me = { userId: "u-1", isAdmin: false };
 const sales = { userId: "u-1", isAdmin: false, departments: ["sales"] };

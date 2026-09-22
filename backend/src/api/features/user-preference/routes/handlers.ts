@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from "fastify";
-import { departmentsOf } from "../../review/domain/service/departments";
+import { departmentsOf } from "../../../core/access/departments";
 import {
   getUserPreference,
   updateLanguage,

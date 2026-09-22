@@ -1,3 +1,4 @@
+import { Viewer, visibilityFilter } from "../../../core/access/visibility";
 import { PrismaClient, getPrismaClient } from "../../../core/db";
 import { normalizeSearchTerm } from "../../../core/utils/search-text";
 import { PaginatedResponse } from "../../../common/types";
@@ -11,7 +12,8 @@ import { PromptTemplateEntity, PromptTemplateType } from "./model/template";
 
 export interface PromptTemplateRepository {
   getPromptTemplates(
-    userId: string,
+    /** 見る人。自分のものと自分の部署のものだけが返る。管理者は全件 */
+    visibleTo: Viewer | undefined,
     type: PromptTemplateType,
     params?: ListParams
   ): Promise<PaginatedResponse<PromptTemplateEntity>>;
@@ -27,7 +29,7 @@ export const makePrismaPromptTemplateRepository = async (
   const client = clientInput || (await getPrismaClient());
 
   const getPromptTemplates = async (
-    userId: string,
+    visibleTo: Viewer | undefined,
     type: PromptTemplateType,
     params: ListParams = {}
   ): Promise<PaginatedResponse<PromptTemplateEntity>> => {
@@ -35,10 +37,13 @@ export const makePrismaPromptTemplateRepository = async (
     const { sortBy, sortOrder } = paging;
 
     const needle = normalizeSearchTerm(params.search);
+    // 見える範囲。自分のものと、自分の部署のもの。管理者は絞らない。
+    // 判定は審査ジョブと同じものを使う（core/access/visibility.ts）
+    const visible = visibilityFilter(visibleTo);
     const where = {
-      userId,
       type,
       ...(needle ? { name: { contains: needle } } : {}),
+      ...(visible ? { AND: [visible] } : {}),
     };
 
     const [templates, total] = await Promise.all([
@@ -100,6 +105,7 @@ export const makePrismaPromptTemplateRepository = async (
         description: template.description,
         prompt: template.prompt,
         type: template.type,
+        departmentId: template.departmentId ?? null,
         createdAt: template.createdAt,
         updatedAt: template.updatedAt,
       },

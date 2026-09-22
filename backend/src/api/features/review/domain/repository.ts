@@ -20,7 +20,7 @@ import { countReviewProgress } from "./service/review-progress";
 import {
   visibilityFilter,
   type Viewer,
-} from "./service/review-job-visibility";
+} from "../../../core/access/visibility";
 import { summarizeCost } from "./service/review-cost-summary";
 
 /** 期間で絞るための条件。片側だけの指定もできる */

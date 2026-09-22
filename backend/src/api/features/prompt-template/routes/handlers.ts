@@ -1,3 +1,4 @@
+import { resolveDepartment } from "../../../core/access/departments";
 import { FastifyRequest, FastifyReply } from "fastify";
 import { parseListQuery } from "../../../common/pagination";
 import {
@@ -35,6 +36,8 @@ export interface CreatePromptTemplateRequest {
     description?: string;
     prompt: string;
     type: string;
+    /** 兼務のときに画面で選ばれた部署。所属していなければ弾かれる */
+    departmentId?: string;
   };
 }
 
@@ -80,7 +83,8 @@ export const getPromptTemplatesHandler = async (
   }
 
   const result = await getPromptTemplates({
-    userId,
+    // 見える範囲は判定を1か所に集めてある。自分のものと自分の部署のもの
+    user: request.user,
     type: type as PromptTemplateType,
     ...parseListQuery(request.query, SORTABLE_FIELDS, "updatedAt"),
   });
@@ -152,6 +156,11 @@ export const createPromptTemplateHandler = async (
       description,
       prompt,
       type: type as PromptTemplateType,
+      // 送られてきた値をそのまま信じず、その人が属している部署かを見て決める
+      departmentId: resolveDepartment({
+        user: request.user,
+        chosen: request.body.departmentId,
+      }),
     },
   });
 

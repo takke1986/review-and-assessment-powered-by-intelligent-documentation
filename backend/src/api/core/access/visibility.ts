@@ -1,5 +1,5 @@
-import { ForbiddenError } from "../../../../core/errors/application-errors";
-import type { RequestUser } from "../../../../core/middleware/authorization";
+import { ForbiddenError } from "../errors/application-errors";
+import type { RequestUser } from "../middleware/authorization";
 import { departmentsOf } from "./departments";
 
 /**
@@ -117,4 +117,27 @@ export function assertCanViewOrThrow(
       `user_id=${viewer?.userId ?? "unknown_user"}, resource_id=${job.id ?? "unknown"}`
   );
   throw new ForbiddenError("Access to the requested resource is forbidden");
+}
+
+/**
+ * 管理者でなければ弾く。
+ *
+ * 全員で使う共有の設定（ツール設定など）を、誰でも作り替えられる状態に
+ * しないための関門。見る側は絞らない——絞ると、チェックリストから張られた
+ * リンクが開けない人が出る。
+ *
+ * 「全員が使えて、壊せるのは管理者だけ」という形にそろえる
+ */
+export function assertIsAdminOrThrow(
+  user: { userId?: string; isAdmin?: boolean } | undefined,
+  opts?: { api?: string; logger?: { warn?: (...args: any[]) => void } }
+): void {
+  if (user?.isAdmin) {
+    return;
+  }
+  opts?.logger?.warn?.(
+    `Failure to authorize. : api=${opts?.api ?? "unknown_api"}, ` +
+      `user_id=${user?.userId ?? "unknown_user"}, reason=admin_only`
+  );
+  throw new ForbiddenError("Only an administrator can change this setting");
 }

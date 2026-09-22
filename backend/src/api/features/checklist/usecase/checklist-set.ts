@@ -1,3 +1,4 @@
+import { toViewer } from "../../../core/access/visibility";
 import { CreateChecklistSetRequest } from "../routes/handlers";
 import {
   CheckRepository,
@@ -51,6 +52,8 @@ const assertChecklistSetOwner = async (params: {
 export const createChecklistSet = async (params: {
   req: CreateChecklistSetRequest;
   userId: string;
+  /** どの部署の仕事として記録するか。呼び出し側が resolveDepartment で決める */
+  departmentId?: string;
   deps?: {
     repo?: CheckRepository;
   };
@@ -62,6 +65,7 @@ export const createChecklistSet = async (params: {
   await repo.storeCheckListSet({
     checkListSet,
     ownerUserId: params.userId,
+    departmentId: params.departmentId,
   });
 
   const stateMachineArn = process.env.DOCUMENT_PROCESSING_STATE_MACHINE_ARN;
@@ -245,7 +249,8 @@ export const removeChecklistSet = async (params: {
 export const getAllChecklistSets = async (
   params: ListParams & {
     status?: CHECK_LIST_STATUS;
-    ownerUserId?: string;
+    /** 見る人。自分のものと自分の部署のものだけが返る。管理者は全件 */
+    user?: RequestUser;
     deps?: {
       repo?: CheckRepository;
     };
@@ -259,7 +264,7 @@ export const getAllChecklistSets = async (
     limit: params.limit,
     sortBy: params.sortBy,
     sortOrder: params.sortOrder,
-    ownerUserId: params.ownerUserId,
+    visibleTo: toViewer(params.user),
     search: params.search,
   });
   return result;

@@ -1,3 +1,4 @@
+import { assertIsAdminOrThrow } from "../../../core/access/visibility";
 import { FastifyRequest, FastifyReply } from "fastify";
 import { parseListQuery } from "../../../common/pagination";
 import {
@@ -52,6 +53,12 @@ export const createToolConfigurationHandler = async (
   request: FastifyRequest<{ Body: CreateToolConfigurationRequest }>,
   reply: FastifyReply
 ): Promise<void> => {
+  // 全員が使う共有の設定なので、作れるのは管理者だけ。
+  // 見るほうは絞らない（チェックリストから張られたリンクが開けなくなる）
+  assertIsAdminOrThrow(request.user, {
+    api: "createToolConfiguration",
+    logger: console,
+  });
   const config = await createToolConfiguration({
     request: request.body,
   });
@@ -62,6 +69,11 @@ export const deleteToolConfigurationHandler = async (
   request: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply
 ): Promise<void> => {
+  // 消すと、それを使っているチェックリスト項目の設定まで失われる
+  assertIsAdminOrThrow(request.user, {
+    api: "deleteToolConfiguration",
+    logger: console,
+  });
   await deleteToolConfiguration({ id: request.params.id });
   reply.code(200).send({ success: true });
 };

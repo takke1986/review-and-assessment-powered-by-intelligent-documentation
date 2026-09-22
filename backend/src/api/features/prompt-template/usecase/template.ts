@@ -1,3 +1,5 @@
+import type { RequestUser } from "../../../core/middleware/authorization";
+import { toViewer } from "../../../core/access/visibility";
 import {
   PromptTemplateEntity,
   PromptTemplateDomain,
@@ -14,7 +16,8 @@ import { ListParams } from "../../../common/pagination";
 
 export const getPromptTemplates = async (
   params: ListParams & {
-    userId: string;
+    /** 見る人。自分のものと自分の部署のものだけが返る */
+    user?: RequestUser;
     type: PromptTemplateType;
     deps?: {
       repo?: PromptTemplateRepository;
@@ -23,7 +26,7 @@ export const getPromptTemplates = async (
 ): Promise<PaginatedResponse<PromptTemplateEntity>> => {
   const repo =
     params.deps?.repo || (await makePrismaPromptTemplateRepository());
-  return repo.getPromptTemplates(params.userId, params.type, {
+  return repo.getPromptTemplates(toViewer(params.user), params.type, {
     page: params.page,
     limit: params.limit,
     sortBy: params.sortBy,
@@ -50,6 +53,7 @@ export const createPromptTemplate = async (params: {
     description?: string;
     prompt: string;
     type: PromptTemplateType;
+    departmentId?: string;
   };
   deps?: {
     repo?: PromptTemplateRepository;

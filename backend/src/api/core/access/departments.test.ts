@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { departmentsOf, resolveDepartment } from "./departments";
-import type { RequestUser } from "../../../../core/middleware/authorization";
+import type { RequestUser } from "../middleware/authorization";
 
 const user = (overrides: Partial<RequestUser> = {}): RequestUser =>
   ({ userId: "u-1", isAdmin: false, ...overrides }) as RequestUser;
