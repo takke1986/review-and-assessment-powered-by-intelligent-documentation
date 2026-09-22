@@ -7,14 +7,14 @@ import { Button } from "../../../components/Button";
 import {
   PromptTemplate,
   PromptTemplateType,
-  UpdatePromptTemplateRequest,
+  PromptTemplateEditorData,
 } from "../types";
 import { DEFAULT_CHECKLIST_PROMPT, DEFAULT_REVIEW_PROMPT } from "../constants";
 
 interface PromptTemplateEditorProps {
   template?: PromptTemplate;
   type: PromptTemplateType;
-  onSave: (data: UpdatePromptTemplateRequest) => Promise<void>;
+  onSave: (data: PromptTemplateEditorData) => Promise<void>;
   onCancel: () => void;
   isSubmitting: boolean;
 }

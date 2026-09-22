@@ -31,6 +31,14 @@ export interface UpdatePromptTemplateRequest {
   prompt?: string;
 }
 
+/**
+ * 編集モーダルが保存時に渡すもの。作るときだけ部署が付く
+ * （既存のものは共有先を変えない）
+ */
+export interface PromptTemplateEditorData extends UpdatePromptTemplateRequest {
+  departmentId?: string;
+}
+
 export type GetPromptTemplatesResponse = ApiResponse<{
   templates: PromptTemplate[];
   total: number;

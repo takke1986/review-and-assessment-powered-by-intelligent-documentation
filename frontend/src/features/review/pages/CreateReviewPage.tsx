@@ -9,8 +9,7 @@ import { useTranslation } from "react-i18next";
 import Button from "../../../components/Button";
 import PageHeader from "../../../components/PageHeader";
 import FormTextField from "../../../components/FormTextField";
-import RadioGroup from "../../../components/RadioGroup";
-import { useUserPreference } from "../../user-preference/hooks/useUserPreferenceQueries";
+import DepartmentPicker, { useDepartmentChoice } from "../../../components/DepartmentPicker";
 import { FormTextArea } from "../../../components/FormTextArea";
 import { FileUploader } from "../../../components/FileUploader";
 import ChecklistSelector from "../components/ChecklistSelector";
@@ -57,8 +56,7 @@ export const CreateReviewPage: React.FC = () => {
   const [jobName, setJobName] = useState("");
   // どの部署の仕事として記録するか。所属が1つならサーバが決めるので、
   // 選ばせるのは兼務の人だけ
-  const { preference } = useUserPreference();
-  const departments = preference?.departments ?? [];
+  const { mustChoose } = useDepartmentChoice();
   const [departmentId, setDepartmentId] = useState("");
   // 再審査で何を直したかのメモ（任意）
   const [revisionNote, setRevisionNote] = useState("");
@@ -210,7 +208,7 @@ export const CreateReviewPage: React.FC = () => {
 
     // 兼務の人が選ばないまま進むと、部署の付かない審査になり、
     // 同僚の履歴に出てこない
-    if (departments.length > 1 && !departmentId) {
+    if (mustChoose && !departmentId) {
       newErrors.department = t("review.departmentRequired");
     }
 
@@ -318,27 +316,11 @@ export const CreateReviewPage: React.FC = () => {
             error={errors.name}
           />
 
-          {/* 兼務の人だけに出す。所属が1つならサーバが決めるので選ぶまでもなく、
-              欄があるだけ手間が増える */}
-          {departments.length > 1 && (
-            <div className="mb-4">
-              <RadioGroup
-                name="departmentId"
-                label={t("review.department")}
-                options={departments.map((value) => ({
-                  value,
-                  label: value,
-                }))}
-                value={departmentId}
-                onChange={setDepartmentId}
-                inline
-                error={errors.department}
-              />
-              <p className="mt-1 text-sm text-aws-font-color-gray">
-                {t("review.departmentHelp")}
-              </p>
-            </div>
-          )}
+          <DepartmentPicker
+            value={departmentId}
+            onChange={setDepartmentId}
+            error={errors.department}
+          />
 
           {/* 再審査: 何を直したかを残しておくと、後から見返したときに分かる */}
           {sourceJobId && (

@@ -19,7 +19,7 @@ import Button from "../../../components/Button";
 import {
   PromptTemplate,
   PromptTemplateType,
-  UpdatePromptTemplateRequest,
+  PromptTemplateEditorData,
 } from "../types";
 
 export const ChecklistPromptTemplatesPage: React.FC = () => {
@@ -89,7 +89,7 @@ export const ChecklistPromptTemplatesPage: React.FC = () => {
     );
   };
 
-  const handleSave = async (data: UpdatePromptTemplateRequest) => {
+  const handleSave = async (data: PromptTemplateEditorData) => {
     setIsSubmitting(true);
     try {
       if (currentTemplate) {
@@ -108,7 +108,7 @@ export const ChecklistPromptTemplatesPage: React.FC = () => {
             description: data.description,
             type: PromptTemplateType.CHECKLIST,
             // 兼務のときにモーダルで選ばれた部署。所属していなければサーバが弾く
-            departmentId: (data as { departmentId?: string }).departmentId,
+            departmentId: data.departmentId,
           });
           await refetch();
         } else {
