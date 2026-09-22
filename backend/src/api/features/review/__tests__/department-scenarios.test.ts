@@ -12,6 +12,9 @@
  * 兼務を主役にしているのは、そこだけ判断が分かれるため。所属が1つなら
  * 「自分の部署」で済むが、営業と法務を兼ねる人の審査を法務の同僚に見せて
  * よいとは限らない。
+ *
+ * 所属は Cognito のカスタム属性 `custom:departments` に入る。グループは
+ * 役割の管理に使うので、部署には使わない
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createReviewJobHandler } from "../routes/handlers";
@@ -37,14 +40,14 @@ vi.mock("../usecase/review-job", async (importOriginal) => {
 const bothDepartments = {
   userId: "u-both",
   isAdmin: false,
-  "cognito:groups": ["dept-sales", "dept-legal"],
+  rawClaims: { "custom:departments": "sales,legal" },
 } as unknown as RequestUser;
 
 /** 営業だけの人 */
 const salesOnly = {
   userId: "u-sales",
   isAdmin: false,
-  "cognito:groups": ["dept-sales"],
+  rawClaims: { "custom:departments": "sales" },
 } as unknown as RequestUser;
 
 /** どこにも属していない人 */

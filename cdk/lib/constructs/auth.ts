@@ -153,6 +153,23 @@ export class Auth extends Construct {
       accountRecovery: AccountRecovery.EMAIL_ONLY,
       customAttributes: {
         rapid_role: new StringAttribute({ minLen: 0, maxLen: 2048 }),
+        // 所属部署。兼務があるので複数入る（区切りは , ; 空白のいずれか）。
+        //
+        // グループ（cognito:groups）ではなく属性で持つ。グループは役割の管理に
+        // 使うので、部署を同じ入れ物に混ぜると、役割を足したつもりで見える
+        // 範囲が変わる。
+        //
+        // mutable を true にしてあるのは、SAML の属性マッピングで入れるため。
+        // Cognito は IdP から写す属性が mutable であることを求める。しかも
+        // **属性は後から変えられない**（足すことはできるが、直すことも消すことも
+        // できない）ので、ここで決め損なうと別名の属性を作り直すことになる。
+        // 既存の rapid_role は mutable を指定しておらず false なので、
+        // IdP から写すことはできない
+        departments: new StringAttribute({
+          minLen: 0,
+          maxLen: 2048,
+          mutable: true,
+        }),
       },
       removalPolicy: RemovalPolicy.DESTROY, // 開発環境用。本番環境ではRETAINを検討
     });
@@ -202,9 +219,18 @@ export class Auth extends Construct {
         userSrp: true,
         adminUserPassword: true,
       },
+      // 読めないと ID トークンに載らない。載らなければ、部署は無いのと同じ
       readAttributes: new ClientAttributes()
         .withStandardAttributes(standardReadAttributes)
-        .withCustomAttributes("rapid_role"),
+        .withCustomAttributes("rapid_role", "departments"),
+      // departments を書ける側に入れていないのは、入れると**利用者が自分の
+      // アクセストークンで自分の部署を書き換えられる**ため。部署は見える範囲を
+      // 決めるので、自分で足せるなら他部署の審査が読める。
+      //
+      // その代わり、SAML で部署を IdP から写す運用にするときは、ここに
+      // departments を足さないと Cognito がサインインのたびに書き込みに失敗する。
+      // 「IdP から入れられること」と「本人が書き換えられないこと」は Cognito の
+      // 同じ設定で決まるので両立しない。IdP を繋ぐときに選ぶ
       writeAttributes: new ClientAttributes().withStandardAttributes(
         standardWriteAttributes
       ),

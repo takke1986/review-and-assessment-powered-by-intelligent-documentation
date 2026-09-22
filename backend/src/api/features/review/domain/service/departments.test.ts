@@ -5,48 +5,55 @@ import type { RequestUser } from "../../../../core/middleware/authorization";
 const user = (overrides: Partial<RequestUser> = {}): RequestUser =>
   ({ userId: "u-1", isAdmin: false, ...overrides }) as RequestUser;
 
+/** 部署の属性を持つ利用者 */
+const withDepartments = (value: unknown) =>
+  user({ rawClaims: { "custom:departments": value } });
+
 describe("departmentsOf", () => {
-  it("グループから読む。兼務はそのまま複数になる", () => {
-    expect(
-      departmentsOf(user({ "cognito:groups": ["dept-sales", "dept-legal"] }))
-    ).toEqual(["sales", "legal"]);
+  it("属性から読む。兼務はそのまま複数になる", () => {
+    expect(departmentsOf(withDepartments("sales,legal"))).toEqual([
+      "sales",
+      "legal",
+    ]);
   });
 
-  it("部署以外のグループは混ぜない", () => {
-    expect(
-      departmentsOf(user({ "cognito:groups": ["admins", "dept-sales"] }))
-    ).toEqual(["sales"]);
+  it("区切りは読点でも分号でも空白でもよい。IdP によって変わる", () => {
+    expect(departmentsOf(withDepartments("sales, legal;audit  procurement"))).toEqual(
+      ["sales", "legal", "audit", "procurement"]
+    );
   });
 
-  it("属性からも読む。区切りは読点でも空白でもよい", () => {
-    expect(
-      departmentsOf(
-        user({ rawClaims: { "custom:departments": "sales, legal  audit" } })
-      )
-    ).toEqual(["sales", "legal", "audit"]);
+  it("同じ部署が二度入っていても重複させない", () => {
+    expect(departmentsOf(withDepartments("sales, legal, sales"))).toEqual([
+      "sales",
+      "legal",
+    ]);
   });
 
-  it("両方に入っていても重複させない", () => {
+  it("グループは見ない。役割の管理に使うものなので混ぜない", () => {
+    // ここを混ぜると、役割のグループを足したつもりで見える範囲が変わる
     expect(
-      departmentsOf(
-        user({
-          "cognito:groups": ["dept-sales"],
-          rawClaims: { "custom:departments": "sales,legal" },
-        })
-      )
-    ).toEqual(["sales", "legal"]);
+      departmentsOf(user({ "cognito:groups": ["dept-sales", "admins"] }))
+    ).toEqual([]);
   });
 
   it("属していなければ空。部署を使わない運用でも止まらない", () => {
     expect(departmentsOf(user())).toEqual([]);
     expect(departmentsOf(undefined)).toEqual([]);
+    expect(departmentsOf(withDepartments(""))).toEqual([]);
+    expect(departmentsOf(withDepartments("  ,  ; "))).toEqual([]);
+  });
+
+  it("属性が文字列でなければ空。IdP が配列で入れてきても落ちない", () => {
+    expect(departmentsOf(withDepartments(["sales"]))).toEqual([]);
+    expect(departmentsOf(withDepartments(42))).toEqual([]);
   });
 });
 
 describe("resolveDepartment", () => {
   it("所属が1つなら選ぶまでもない", () => {
     expect(
-      resolveDepartment({ user: user({ "cognito:groups": ["dept-sales"] }) })
+      resolveDepartment({ user: withDepartments("sales") })
     ).toBe("sales");
   });
 
@@ -55,7 +62,7 @@ describe("resolveDepartment", () => {
     // 同僚の履歴に出てこないことに誰も気づけない
     expect(() =>
       resolveDepartment({
-        user: user({ "cognito:groups": ["dept-sales", "dept-legal"] }),
+        user: withDepartments("sales,legal"),
       })
     ).toThrow(/more than one department/);
   });
@@ -63,7 +70,7 @@ describe("resolveDepartment", () => {
   it("兼務でも選ばれていればそれを使う", () => {
     expect(
       resolveDepartment({
-        user: user({ "cognito:groups": ["dept-sales", "dept-legal"] }),
+        user: withDepartments("sales,legal"),
         chosen: "legal",
       })
     ).toBe("legal");
@@ -73,7 +80,7 @@ describe("resolveDepartment", () => {
     // 黙って無視すると、記録されたと思われる
     expect(() =>
       resolveDepartment({
-        user: user({ "cognito:groups": ["dept-sales"] }),
+        user: withDepartments("sales"),
         chosen: "finance",
       })
     ).toThrow(/do not belong/);

@@ -4,50 +4,30 @@ import type { RequestUser } from "../../../../core/middleware/authorization";
 /**
  * その人がどの部署に属するかを読む。
  *
- * 本番は SAML を想定しており、部署は IdP から来る。ところが、多値の属性が
- * Cognito にどう入るかは IdP の実装で変わる（区切り文字も、そもそも属性か
- * グループかも）。実機で確かめるまで決められない。
+ * 部署は Cognito のカスタム属性 `custom:departments` に入っている。兼務が
+ * あるので値は複数で、区切りは `,` `;` 空白のいずれでもよい。本番は SAML を
+ * 想定していて、この属性は IdP から写される。
  *
- * そこで読み取りをここ1か所に閉じ込める。IdP が決まったら、この関数だけを
- * 直せば済むようにしてある。ほかの処理は「部署の一覧」だけを見る。
+ * **グループ（cognito:groups）は見ない。** グループは役割の管理に使うので、
+ * 部署を同じ入れ物に混ぜると、役割を足したつもりで見える範囲が変わる。
  *
- * いまは2つの持ち方に対応する。
- * - Cognito のグループ（cognito:groups）。兼務がそのまま表せる
- * - カスタム属性（custom:departments）。区切りは , か ; か空白
+ * 読み取りをここ1か所に閉じ込めてある。IdP ごとに区切り方が変わっても、
+ * この関数だけを直せば済む。ほかの処理は「部署の一覧」だけを見る。
  */
 
-/** グループ名につける印。ほかの用途のグループと混ざらないようにする */
-export const DEPARTMENT_GROUP_PREFIX = "dept-";
-
-const fromGroups = (user: RequestUser): string[] => {
-  const groups = user["cognito:groups"];
-  if (!Array.isArray(groups)) {
-    return [];
-  }
-  return groups
-    .filter(
-      (group): group is string =>
-        typeof group === "string" && group.startsWith(DEPARTMENT_GROUP_PREFIX)
-    )
-    .map((group) => group.slice(DEPARTMENT_GROUP_PREFIX.length));
-};
-
-const fromAttribute = (user: RequestUser): string[] => {
-  const raw = user.rawClaims?.["custom:departments"];
-  if (typeof raw !== "string") {
-    return [];
-  }
-  return raw.split(/[,;\s]+/);
-};
+/** 区切り文字。IdP によって読点だったり空白だったりする */
+const SEPARATORS = /[,;\s]+/;
 
 /**
  * 重複と空を除いた部署の一覧。属していなければ空
  */
 export const departmentsOf = (user: RequestUser | undefined): string[] => {
-  if (!user) {
+  const raw = user?.rawClaims?.["custom:departments"];
+  if (typeof raw !== "string") {
     return [];
   }
-  const found = [...fromGroups(user), ...fromAttribute(user)]
+  const found = raw
+    .split(SEPARATORS)
     .map((name) => name.trim())
     .filter((name) => name.length > 0);
   return [...new Set(found)];
