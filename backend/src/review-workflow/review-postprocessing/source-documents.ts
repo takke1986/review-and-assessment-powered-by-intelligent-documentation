@@ -26,6 +26,9 @@ export interface SourceDocument {
   label?: string;
 }
 
+/** 書類の中のどこを見たか。種類によって使う欄が変わる */
+type SourcePlace = Pick<SourceDocument, "pageNumber" | "section" | "label">;
+
 const isPdf = (filename: string) => filename.toLowerCase().endsWith(".pdf");
 
 // 利用者が付けた名前と、モデルが書き写した名前の、表記の揺れ（濁点の合成など）を吸収する
@@ -40,9 +43,15 @@ const positiveInt = (value: unknown): number | undefined =>
 const nonEmptyText = (value: unknown): string | undefined =>
   typeof value === "string" && value.trim() ? value.trim() : undefined;
 
-const parseSources = (
-  sources: unknown
-): Array<{ file: string; page?: number; section?: number; label?: string }> => {
+/** モデルが返した根拠。形を整えたあとの姿 */
+interface ParsedSource {
+  file: string;
+  page?: number;
+  section?: number;
+  label?: string;
+}
+
+const parseSources = (sources: unknown): ParsedSource[] => {
   if (!Array.isArray(sources)) {
     return [];
   }
@@ -96,8 +105,7 @@ export const selectSourceDocuments = (params: {
       }
       // PDF はページで、それ以外は節と見出しで場所を表す。混ぜると
       // 結果画面が Office のファイルから PDF のページを切り出そうとする
-      const pdf = isPdf(doc.filename);
-      const place = pdf
+      const place: SourcePlace = isPdf(doc.filename)
         ? { pageNumber: source.page }
         : { section: source.section, label: source.label };
       // 同じ場所を二度並べない。鍵は実際に残す場所から作る。source の

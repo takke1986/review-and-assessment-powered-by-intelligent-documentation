@@ -529,6 +529,11 @@ export default function ReviewResultItem({
                             );
                             if (!doc) return null;
 
+                            // 場所の示し方は種類で変わる。PDF はページ、
+                            // Office は見出し。同じ判定を2回書くと片方だけ
+                            // 直して食い違う
+                            const pdf = isPdfFileName(doc.filename);
+
                             return (
                               <div
                                 key={`${reference.documentId}-${
@@ -539,17 +544,11 @@ export default function ReviewResultItem({
                                   <DocumentPreview
                                     s3Key={doc.s3Path}
                                     filename={doc.filename}
-                                    // ページがあるのは PDF だけ。
-                                    // Office は代わりに見出しで場所を示す
                                     pageNumber={
-                                      isPdfFileName(doc.filename)
-                                        ? reference.pageNumber
-                                        : undefined
+                                      pdf ? reference.pageNumber : undefined
                                     }
                                     location={
-                                      isPdfFileName(doc.filename)
-                                        ? undefined
-                                        : reference.locationLabel
+                                      pdf ? undefined : reference.locationLabel
                                     }
                                   />
                                 ) : doc.fileType === REVIEW_FILE_TYPE.IMAGE ? (

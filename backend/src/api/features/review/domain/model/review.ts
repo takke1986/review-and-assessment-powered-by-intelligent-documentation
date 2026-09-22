@@ -262,7 +262,12 @@ export interface SourceReference {
   pageNumber?: number;
   /** 道具で読んだ Office の節番号 */
   section?: number;
-  /** 書類の中のどこか。"Slide 3" や "Sheet: 売上高" など */
+  /**
+   * 書類の中のどこか。"Slide 3" や "Sheet: 売上高" など。
+   *
+   * 下の boundingBox が持つ label（画像のどこを見たかの説明）と紛らわしいので、
+   * ここだけ locationLabel と呼ぶ。Python と source-documents.ts では label
+   */
   locationLabel?: string;
   boundingBox?: {
     label: string;
