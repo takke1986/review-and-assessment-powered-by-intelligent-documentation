@@ -61,7 +61,8 @@ def test_each_file_is_its_own_document_when_they_fit(tmp_path):
     assert labels[1].startswith(
         "Document 2 is the file 見積書.xlsx, converted from its XML to Markdown."
     )
-    markdown = documents(blocks)[1]["source"]["bytes"].decode("utf-8")
+    # 文字の形式は source.text で渡す
+    markdown = documents(blocks)[1]["source"]["text"]
     assert markdown.startswith("# 見積書.xlsx\n")
     assert all(d["citations"] == {"enabled": True} for d in documents(blocks))
 
@@ -86,7 +87,7 @@ def test_office_files_are_joined_into_one_document_when_there_are_too_many(tmp_p
     assert len(documents(blocks)) == 5
     joined = [d for d in documents(blocks) if d["format"] == "txt"]
     assert len(joined) == 1
-    markdown = joined[0]["source"]["bytes"].decode("utf-8")
+    markdown = joined[0]["source"]["text"]
     assert "# 見積書.xlsx" in markdown and "# 稟議書.docx" in markdown
     assert any(
         label.startswith("Document 5 joins these files") for label in texts(blocks)
@@ -271,3 +272,28 @@ def test_citations_never_use_a_format_bedrock_refuses(tmp_path):
 
     refused = {d["format"] for d in documents(blocks)} - {"txt", "pdf"}
     assert not refused, f"Bedrock が引用ありで受け取らない形式: {sorted(refused)}"
+
+
+def test_text_formats_go_as_text_not_bytes(tmp_path):
+    """文字の形式は source.text で渡す。bytes では Bedrock が断る。
+
+      The document source bytes could not be parsed as the specified format.
+      If using a text-based format, try source.text instead of source.bytes.
+
+    PDF は今までどおり bytes。
+    """
+    files = [
+        pdf(tmp_path, "稟議書.pdf"),
+        ReviewFile(write_package(tmp_path, "a.xlsx", workbook_parts()), "見積書.xlsx"),
+    ]
+
+    blocks = rd.build_document_blocks(files, citations=True)
+
+    for document in documents(blocks):
+        source = document["source"]
+        if document["format"] == "pdf":
+            assert "bytes" in source, "PDF は bytes で渡す"
+        else:
+            assert "text" in source, (
+                f"{document['format']} は文字の形式なので text で渡す必要がある"
+            )

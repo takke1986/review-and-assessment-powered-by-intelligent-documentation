@@ -246,15 +246,27 @@ def _page_count(file: ReviewFile) -> int:
         return 0
 
 
+# 文字として渡す形式。bytes では受け取ってもらえない
+_TEXT_FORMATS = ("txt", "md", "csv", "html")
+
+
 def _document_block(
     number: int, document_format: str, data: bytes, citations: bool
 ) -> dict[str, Any]:
+    # 文字の形式は source.text で渡す。bytes で渡すと Bedrock がこう言って断る。
+    #   The document source bytes could not be parsed as the specified format.
+    #   If using a text-based format, try source.text instead of source.bytes.
+    source: dict[str, Any] = (
+        {"text": data.decode("utf-8")}
+        if document_format in _TEXT_FORMATS
+        else {"bytes": data}
+    )
     return {
         "document": {
             # 使える文字が限られ、同じ名前は許されないので、ファイル名ではなく番号にする
             "name": f"document-{number}",
             "format": document_format,
-            "source": {"bytes": data},
+            "source": source,
             "citations": {"enabled": citations},
         }
     }
