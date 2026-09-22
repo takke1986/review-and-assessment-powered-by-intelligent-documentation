@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Citation tests for agent.py.
 
-Offline tests cover _should_use_document_block (routing) and
+Offline tests cover _choose_route (routing) and
 _extract_citations_text (parsing). An opt-in Bedrock integration test runs only
 with RUN_BEDROCK_INTEGRATION=1 (needs AWS credentials).
 """
@@ -15,7 +15,13 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import agent
-from agent import _extract_citations_text, _should_use_document_block
+from agent import (
+    ROUTE_DOCUMENT_BLOCK,
+    ROUTE_DOCUMENT_TOOLS,
+    ROUTE_FILE_READ,
+    _choose_route,
+    _extract_citations_text,
+)
 from model_config import ModelConfig
 
 # A registered model that supports the document block + citations.
@@ -25,7 +31,7 @@ UNKNOWN_MODEL_ID = "example.unknown-model-v1"
 
 
 # ---------------------------------------------------------------------------
-# _should_use_document_block: citation routing
+# _choose_route: 経路の選択
 # ---------------------------------------------------------------------------
 
 
@@ -33,8 +39,8 @@ def test_document_block_used_for_pdf_when_citations_enabled(monkeypatch):
     """PDF + citations enabled + capable model -> document block path."""
     monkeypatch.setattr(agent, "ENABLE_CITATIONS", True)
     assert (
-        _should_use_document_block(["/tmp/a.pdf"], CITATION_MODEL_ID, has_images=False)
-        is True
+        _choose_route(["/tmp/a.pdf"], CITATION_MODEL_ID, has_images=False)
+        == ROUTE_DOCUMENT_BLOCK
     )
 
 
@@ -42,8 +48,8 @@ def test_file_read_used_when_citations_disabled(monkeypatch):
     """ENABLE_CITATIONS=false falls back to the file_read tool path."""
     monkeypatch.setattr(agent, "ENABLE_CITATIONS", False)
     assert (
-        _should_use_document_block(["/tmp/a.pdf"], CITATION_MODEL_ID, has_images=False)
-        is False
+        _choose_route(["/tmp/a.pdf"], CITATION_MODEL_ID, has_images=False)
+        == ROUTE_FILE_READ
     )
 
 
@@ -51,8 +57,8 @@ def test_file_read_used_for_images(monkeypatch):
     """Images always use the file_read/image_reader path, regardless of the flag."""
     monkeypatch.setattr(agent, "ENABLE_CITATIONS", True)
     assert (
-        _should_use_document_block(["/tmp/a.png"], CITATION_MODEL_ID, has_images=True)
-        is False
+        _choose_route(["/tmp/a.png"], CITATION_MODEL_ID, has_images=True)
+        == ROUTE_FILE_READ
     )
 
 
@@ -60,8 +66,8 @@ def test_file_read_used_for_unknown_model(monkeypatch):
     """Unknown models fall back to defaults without document block support."""
     monkeypatch.setattr(agent, "ENABLE_CITATIONS", True)
     assert (
-        _should_use_document_block(["/tmp/a.pdf"], UNKNOWN_MODEL_ID, has_images=False)
-        is False
+        _choose_route(["/tmp/a.pdf"], UNKNOWN_MODEL_ID, has_images=False)
+        == ROUTE_FILE_READ
     )
 
 
@@ -135,3 +141,31 @@ if __name__ == "__main__":
     os.environ["RUN_BEDROCK_INTEGRATION"] = "1"
     test_citation_review_integration()
     print("Integration test passed")
+
+
+def test_pdf_with_notes_goes_to_document_tools(monkeypatch):
+    """注釈や記入値のある PDF は document_library の道具へ回す。
+
+    以前は file_read に流れていた。その経路は本文に出ない中身を足さないので、
+    注釈は最後まで読まれず、審査の答えに出なかった。実環境で
+    「注釈内容を直接抽出できず」と返り、道具が1度も呼ばれていないことが
+    ログで確認された。
+    """
+    monkeypatch.setattr(agent, "ENABLE_CITATIONS", True)
+    monkeypatch.setattr(agent, "has_hidden_content", lambda path: True)
+
+    assert (
+        _choose_route(["/tmp/申込書.pdf"], CITATION_MODEL_ID, has_images=False)
+        == ROUTE_DOCUMENT_TOOLS
+    )
+
+
+def test_pdf_without_notes_stays_on_document_block(monkeypatch):
+    """注釈が無ければ、そのまま渡す経路のまま"""
+    monkeypatch.setattr(agent, "ENABLE_CITATIONS", True)
+    monkeypatch.setattr(agent, "has_hidden_content", lambda path: False)
+
+    assert (
+        _choose_route(["/tmp/a.pdf"], CITATION_MODEL_ID, has_images=False)
+        == ROUTE_DOCUMENT_BLOCK
+    )

@@ -73,7 +73,9 @@ def test_file_read_tool_reads_office_files_as_markdown(tmp_path, monkeypatch):
         return {"result": "pass"}
 
     monkeypatch.setattr(agent, "_run_agent_with_file_read_tool", fake_file_read_agent)
-    monkeypatch.setattr(agent, "_should_use_document_block", lambda *args: False)
+    monkeypatch.setattr(
+        agent, "_choose_route", lambda *args: agent.ROUTE_FILE_READ
+    )
     docx = write_package(tmp_path, "b.docx", document_parts())
 
     result = agent._execute_review_core(
@@ -143,7 +145,9 @@ def test_files_too_large_for_one_request_are_read_through_document_tools(
             raise Sent
 
     monkeypatch.setattr(agent, "Agent", FakeAgent)
-    monkeypatch.setattr(agent, "_should_use_document_block", lambda *args: True)
+    monkeypatch.setattr(
+        agent, "_choose_route", lambda *args: agent.ROUTE_DOCUMENT_BLOCK
+    )
     monkeypatch.setattr("review_documents.MAX_DOCUMENT_BYTES", 1)
     pdf = tmp_path / "a.pdf"
     pdf.write_bytes(b"%PDF-1.4")
@@ -214,7 +218,9 @@ def test_a_transcribed_file_is_read_through_document_tools(tmp_path, monkeypatch
 
     monkeypatch.setattr(agent, "Agent", FakeAgent)
     # そのまま渡せる、と判断される状況をあえて作る
-    monkeypatch.setattr(agent, "_should_use_document_block", lambda *args: True)
+    monkeypatch.setattr(
+        agent, "_choose_route", lambda *args: agent.ROUTE_DOCUMENT_BLOCK
+    )
     pdf = tmp_path / "scan.pdf"
     pdf.write_bytes(b"%PDF-1.4")
 
@@ -249,7 +255,9 @@ def test_a_file_with_no_transcription_is_sent_as_it_is(tmp_path, monkeypatch):
             raise Sent
 
     monkeypatch.setattr(agent, "Agent", FakeAgent)
-    monkeypatch.setattr(agent, "_should_use_document_block", lambda *args: True)
+    monkeypatch.setattr(
+        agent, "_choose_route", lambda *args: agent.ROUTE_DOCUMENT_BLOCK
+    )
     pdf = tmp_path / "plain.pdf"
     pdf.write_bytes(b"%PDF-1.4")
 

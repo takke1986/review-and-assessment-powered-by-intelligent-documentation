@@ -82,13 +82,20 @@ def test_a_file_that_is_neither_document_nor_image_is_still_rejected(tmp_path):
 
 def test_mixed_files_take_the_document_block_path(tmp_path):
     # 画像だけなら file_read の経路（拡大や切り出しができる）
-    assert not agent._should_use_document_block(["a.png"], MODEL_ID, has_images=True)
+    assert (
+        agent._choose_route(["a.png"], MODEL_ID, has_images=True)
+        == agent.ROUTE_FILE_READ
+    )
     # 文書と混ざっているなら、両方を1回に載せられる文書ブロックの経路
-    assert agent._should_use_document_block(
-        ["a.png", "b.pdf"], MODEL_ID, has_images=True
+    assert (
+        agent._choose_route(["a.png", "b.pdf"], MODEL_ID, has_images=True)
+        == agent.ROUTE_DOCUMENT_BLOCK
     )
     # 文書だけのときの挙動は変えない
-    assert agent._should_use_document_block(["b.pdf"], MODEL_ID, has_images=False)
+    assert (
+        agent._choose_route(["b.pdf"], MODEL_ID, has_images=False)
+        == agent.ROUTE_DOCUMENT_BLOCK
+    )
 
 
 def test_the_prompt_tells_the_model_to_look_at_the_images():

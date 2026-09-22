@@ -280,33 +280,29 @@ def _pictures_already_read(files: List[ReviewFile], digests: Optional[Dict[str, 
     )
 
 
-def _should_use_document_block(
-    document_paths: list, model_id: str, has_images: bool
-) -> bool:
-    """
-    Determine if document block should be used.
+# 書類をモデルに渡す経路
+ROUTE_DOCUMENT_BLOCK = "document_block"
+"""ファイルをそのまま要求に載せる。1回で収まるときの既定"""
 
-    Document block: Embed PDF directly in request
-    File read tool: Use file_read tool with file paths
+ROUTE_DOCUMENT_TOOLS = "document_tools"
+"""document_library の道具で読ませる。本文に出ない中身（注釈・記入値）を
+こちらで読み出して足せるのは、この経路だけ"""
 
-    Args:
-        document_paths: List of document paths
-        model_id: Bedrock model ID
-        has_images: Whether documents contain images
+ROUTE_FILE_READ = "file_read"
+"""file_read の道具でファイルを読ませる。画像は拡大や切り出しができる"""
 
-    Returns:
-        True to use document block, False to use file_read tool
+
+def _choose_route(document_paths: list, model_id: str, has_images: bool) -> str:
+    """書類をどの経路でモデルに渡すかを決める。
+
+    以前は「文書ブロックを使うか否か」の真偽値だった。使わない理由が
+    3通りあるのに行き先が1つしか無く、**注釈や記入値のある PDF が
+    file_read に流れていた**。その経路は本文に出ない中身を足さないので、
+    注釈は最後まで読まれない。理由ごとに行き先を分ける。
     """
     model = ModelConfig.create(model_id)
     if not (ENABLE_CITATIONS and model.supports_document_block):
-        return False
-    # 画像だけなら、拡大や切り出しができる file_read の経路の方が読み取りやすい。
-    # 文書と混ざっているときは、両方を1回の要求に載せられるこちらを使う
-    if has_images:
-        return any(
-            not path.lower().endswith(tuple(IMAGE_FILE_EXTENSIONS))
-            for path in document_paths
-        )
+        return ROUTE_FILE_READ
 
     # 記入済みフォームや注釈を持つ PDF は、道具で読ませる。そのまま渡すと
     # 記入内容が読まれるかどうか分からず、読まれなければ「空の申込書」を
@@ -317,8 +313,20 @@ def _should_use_document_block(
                 "Reading %s through document tools: it has filled-in fields or notes",
                 path,
             )
-            return False
-    return True
+            return ROUTE_DOCUMENT_TOOLS
+
+    # 画像だけなら、拡大や切り出しができる file_read の経路の方が読み取りやすい。
+    # 文書と混ざっているときは、両方を1回の要求に載せられるこちらを使う
+    if has_images:
+        return (
+            ROUTE_DOCUMENT_BLOCK
+            if any(
+                not path.lower().endswith(tuple(IMAGE_FILE_EXTENSIONS))
+                for path in document_paths
+            )
+            else ROUTE_FILE_READ
+        )
+    return ROUTE_DOCUMENT_BLOCK
 
 
 def create_mcp_client(mcp_server_cfg: Dict[str, Any]) -> MCPClient:
@@ -493,9 +501,7 @@ def _execute_review_core(
         Review result dict
     """
     # Determine processing method
-    use_document_block = _should_use_document_block(
-        [file.path for file in files], model_id, has_images
-    )
+    route = _choose_route([file.path for file in files], model_id, has_images)
 
     # 先に読み取ってある書類は、道具で読ませる。読み取りは「1回で渡せない」
     # か「文字が取り出せない」書類にしか作られていない。とくにスキャンした
@@ -532,14 +538,10 @@ def _execute_review_core(
         result["reviewType"] = "PDF"
         return result
 
-    logger.debug(
-        f"Processing method: "
-        f"{'document_block' if use_document_block else 'file_read_tool'}, "
-        f"model={model_id}"
-    )
+    logger.info("Processing method: %s, model=%s", route, model_id)
 
     # Generate prompt and execute
-    if use_document_block:
+    if route == ROUTE_DOCUMENT_BLOCK:
         # Document block path（PDF with citations）
         prompt = get_document_review_prompt(
             language_name,
@@ -587,6 +589,28 @@ def _execute_review_core(
                 toolConfiguration=toolConfiguration,
                 digests=digests,
             )
+        result["reviewType"] = "PDF"
+
+    elif route == ROUTE_DOCUMENT_TOOLS:
+        # 記入値や注釈のある PDF。document_library の道具でないと、本文に
+        # 出ない中身を足せない。file_read に流すと注釈は最後まで読まれない
+        result = _run_agent_with_document_tools(
+            prompt=get_document_review_prompt(
+                language_name,
+                check_name,
+                check_description,
+                use_citations=False,
+                tool_config=toolConfiguration,
+                feedback_summary=feedback_summary,
+                review_guidance=review_guidance,
+                document_access=DOCUMENT_TOOLS_ACCESS,
+            ),
+            files=files,
+            model_id=model_id,
+            system_prompt=system_prompt,
+            toolConfiguration=toolConfiguration,
+            digests=digests,
+        )
         result["reviewType"] = "PDF"
 
     else:
