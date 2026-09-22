@@ -17,6 +17,7 @@ Converse の画像20枚の上限とコンテキストの大きさに収まるよ
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import threading
@@ -40,6 +41,9 @@ from document_digest import DocumentDigest, figure_pages, unread_pages
 from pdf_extras import describe_extras, field_values, looks_garbled, page_notes
 from review_documents import ReviewFile
 from review_images import MAX_IMAGES_PER_REVIEW, encode_image
+
+logger = logging.getLogger(__name__)
+
 
 MAX_PAGES_PER_READ = 20
 MAX_CHARS_PER_READ = 30_000
@@ -596,6 +600,19 @@ def _image_block(image: EmbeddedImage) -> dict[str, Any]:
 def create_document_tools(library: DocumentLibrary) -> list[Any]:
     """library のファイルを読むツール。モデルへの説明は docstring から作られる"""
 
+    def _record(name: str, **detail: Any) -> None:
+        """どの道具が呼ばれたかを残す。
+
+        道具を渡していても、モデルが呼ぶとは限らない。呼ばれていないのか、
+        呼ばれたが中身が足りなかったのかを、あとから区別できるようにする。
+        実際、注釈が審査に届かない件でこれが分からず切り分けに困った
+        """
+        logger.info(
+            "[document tool] %s %s",
+            name,
+            " ".join(f"{k}={v}" for k, v in detail.items()),
+        )
+
     @tool
     def list_documents() -> dict[str, Any]:
         """
@@ -603,7 +620,9 @@ def create_document_tools(library: DocumentLibrary) -> list[Any]:
         sections (sheets, slides or headings) of a Word, Excel or PowerPoint file, the images
         embedded in it, and how much more you can read. Call this first.
         """
-        return _success({"json": library.overview()})
+        overview = library.overview()
+        _record("list_documents", files=len(overview.get("files", [])))
+        return _success({"json": overview})
 
     @tool
     def search_documents(query: str) -> dict[str, Any]:
@@ -615,7 +634,9 @@ def create_document_tools(library: DocumentLibrary) -> list[Any]:
         Args:
             query: Words to look for, separated by spaces. Places containing more of the words come first.
         """
-        return _success({"json": library.search(query)})
+        found = library.search(query)
+        _record("search_documents", query=query)
+        return _success({"json": found})
 
     @tool
     def read_pdf_pages(
@@ -629,7 +650,12 @@ def create_document_tools(library: DocumentLibrary) -> list[Any]:
             first_page: The first page to read, counting from 1 within this file.
             last_page: The last page to read. Omit it to read one page.
         """
-        return _success({"text": library.pdf_pages_text(file, first_page, last_page)})
+        text = library.pdf_pages_text(file, first_page, last_page)
+        _record(
+            "read_pdf_pages", file=file, first=first_page, last=last_page,
+            chars=len(text),
+        )
+        return _success({"text": text})
 
     @tool
     def view_pdf_page(file: str, page: int) -> dict[str, Any]:
