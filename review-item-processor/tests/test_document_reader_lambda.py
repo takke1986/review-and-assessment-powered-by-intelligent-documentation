@@ -7,6 +7,7 @@ S3 と Bedrock は差し替える。ここで確かめたいのは、
 - まとめたときにページがずれないこと
 """
 
+import review_pictures
 import json
 import os
 import sys
@@ -464,7 +465,7 @@ class TestTellingTheModelWhatWasRead:
         from document_digest import DocumentDigest, ImageDigest
         from review_documents import ReviewFile
 
-        note = agent._pictures_already_read(
+        note = review_pictures._pictures_already_read(
             [ReviewFile(path="/tmp/a.png", name="現場写真.png")],
             {
                 "/tmp/a.png": DocumentDigest(
@@ -489,7 +490,7 @@ class TestTellingTheModelWhatWasRead:
     def test_says_nothing_when_no_picture_was_read(self):
         import agent
 
-        assert agent._pictures_already_read([], None) == ""
+        assert review_pictures._pictures_already_read([], None) == ""
 
 
 class TestNotSharedBetweenJobs:

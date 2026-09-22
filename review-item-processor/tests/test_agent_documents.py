@@ -3,6 +3,7 @@
 agent.py が、審査するファイルをモデルにどう渡し、根拠のファイルをどう受け取るかのテスト。
 """
 
+import review_sources
 import os
 import sys
 
@@ -102,7 +103,7 @@ def _source(file, page=None, section=None, label=None):
 
 
 def test_sources_keep_only_well_formed_entries():
-    assert agent._normalize_sources(
+    assert review_sources._normalize_sources(
         [
             {"file": " 見積書.xlsx ", "page": None},
             {"file": "稟議書.pdf", "page": 3},
@@ -118,13 +119,13 @@ def test_sources_keep_only_well_formed_entries():
         _source("zero.pdf"),
         _source("flag.pdf"),
     ]
-    assert agent._normalize_sources("not a list") == []
+    assert review_sources._normalize_sources("not a list") == []
 
 
 def test_office_sources_keep_the_place_within_the_file():
     """Office にはページが無いので、場所は label と section で持つ。
     ここで捨てると、根拠の場所が explanation の文章にしか残らない"""
-    assert agent._normalize_sources(
+    assert review_sources._normalize_sources(
         [
             {"file": "提案書.pptx", "page": None, "section": 3, "label": "Slide 3"},
             {"file": "見積.xlsx", "label": "Sheet: 売上高"},
@@ -139,7 +140,7 @@ def test_office_sources_keep_the_place_within_the_file():
 
 def test_a_malformed_place_is_dropped_rather_than_stored():
     """節番号や場所が壊れていても、ファイル名まで捨てない"""
-    assert agent._normalize_sources(
+    assert review_sources._normalize_sources(
         [
             {"file": "a.pptx", "section": 0, "label": "   "},
             {"file": "b.pptx", "section": "3", "label": 7},
@@ -150,10 +151,10 @@ def test_a_malformed_place_is_dropped_rather_than_stored():
 
 def test_a_long_place_is_cut_instead_of_carrying_the_body_text():
     """label は場所の欄。本文を丸ごと入れられても切る"""
-    [source] = agent._normalize_sources(
+    [source] = review_sources._normalize_sources(
         [{"file": "規程.docx", "label": "あ" * 200}]
     )
-    assert source["label"] == "あ" * agent.MAX_SOURCE_LABEL_CHARS
+    assert source["label"] == "あ" * review_sources.MAX_SOURCE_LABEL_CHARS
 
 
 @pytest.mark.parametrize("use_citations", [False, True])

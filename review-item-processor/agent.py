@@ -1,3 +1,41 @@
+"""チェック項目1つを審査する本体。
+
+index.py（AgentCore の入口）から process_review が呼ばれ、1項目ぶんの
+判定（pass / fail・根拠・費用）を返す。DB には繋がない。S3 と Bedrock だけを見る。
+
+## 流れ
+
+    process_review
+      └ process_review_from_s3     書類を S3 から一時フォルダへ落とす
+          └ _execute_review_core   どの経路で読ませるかを決め、モデルを呼ぶ
+              ├ 先に読み取った結果がある → _run_agent_with_document_tools
+              └ _choose_route で経路を決める
+                  ├ document_block  → _run_agent_with_document_block  （ファイルをそのまま渡す）
+                  ├ document_tools  → _run_agent_with_document_tools  （道具で必要な所だけ読ませる）
+                  └ file_read       → _run_agent_with_file_read_tool  （画像を拡大・切り出しして見る）
+              └ _validate_and_complete_result  欠けた欄を埋める（壊れた応答は fail に倒す）
+
+経路の決め方と判定の基準値は docs/05-審査の流れ.md にまとめてある。
+
+## 部品の置き場所
+
+    review_prompts.py    モデルに渡す指示文
+    review_documents.py  書類を1回の要求に収まる形に組み立てる
+    document_library.py  道具（list_documents / read_pdf_pages など）
+    review_pictures.py   画像を枚数を数えながら見せる
+    review_sources.py    モデルが返した「根拠の場所」を整える
+    pdf_extras.py        PDF の記入値・注釈（本文に出ないもの）を読む
+    pricing.py           トークン数から費用を出す
+    digest_store.py      先に読み取った結果を S3 から取ってくる
+
+## 本家由来で使われていないもの
+
+SONNET_MODEL_ID / NOVA_PREMIER_MODEL_ID / PDF_FILE_EXTENSIONS /
+create_mcp_client / list_tools_sync などは、このファイルの中でもほかでも
+使われていない。本家（aws-samples）から引き継いだもので、本家の更新を
+取り込むときに衝突しないよう、あえて消さずに残している。
+"""
+
 import hashlib
 import json
 import os
@@ -39,6 +77,8 @@ from review_documents import (
 from review_images import prepare_image_file
 import digest_store
 from pdf_extras import has_hidden_content
+from review_pictures import PictureViewer, create_picture_tools, _pictures_already_read
+from review_sources import _normalize_sources
 from pricing import (
     CACHE_READ_MULTIPLIER,
     CACHE_WRITE_MULTIPLIER,
@@ -178,108 +218,6 @@ def supports_caching(model_id: str) -> bool:
     return model.supports_caching
 
 
-class PictureViewer:
-    """審査に上げた画像を、枚数を数えながら見せる。
-
-    外の image_reader は枚数を数えないので、素直に全部開いて Converse の
-    上限に当たり、項目が失敗してジョブごと落ちていた。しかも上限は
-    モデルに伝えていなかったので、節約する理由が無かった。
-
-    ここで数えて断れば、審査は「見た範囲で」続く。何枚見たかと、断った
-    かどうかは結果に残すので、人が確かめられる
-    """
-
-    def __init__(self, files: List[ReviewFile]):
-        self._by_path = {file.path: file for file in files}
-        self._by_name = {file.name: file for file in files}
-        self.images_returned = 0
-        self.refused = False
-
-    def find(self, wanted: str) -> ReviewFile:
-        # モデルには、縮小した写しの置き場所を伝えてある。元のファイルとは
-        # 場所が違うので、置き場所・名前・ファイル名の順に当てる
-        file = (
-            self._by_path.get(wanted)
-            or self._by_name.get(wanted)
-            or self._by_name.get(os.path.basename(wanted))
-        )
-        if file is None:
-            known = ", ".join(sorted(self._by_name))
-            raise ValueError(f"No such picture: {wanted}. The pictures are: {known}")
-        return file
-
-    def take(self) -> None:
-        if self.images_returned >= MAX_IMAGES_PER_REVIEW:
-            self.refused = True
-            raise ValueError(
-                f"You have already looked at {MAX_IMAGES_PER_REVIEW} pictures, which "
-                "is all you may see for this check item. Make your judgment from what "
-                "you have seen and from what was read from the pictures before the "
-                "review."
-            )
-        self.images_returned += 1
-
-
-def create_picture_tools(viewer: PictureViewer) -> List[Any]:
-    from strands import tool
-
-    @tool
-    def view_picture(file: str) -> dict:
-        """
-        Look at a picture that was uploaded for review.
-
-        The number of pictures you may look at is limited, and looking at the same
-        one again counts. Use what was already read from the pictures when that is
-        enough.
-
-        Args:
-            file: The file name, as it was given to you.
-        """
-        found = viewer.find(file)
-        viewer.take()
-        with Image.open(found.path) as opened:
-            image_format, data = encode_image(opened.convert("RGB"))
-        return {
-            "status": "success",
-            "content": [
-                {"text": f"{found.name}:"},
-                {"image": {"format": image_format, "source": {"bytes": data}}},
-            ],
-        }
-
-    return [view_picture]
-
-
-def _pictures_already_read(files: List[ReviewFile], digests: Optional[Dict[str, Any]]) -> str:
-    """先に読んである画像の中身を、指示に添える形にする。
-
-    画像だけの審査では道具で書類を読む仕組みを使わないので、読み取った
-    ものをここで渡さないと使われない
-    """
-    if not digests:
-        return ""
-
-    parts = []
-    for file in files:
-        digest = digests.get(file.path)
-        if not digest:
-            continue
-        for note in (digest.image_descriptions or {}).values():
-            parts.append(f"- {file.name}: {note}")
-    if not parts:
-        return ""
-
-    listed = "\n".join(parts)
-    return (
-        "\n\n## WHAT WAS READ FROM THE PICTURES BEFORE THIS REVIEW\n"
-        f"{listed}\n"
-        f"You can see at most {MAX_IMAGES_PER_REVIEW} images in one review, and "
-        "looking at the same picture again counts too. Use what is written above "
-        "when it is enough, and open a picture with view_picture only when you "
-        "have to see it yourself.\n"
-    )
-
-
 # 書類をモデルに渡す経路
 ROUTE_DOCUMENT_BLOCK = "document_block"
 """ファイルをそのまま要求に載せる。1回で収まるときの既定"""
@@ -397,49 +335,6 @@ def _as_sendable_images(files: list[ReviewFile], directory: str) -> list[ReviewF
         ReviewFile(path=prepare_image_file(file.path, directory), name=file.name)
         for file in files
     ]
-
-
-# 根拠の場所を表す文字列の上限。"Slide 3" や "Sheet: 売上高" を想定していて、
-# 本文の抜き書きを入れる欄ではない。長いものは切る
-MAX_SOURCE_LABEL_CHARS = 80
-
-
-def _positive_int(value: Any) -> int | None:
-    """1 以上の整数だけを通す。True は 1 として通さない（bool は int の子）"""
-    return value if type(value) is int and value >= 1 else None
-
-
-def _normalize_sources(sources: Any) -> list[dict[str, Any]]:
-    """
-    モデルが返した、判定の根拠にしたファイルと、その中のどこか。
-    形の崩れたものは捨てる。
-
-    場所の表し方は書類の種類で変わる。
-
-        PDF     → page（ページ番号）
-        Office  → label（"Slide 3" や "Sheet: 売上高" など、本文に出てくる見出し）と、
-                  道具で読んだときは section（list_documents が振った節番号）
-        画像    → どれも None
-
-    Office に page を入れないのは、.docx がページ割りを保存しないなど、
-    種類によってはページという単位が無いため。代わりに label を持たせている。
-    ここで捨てると、根拠の場所が explanation の文章にしか残らなくなる
-    """
-    normalized = []
-    for source in sources if isinstance(sources, list) else []:
-        if not isinstance(source, dict) or not isinstance(source.get("file"), str):
-            continue
-        label = source.get("label")
-        label = label.strip()[:MAX_SOURCE_LABEL_CHARS] if isinstance(label, str) else ""
-        normalized.append(
-            {
-                "file": source["file"].strip(),
-                "page": _positive_int(source.get("page")),
-                "section": _positive_int(source.get("section")),
-                "label": label or None,
-            }
-        )
-    return [source for source in normalized if source["file"]]
 
 
 def _select_model_for_files(
