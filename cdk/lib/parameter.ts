@@ -159,17 +159,12 @@ export const parameters = {
   //    only in-VPC HTTP MCP or AgentCore Gateway MCP tools work.
   // agentCoreNetworkMode: "VPC",
 
-  // 検証環境は昼の1時間と夜だけ使うので、それ以外の時間は NAT を止め、Aurora を自動停止にする
+  // 検証環境は毎日 08:00〜翌02:00 だけ使う。それ以外は NAT を止め、Aurora を自動停止にする。
+  // 画面の入口（CloudFront）もこの時間で開け閉めする。時間を変えるときはここだけ直して
+  // デプロイする（CLI でスケジュールを直接変えると、画面の入口とずれる。docs/03-運用.md）
   costSchedule: true,
   costScheduleWindows: [
-    // 平日。毎日にすると、土曜13:00の停止が土曜の枠を途中で閉じてしまう
-    { start: "12:00", stop: "13:00", days: ["MON", "TUE", "WED", "THU", "FRI"] },
-    {
-      start: "17:30",
-      stop: "02:00",
-      days: ["MON", "TUE", "WED", "THU", "FRI"],
-    },
-    // 土日は通しで使う
-    { start: "08:00", stop: "01:00", days: ["SAT", "SUN"] },
+    // days を省くと毎日。stop が start より早いので、停止は翌日の 02:00 になる
+    { start: "08:00", stop: "02:00" },
   ],
 };
