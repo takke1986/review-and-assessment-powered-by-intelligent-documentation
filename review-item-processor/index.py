@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import boto3
 from bedrock_agentcore import BedrockAgentCoreApp
-from logger import set_logger, logger
+from logger import clear_context, logger, set_context, set_logger
 
 # AgentCore App initialization
 app = BedrockAgentCoreApp()
@@ -43,11 +43,16 @@ def handler(event, context):
     request_headers = getattr(context, 'request_headers', {})
     trace_id = request_headers.get('X-Amzn-Trace-Id', 'N/A')
     
-    logger.info(f"AgentCore Session ID: {session_id}")
-    logger.info(f"X-Amzn-Trace-Id: {trace_id}")
-    logger.info(f"reviewJobId: {event.get('reviewJobId', 'N/A')}")
-    logger.info(f"reviewResultId: {event.get('reviewResultId', 'N/A')}")
-    logger.info(f"checkId: {event.get('checkId', 'N/A')}")
+    # このあとのログ行すべてに、どの審査のどの項目かを自動で添える。
+    # 項目は並行して走るので、これが無いと CloudWatch で追えない
+    set_context(
+        job=event.get("reviewJobId"),
+        check=event.get("checkId"),
+        result=event.get("reviewResultId"),
+    )
+    logger.info(
+        "審査を受け取った session=%s trace=%s", session_id, trace_id
+    )
 
     # Check required environment variables
     required_vars = ["DOCUMENT_BUCKET", "BEDROCK_REGION"]
@@ -153,3 +158,6 @@ def handler(event, context):
     except Exception as e:
         logger.error(f"[Strands MCP] Error processing review item {review_result_id}: {str(e)}")
         raise e
+    finally:
+        # 次の審査に前の項目の印が混ざらないよう、必ず忘れる
+        clear_context()
