@@ -34,7 +34,7 @@ CREATE TABLE `review_document_pages` (
     `has_figure` BOOLEAN NOT NULL DEFAULT false,
     `char_count` INTEGER NOT NULL DEFAULT 0,
 
-    INDEX `idx_review_document_page_read`(`digest_id`, `was_read`),
+    INDEX `idx_review_document_page_read`(`digest_id`, `was_read`, `page_number`),
     UNIQUE INDEX `uniq_review_document_page`(`digest_id`, `page_number`),
     PRIMARY KEY (`review_document_page_id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

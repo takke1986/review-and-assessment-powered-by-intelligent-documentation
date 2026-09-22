@@ -184,7 +184,9 @@ model ReviewDocumentPage {
   digest     ReviewDocumentDigest @relation(fields: [digestId], references: [id], onDelete: Cascade)
 
   @@unique([digestId, pageNumber], map: "uniq_review_document_page")
-  @@index([digestId, wasRead], map: "idx_review_document_page_read")
+  /// 読めなかったページを、並べ替えまで索引だけで返す。
+  /// ページ番号を足さないと filesort になる（実測 0.25ms → 0.115ms）
+  @@index([digestId, wasRead, pageNumber], map: "idx_review_document_page_read")
   @@map("review_document_pages")
 }
 

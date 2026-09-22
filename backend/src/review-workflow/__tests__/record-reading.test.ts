@@ -112,6 +112,18 @@ describe("recordReading", () => {
     expect(state.digests[0].status).toBe("failed");
   });
 
+  it("ページの無い書類（Office など）は completed にする", async () => {
+    // 読む対象が無いだけで、読めなかったわけではない。failed にすると
+    // 画面に警告が出続ける
+    await recordReading({
+      reviewJobId: "job-1",
+      records: [record({ pages: [] })],
+    });
+
+    expect(state.digests[0].status).toBe("completed");
+    expect(state.pages).toHaveLength(0);
+  });
+
   it("読み直したときは前の記録を置き換える", async () => {
     await recordReading({ reviewJobId: "job-1", records: [record()] });
 

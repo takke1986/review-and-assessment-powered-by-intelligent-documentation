@@ -370,12 +370,7 @@ export interface ReviewJobDocument {
   /** 再審査で、この文書が差し替えた元のジョブの文書 */
   replacesDocumentId?: string;
   /** 先に読み取った結果の状態。読み取りを通っていない書類には無い */
-  reading?: {
-    /** completed / partial / failed */
-    status: string;
-    /** 読めなかったページ。審査は続くが中身は分かっていない */
-    pagesNotRead: number[];
-  };
+  reading?: DocumentReading;
 }
 
 /**
@@ -485,6 +480,22 @@ export interface ReviewResultDetail extends ReviewResultEntity {
 /**
  * Checklist item entity model (imported from checklist feature)
  */
+/** 先に読み取った結果の状態 */
+export const READING_STATUS = {
+  COMPLETED: "completed",
+  PARTIAL: "partial",
+  FAILED: "failed",
+} as const;
+
+export type ReadingStatus =
+  (typeof READING_STATUS)[keyof typeof READING_STATUS];
+
+export interface DocumentReading {
+  status: ReadingStatus;
+  /** 読めなかったページ。審査は続くが中身は分かっていない */
+  pagesNotRead: number[];
+}
+
 export interface CheckListItemEntity {
   id: string;
   parentId?: string;

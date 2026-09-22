@@ -1,6 +1,33 @@
 import { ulid } from "ulid";
 import { getPrismaClient } from "../../api/core/db";
 
+/** 読み取りの結果。画面と問い合わせの両方でこの3つだけを使う */
+export const READING_STATUS = {
+  COMPLETED: "completed",
+  PARTIAL: "partial",
+  FAILED: "failed",
+} as const;
+
+export type ReadingStatus =
+  (typeof READING_STATUS)[keyof typeof READING_STATUS];
+
+/**
+ * 読めたページの数から状態を決める。
+ *
+ * ページが1枚も無い書類（Office など）は、読む対象が無いだけなので completed。
+ * 「読めなかった」と混ぜると、画面に警告が出続けることになる
+ */
+const statusOf = (pages: ReadingRecord["pages"]): ReadingStatus => {
+  if (pages.length === 0) {
+    return READING_STATUS.COMPLETED;
+  }
+  const read = pages.filter((page) => page.wasRead).length;
+  if (read === pages.length) {
+    return READING_STATUS.COMPLETED;
+  }
+  return read === 0 ? READING_STATUS.FAILED : READING_STATUS.PARTIAL;
+};
+
 /**
  * 先に読み取った結果の在り処と中身を、書類に紐づけて残す。
  *
@@ -62,16 +89,7 @@ export const recordReading = async (
       continue;
     }
 
-    const readablePages = record.pages.filter((page) => page.wasRead).length;
-    const status =
-      record.pages.length === 0
-        ? "completed"
-        : readablePages === record.pages.length
-          ? "completed"
-          : readablePages === 0
-            ? "failed"
-            : "partial";
-
+    const status = statusOf(record.pages);
     const now = new Date();
     // 読み直したときは前の行を置き換える。ページの増減がそのまま残らないよう、
     // 子ごと消してから入れ直す（外部キーの連鎖削除に任せる）
