@@ -61,6 +61,17 @@ const admin = {
   isAdmin: true,
 } as unknown as RequestUser;
 
+/**
+ * 部署にも属している管理者。本番では管理者にも部署が入る。
+ * 部署が入った瞬間に見える範囲が狭まると、気づかないまま
+ * 「あるはずの審査が無い」ことになるので、ここで止めておく
+ */
+const adminWithDepartments = {
+  userId: "u-admin2",
+  isAdmin: true,
+  rawClaims: { "custom:departments": "営業部,法務部" },
+} as unknown as RequestUser;
+
 describe("審査を作るとき", () => {
   const create = async (user: RequestUser, body: Record<string, unknown>) => {
     const reply = { code: vi.fn().mockReturnThis(), send: vi.fn() };
@@ -98,6 +109,20 @@ describe("審査を作るとき", () => {
       create(bothDepartments, { name: "審査", departmentId: "finance" })
     ).rejects.toThrow(/do not belong/);
     expect(createReviewJob).not.toHaveBeenCalled();
+  });
+
+  it("管理者でも、兼務なら部署を選ばせる", async () => {
+    // 管理者だからといって黙って片方に寄せない。記録の意味は一般と同じ
+    await expect(
+      create(adminWithDepartments, { name: "審査" })
+    ).rejects.toThrow(/more than one department/);
+  });
+
+  it("管理者が選んだ部署も、そのまま記録する", async () => {
+    expect(
+      (await create(adminWithDepartments, { name: "審査", departmentId: "法務部" }))
+        ?.departmentId
+    ).toBe("法務部");
   });
 
   it("所属が1つなら、選ばなくてもその部署になる", async () => {
@@ -158,6 +183,12 @@ describe("一覧を出すとき", () => {
   it("管理者の一覧は絞らない", async () => {
     expect(await listAs(admin)).toBeUndefined();
   });
+
+  it("部署に属する管理者でも、一覧は絞らない", async () => {
+    // ここが絞られると、管理者に部署を入れた途端に見える範囲が狭まる。
+    // しかも「見えなくなった」ことには気づけない
+    expect(await listAs(adminWithDepartments)).toBeUndefined();
+  });
 });
 
 describe("費用のページ", () => {
@@ -180,5 +211,9 @@ describe("費用のページ", () => {
 
   it("管理者は全体を見る", async () => {
     expect((await summarizeAs(admin)).ownerUserId).toBeUndefined();
+  });
+
+  it("部署に属する管理者でも、費用は全体を見る", async () => {
+    expect((await summarizeAs(adminWithDepartments)).ownerUserId).toBeUndefined();
   });
 });
