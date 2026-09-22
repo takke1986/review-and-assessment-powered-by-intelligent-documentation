@@ -97,7 +97,7 @@ def test_the_prompt_tells_the_model_to_look_at_the_images():
         "名前",
         "説明",
         use_citations=False,
-        document_access=agent._ATTACHED_IMAGES_ACCESS,
+        document_access=agent.ATTACHED_IMAGES_ACCESS,
     )
 
     assert "images" in prompt
