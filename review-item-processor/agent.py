@@ -755,6 +755,16 @@ def _run_agent_with_document_block(
     # 各文書の前に、元のファイル名を書いたテキストを置く。Converse の上限
     # （文書5つ・画像20枚）に収まらなければ、Markdown や PDF をまとめる
     content = build_document_blocks(files, citations=model.supports_citation)
+
+    # キャッシュの区切りを、書類の直後・項目ごとの指示文の前に置く。
+    # 置かないと Strands の auto が区切りをメッセージの末尾に足すので、項目ごとに
+    # 変わる指示文までキャッシュの範囲に入り、毎回書き込むだけで一度も読まれない
+    # （書き込みは通常の入力の1.25倍なので、キャッシュしないより高くつく）。
+    # Strands 1.52 は呼び出し側が置いた区切りをその位置のまま使う。
+    # 本家の Issue: aws-samples/review-and-assessment-powered-by-intelligent-documentation#327
+    if model.supports_caching and content:
+        content.append({"cachePoint": {"type": "default"}})
+
     content.append({"text": prompt})
 
     # Configure model
