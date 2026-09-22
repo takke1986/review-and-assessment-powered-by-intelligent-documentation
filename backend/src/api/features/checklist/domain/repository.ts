@@ -267,23 +267,25 @@ export const makePrismaCheckRepository = async (
       }
     }
 
-    // 名前での絞り込み。ステータスの分岐が whereCondition を再代入するため、
-    // ここで AND に包んで足す（直接項目を置くと条件が消える）
+    // ここから先の条件は配列に集め、最後に1回だけ AND でまとめる。
+    // whereCondition に直接項目を足すと、上のステータスの条件と
+    // 同じ名前の欄がぶつかって片方が消えることがあるため
+    const conditions: Record<string, unknown>[] = [whereCondition];
+
+    // 名前での絞り込み
     const needle = normalizeSearchTerm(search);
     if (needle) {
-      whereCondition = {
-        AND: [whereCondition, { name: { contains: needle } }],
-      };
+      conditions.push({ name: { contains: needle } });
     }
 
     // 見える範囲。自分のものと、自分の部署のもの。管理者は絞らない。
     // 審査ジョブと同じ判定を使う（core/access/visibility.ts）
     const visible = visibilityFilter(visibleTo);
     if (visible) {
-      whereCondition = {
-        AND: [whereCondition, visible],
-      };
+      conditions.push(visible);
     }
+
+    whereCondition = { AND: conditions };
 
     // ページネーション用のクエリを並列実行
     type DBCheckListSet = {
