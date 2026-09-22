@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import SegmentedControl from "../../../components/SegmentedControl";
@@ -14,6 +15,38 @@ import { useReviewCostSummary } from "../hooks/useReviewCostSummary";
 const money = (value: number) => `$${value.toFixed(4)}`;
 
 /** 「2026-09」を利用者の書き方にする */
+/**
+ * 費用画面の1つの節（見出し・説明・中身）。
+ * 4つの節が同じ枠を使うので、見た目はここ1か所で決める
+ */
+function CostSection({
+  title,
+  hint,
+  wide = false,
+  children,
+}: {
+  title: string;
+  /** 見出しの下に添える一文。無ければ出さない */
+  hint?: string;
+  /** 広い画面で2列ぶん使う */
+  wide?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      className={`min-w-0 rounded-lg border border-light-gray bg-white p-4 shadow-sm sm:p-6${
+        wide ? " lg:col-span-2" : ""
+      }`}>
+      <h2
+        className={`${hint ? "mb-1" : "mb-4"} text-xl font-medium text-aws-squid-ink-light`}>
+        {title}
+      </h2>
+      {hint && <p className="mb-4 text-sm text-aws-font-color-gray">{hint}</p>}
+      {children}
+    </section>
+  );
+}
+
 function monthLabel(month: string, locale: string): string {
   const [year, index] = month.split("-").map(Number);
   return new Date(year, index - 1, 1).toLocaleDateString(locale, {
@@ -110,10 +143,7 @@ export default function ReviewCostPage() {
           ) : (
             <div className="grid min-w-0 gap-6 lg:grid-cols-2">
               {/* 月ごとの動き */}
-              <section className="min-w-0 rounded-lg border border-light-gray bg-white p-4 shadow-sm sm:p-6">
-                <h2 className="mb-4 text-xl font-medium text-aws-squid-ink-light">
-                  {t("cost.byMonth")}
-                </h2>
+              <CostSection title={t("cost.byMonth")}>
                 {/* 増えているのか減っているのかは、並べて見ないと分からない */}
                 <BarChart
                   height={220}
@@ -147,18 +177,12 @@ export default function ReviewCostPage() {
                     </li>
                   ))}
                 </ul>
-              </section>
+              </CostSection>
 
               {/* どの部署が使っているか。部署を使っていなければ出さない */}
               {summary.byDepartment.length > 0 && (
-                <section className="min-w-0 rounded-lg border border-light-gray bg-white p-4 shadow-sm sm:p-6">
-                  <h2 className="mb-1 text-xl font-medium text-aws-squid-ink-light">
-                    {t("cost.byDepartment")}
-                  </h2>
-                  <p className="mb-4 text-sm text-aws-font-color-gray">
-                    {t("cost.byDepartmentHint")}
-                  </p>
-                  <BarChart
+                <CostSection title={t("cost.byDepartment")} hint={t("cost.byDepartmentHint")}>
+                <BarChart
                     horizontal
                     height={Math.max(140, summary.byDepartment.length * 42)}
                     ariaLabel={t("cost.byDepartment")}
@@ -223,17 +247,11 @@ export default function ReviewCostPage() {
                       })}
                     </p>
                   )}
-                </section>
+                </CostSection>
               )}
 
               {/* どのチェックリストに掛かっているか */}
-              <section className="min-w-0 rounded-lg border border-light-gray bg-white p-4 shadow-sm sm:p-6">
-                <h2 className="mb-1 text-xl font-medium text-aws-squid-ink-light">
-                  {t("cost.byChecklist")}
-                </h2>
-                <p className="mb-4 text-sm text-aws-font-color-gray">
-                  {t("cost.byChecklistHint")}
-                </p>
+              <CostSection title={t("cost.byChecklist")} hint={t("cost.byChecklistHint")}>
                 {/* どの審査に掛かっているかは、並べると一目で分かる。
                     総額だけ見ても打ち手にならない */}
                 <BarChart
@@ -291,13 +309,10 @@ export default function ReviewCostPage() {
                   </tbody>
                 </table>
                 </div>
-              </section>
+              </CostSection>
 
               {/* 突出したものを見つける */}
-              <section className="min-w-0 rounded-lg border border-light-gray bg-white p-4 shadow-sm sm:p-6 lg:col-span-2">
-                <h2 className="mb-4 text-xl font-medium text-aws-squid-ink-light">
-                  {t("cost.topJobs")}
-                </h2>
+              <CostSection title={t("cost.topJobs")} wide>
                 {/* 狭い画面でははみ出すので、表だけ横に送れるようにする */}
                 <div className="overflow-x-auto">
                 <table className="min-w-full">
@@ -335,7 +350,7 @@ export default function ReviewCostPage() {
                   </tbody>
                 </table>
                 </div>
-              </section>
+              </CostSection>
             </div>
           )}
         </>
