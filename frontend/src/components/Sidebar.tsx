@@ -62,7 +62,14 @@ export default function Sidebar() {
         {/* 携帯ではメニューのボタンが左上に浮いているので、その分だけ空ける。
             空けないと一番上の項目がボタンに重なって読めない
             （ボタンは top-4 から高さ 2.5rem ほど） */}
-        <div className="p-6 pt-[4.5rem] md:pt-6">
+        {/* 縦に並べて、下の欄を mt-auto で押し下げる。
+            以前は下の欄を absolute bottom-0 で貼り付けていたが、それは
+            「サイドバーが伸び縮みしない」前提の置き方だった。画面が低いときに
+            下部を押せるよう overflow-y-auto を足した結果、スクロールする箱の中で
+            bottom-0 が宙に浮き、中身が伸びると重なったり流れ出たりする。
+            mt-auto なら、余白があるときは下に寄り、中身が伸びたときは
+            素直に nav の後ろに続く */}
+        <div className="flex min-h-full flex-col p-6 pt-[4.5rem] md:pt-6">
           <nav>
             <ul className="space-y-2">
               <li className="mb-1">
@@ -165,7 +172,7 @@ export default function Sidebar() {
             </ul>
           </nav>
 
-          <div className="absolute bottom-0 left-0 right-0 p-6">
+          <div className="mt-auto pt-6">
             {/* ユーザーメニュー */}
             {user && (
               <div className="border-t border-aws-font-color-white-light border-opacity-20 pt-4">
