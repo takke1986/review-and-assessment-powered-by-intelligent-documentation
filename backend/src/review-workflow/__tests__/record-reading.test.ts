@@ -6,10 +6,15 @@ const state = {
   pages: [] as any[],
   images: [] as any[],
   deleted: [] as any[],
+  upserted: [] as any[],
 };
 
 const tx = {
   reviewDocumentDigest: {
+    upsert: vi.fn(async (args: any) => {
+      state.upserted.push(args.create);
+      return args.create;
+    }),
     deleteMany: vi.fn(async (args: any) => {
       state.deleted.push(args.where);
       return { count: 0 };
@@ -39,6 +44,7 @@ vi.mock("../../api/core/db", () => ({
       findMany: async () => state.documents,
     },
     $transaction: async (fn: any) => fn(tx),
+    reviewDocumentDigest: tx.reviewDocumentDigest,
   }),
 }));
 
@@ -61,6 +67,7 @@ beforeEach(() => {
   state.pages = [];
   state.images = [];
   state.deleted = [];
+  state.upserted = [];
   vi.clearAllMocks();
 });
 
@@ -71,7 +78,7 @@ describe("recordReading", () => {
       records: [record()],
     });
 
-    expect(result).toMatchObject({ recorded: 1, skipped: [] });
+    expect(result).toMatchObject({ recorded: 1, skipped: [], notNeeded: 0 });
     expect(state.digests[0]).toMatchObject({
       reviewDocumentId: "doc-1",
       s3Key: "digest/job-1/review/original/a/設計書.pdf.json",
@@ -130,6 +137,35 @@ describe("recordReading", () => {
     expect(state.deleted[0]).toEqual({ reviewDocumentId: "doc-1" });
   });
 
+  it("先読みを通らなかった書類は not_needed として残す", async () => {
+    // 小さい書類は先読みを通らない。行が無いままだと「不要だった」のか
+    // 「記録に失敗した」のかが区別できない
+    state.documents = [
+      { id: "doc-1", s3Path: "review/original/a/設計書.pdf" },
+      { id: "doc-2", s3Path: "review/original/b/小さい.pdf" },
+    ];
+
+    const result = await recordReading({
+      reviewJobId: "job-1",
+      records: [record()],
+    });
+
+    expect(result).toMatchObject({ recorded: 1, notNeeded: 1 });
+    expect(state.upserted).toHaveLength(1);
+    expect(state.upserted[0]).toMatchObject({
+      reviewDocumentId: "doc-2",
+      status: "not_needed",
+      s3Key: null,
+    });
+  });
+
+  it("既に記録がある書類は、先読み不要で上書きしない", async () => {
+    // upsert の update を空にしてあるので、読めたページが消えない
+    await recordReading({ reviewJobId: "job-1", records: [record()] });
+
+    expect(state.upserted).toHaveLength(0);
+  });
+
   it("対応する書類が無ければ、審査は止めずに記録だけ諦める", async () => {
     const result = await recordReading({
       reviewJobId: "job-1",
@@ -141,9 +177,15 @@ describe("recordReading", () => {
     expect(state.digests).toHaveLength(0);
   });
 
-  it("記録が空でも何もしない", async () => {
+  it("記録が空でも、先読み不要として残す", async () => {
     const result = await recordReading({ reviewJobId: "job-1", records: [] });
 
-    expect(result).toEqual({ recorded: 0, skipped: [] });
+    // 記録すべきものが無くても、先読みを通らなかった印は残す
+    expect(result).toMatchObject({ recorded: 0, skipped: [] });
+    expect(state.upserted[0]).toMatchObject({
+      reviewDocumentId: "doc-1",
+      status: "not_needed",
+      s3Key: null,
+    });
   });
 });

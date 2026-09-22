@@ -156,8 +156,9 @@ model ReviewDocumentDigest {
   id               String                @id @map("review_document_digest_id") @db.VarChar(26)
   /// 読み取り結果は書類1つにつき1つ。ジョブは書類から辿れるので持たない
   reviewDocumentId String                @unique @map("review_document_id") @db.VarChar(26)
-  /// 実際に書き出した先。規則ではなく実測値
-  s3Key            String                @map("s3_key") @db.VarChar(1024)
+  /// 実際に書き出した先。規則ではなく実測値。
+  /// 先読みが要らなかった書類（status = not_needed）には無い
+  s3Key            String?               @map("s3_key") @db.VarChar(1024)
   /// completed / partial / failed
   status           String                @default("completed") @db.VarChar(20)
   createdAt        DateTime              @map("created_at") @db.Timestamp(0)

@@ -17,6 +17,14 @@ export const READING_STATUS = {
    * 読み取りが働いたのかどうかを後から確かめられなくなる
    */
   NO_PAGES: "no_pages",
+  /**
+   * 先読みが要らなかった。小さい書類は、審査のときに元のファイルを
+   * そのまま渡せるので先読みを通らない。
+   *
+   * 記録そのものを作らないでいると、「不要だった」のか「記録に失敗した」のかが
+   * 区別できない。どちらも行が無いように見えてしまう
+   */
+  NOT_NEEDED: "not_needed",
 } as const;
 
 export type ReadingStatus =
@@ -69,11 +77,9 @@ export interface RecordReadingParams {
 
 export const recordReading = async (
   params: RecordReadingParams
-): Promise<{ recorded: number; skipped: string[] }> => {
+): Promise<{ recorded: number; skipped: string[]; notNeeded: number }> => {
   const { reviewJobId, records } = params;
-  if (!records?.length) {
-    return { recorded: 0, skipped: [] };
-  }
+  // 記録すべきものが無くても、先読みを通らなかった印は残すので先へ進む
 
   const client = await getPrismaClient();
   // 書類は S3 のキーで突き合わせる。同じジョブの中で一意
@@ -141,10 +147,35 @@ export const recordReading = async (
     recorded += 1;
   }
 
+  // 先読みを通らなかった書類にも印を残す。行が無いままだと「不要だった」のか
+  // 「記録に失敗した」のかが区別できない
+  const recordedIds = new Set(
+    records
+      .map((record) => idByKey.get(record.documentKey))
+      .filter((id): id is string => !!id)
+  );
+  const untouched = documents.filter((doc) => !recordedIds.has(doc.id));
+  for (const doc of untouched) {
+    const now = new Date();
+    await client.reviewDocumentDigest.upsert({
+      where: { reviewDocumentId: doc.id },
+      // 既に記録がある書類は触らない。読み直しでページが消えるのを防ぐ
+      update: {},
+      create: {
+        id: ulid(),
+        reviewDocumentId: doc.id,
+        s3Key: null,
+        status: READING_STATUS.NOT_NEEDED,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+  }
+
   if (skipped.length > 0) {
     console.warn(
       `読み取り結果に対応する書類が見つからなかった: ${skipped.join(", ")}`
     );
   }
-  return { recorded, skipped };
+  return { recorded, skipped, notNeeded: untouched.length };
 };

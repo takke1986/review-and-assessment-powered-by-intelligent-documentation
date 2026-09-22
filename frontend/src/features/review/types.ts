@@ -490,6 +490,8 @@ export const READING_STATUS = {
   FAILED: "failed",
   /** 読むページが無かった（Office のようにページを持たない書類） */
   NO_PAGES: "no_pages",
+  /** 先読みが要らなかった（小さい書類。審査時に元のファイルを直接渡す） */
+  NOT_NEEDED: "not_needed",
 } as const;
 
 export type ReadingStatus =
