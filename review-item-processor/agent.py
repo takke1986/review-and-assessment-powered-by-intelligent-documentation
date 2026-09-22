@@ -540,6 +540,14 @@ def _execute_review_core(
 
     logger.info("Processing method: %s, model=%s", route, model_id)
 
+    # どの経路でも同じ。経路ごとに書くと、足した分岐で組み立て忘れる
+    # （実際に忘れて UnboundLocalError で審査が全部落ちた）
+    system_prompt = (
+        f"You are an expert document reviewer. "
+        f"Analyze the provided files and evaluate the check item. "
+        f"All responses must be in {language_name}."
+    )
+
     # Generate prompt and execute
     if route == ROUTE_DOCUMENT_BLOCK:
         # Document block path（PDF with citations）
@@ -552,11 +560,6 @@ def _execute_review_core(
             feedback_summary=feedback_summary,
             review_guidance=review_guidance,
             document_access=ATTACHED_IMAGES_ACCESS if has_images else None,
-        )
-        system_prompt = (
-            f"You are an expert document reviewer. "
-            f"Analyze the provided files and evaluate the check item. "
-            f"All responses must be in {language_name}."
         )
 
         try:
@@ -648,11 +651,6 @@ def _execute_review_core(
             tools = [file_read]
             review_type = "PDF"
 
-        system_prompt = (
-            f"You are an expert document reviewer. "
-            f"Analyze the provided files and evaluate the check item. "
-            f"All responses must be in {language_name}."
-        )
 
         with tempfile.TemporaryDirectory() as converted_directory:
             result = _run_agent_with_file_read_tool(

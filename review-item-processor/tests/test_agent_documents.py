@@ -276,3 +276,50 @@ def test_a_file_with_no_transcription_is_sent_as_it_is(tmp_path, monkeypatch):
 
     # そのまま渡す経路は、中身を組み立ててモデルに渡す
     assert any("document" in block for block in sent["content"])
+
+
+def test_a_pdf_with_notes_actually_runs_through_the_document_tools(
+    tmp_path, monkeypatch
+):
+    """注釈のある PDF が、document_library の道具まで実際に届くか。
+
+    経路の選択だけを見るテストはあったが、その先の実行を通していなかった。
+    そのため分岐を足したときの組み立て忘れ（UnboundLocalError）に気づけず、
+    審査が全部落ちた状態でデプロイしてしまった。
+    """
+    sent = {}
+
+    class FakeAgent:
+        def __init__(self, **kwargs):
+            sent["tools"] = [tool.tool_name for tool in kwargs["tools"]]
+            sent["system_prompt"] = kwargs.get("system_prompt")
+
+        def __call__(self, prompt):
+            sent["prompt"] = prompt
+            raise Sent
+
+    monkeypatch.setattr(agent, "Agent", FakeAgent)
+    # 注釈があると判定させる。経路の選択そのものは test_citation.py で見る
+    monkeypatch.setattr(agent, "has_hidden_content", lambda path: True)
+    monkeypatch.setattr(agent, "ENABLE_CITATIONS", True)
+    pdf = tmp_path / "a.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+
+    with pytest.raises(Sent):
+        agent._execute_review_core(
+            files=[ReviewFile(str(pdf), "申込書.pdf")],
+            has_images=False,
+            check_name="check",
+            check_description="description",
+            language_name="日本語",
+            model_id=MODEL_ID,
+            toolConfiguration=None,
+            feedback_summary=None,
+        )
+
+    # document_library の道具が渡っている（file_read ではない）
+    assert "list_documents" in sent["tools"]
+    assert "read_pdf_pages" in sent["tools"]
+    # 経路ごとに組み立て忘れていないか
+    assert sent["system_prompt"], "system_prompt が渡っていない"
+    assert "日本語" in sent["system_prompt"]
