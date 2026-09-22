@@ -1,0 +1,126 @@
+import { ulid } from "ulid";
+import { getPrismaClient } from "../../api/core/db";
+
+/**
+ * 先に読み取った結果の在り処と中身を、書類に紐づけて残す。
+ *
+ * これまではキーの規則（digest/{jobId}/{元のキー}.json）だけが対応関係だった。
+ * 規則が守られている間しか成り立たず、ファイルが差し替わる・キーが変わる・
+ * ライフサイクルで消える、といった場面で対応が黙って崩れる。実際に書いた
+ * 値を行として残し、どの審査がどれを読んだかを後から辿れるようにする。
+ */
+
+/** 読み取り Lambda が返してくる、書類1つぶんの記録 */
+export interface ReadingRecord {
+  /** 元のファイルの S3 キー。どの書類のものかはこれで突き合わせる */
+  documentKey: string;
+  /** 読み取り結果を実際に書いた先 */
+  s3Key: string;
+  pages: Array<{
+    pageNumber: number;
+    wasRead: boolean;
+    hasFigure: boolean;
+    charCount: number;
+  }>;
+  images: Array<{
+    name: string;
+    hasText: boolean;
+    hasDescription: boolean;
+  }>;
+}
+
+export interface RecordReadingParams {
+  reviewJobId: string;
+  records: ReadingRecord[];
+}
+
+export const recordReading = async (
+  params: RecordReadingParams
+): Promise<{ recorded: number; skipped: string[] }> => {
+  const { reviewJobId, records } = params;
+  if (!records?.length) {
+    return { recorded: 0, skipped: [] };
+  }
+
+  const client = await getPrismaClient();
+  // 書類は S3 のキーで突き合わせる。同じジョブの中で一意
+  const documents = await client.reviewDocument.findMany({
+    where: { reviewJobId },
+    select: { id: true, s3Path: true },
+  });
+  const idByKey = new Map(documents.map((d) => [d.s3Path, d.id]));
+
+  const skipped: string[] = [];
+  let recorded = 0;
+
+  for (const record of records) {
+    const documentId = idByKey.get(record.documentKey);
+    if (!documentId) {
+      // 読んだのに書類が見つからないのは、対応が壊れているということ。
+      // 審査は止めないが、黙って捨てると気づけないので残す
+      skipped.push(record.documentKey);
+      continue;
+    }
+
+    const readablePages = record.pages.filter((page) => page.wasRead).length;
+    const status =
+      record.pages.length === 0
+        ? "completed"
+        : readablePages === record.pages.length
+          ? "completed"
+          : readablePages === 0
+            ? "failed"
+            : "partial";
+
+    const now = new Date();
+    // 読み直したときは前の行を置き換える。ページの増減がそのまま残らないよう、
+    // 子ごと消してから入れ直す（外部キーの連鎖削除に任せる）
+    await client.$transaction(async (tx) => {
+      await tx.reviewDocumentDigest.deleteMany({
+        where: { reviewDocumentId: documentId },
+      });
+      const digestId = ulid();
+      await tx.reviewDocumentDigest.create({
+        data: {
+          id: digestId,
+          reviewDocumentId: documentId,
+          s3Key: record.s3Key,
+          status,
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
+      if (record.pages.length > 0) {
+        await tx.reviewDocumentPage.createMany({
+          data: record.pages.map((page) => ({
+            id: ulid(),
+            digestId,
+            pageNumber: page.pageNumber,
+            wasRead: page.wasRead,
+            hasFigure: page.hasFigure,
+            charCount: page.charCount,
+          })),
+        });
+      }
+      if (record.images.length > 0) {
+        await tx.reviewDocumentImage.createMany({
+          data: record.images.map((image) => ({
+            id: ulid(),
+            digestId,
+            name: image.name,
+            hasText: image.hasText,
+            hasDescription: image.hasDescription,
+          })),
+        });
+      }
+    });
+    recorded += 1;
+  }
+
+  if (skipped.length > 0) {
+    console.warn(
+      `読み取り結果に対応する書類が見つからなかった: ${skipped.join(", ")}`
+    );
+  }
+  return { recorded, skipped };
+};

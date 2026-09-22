@@ -334,6 +334,24 @@ export class ReviewProcessor extends Construct {
       },
     });
 
+    // 読み取り結果の対応を残す。キーの規則ではなく、実際に書いた値を行にする。
+    //
+    // 読み取りは審査の補助なので、ここで落ちても審査は続ける。記録が無くても
+    // S3 の中身はあるので審査はできる。逆に、ここで止めると読み取りが
+    // 使えるのに審査ができない、という本末転倒になる
+    const recordReadingTask = new tasks.LambdaInvoke(this, "RecordReading", {
+      lambdaFunction: this.reviewLambda,
+      payload: sfn.TaskInput.fromObject({
+        action: "recordReading",
+        reviewJobId: sfn.JsonPath.stringAt("$.reviewJobId"),
+        records: sfn.JsonPath.objectAt("$.readStored.Payload.records"),
+      }),
+      resultPath: "$.readRecorded",
+      resultSelector: {
+        "Payload.$": "$.Payload",
+      },
+    });
+
     // Map状態 - チェックリスト項目を並列処理
     const processItemsMap = new sfn.Map(this, "ProcessAllItems", {
       maxConcurrency: maxConcurrency, // Use the parameter to control concurrency
@@ -477,6 +495,7 @@ export class ReviewProcessor extends Construct {
     planReadingTask.addCatch(processItemsMap, keepInput);
     readDocumentsMap.addCatch(processItemsMap, keepInput);
     storeReadingTask.addCatch(processItemsMap, keepInput);
+    recordReadingTask.addCatch(processItemsMap, keepInput);
     finalizeReviewTask.addCatch(handleErrorTask, {
       errors: ["States.ALL"],
       resultPath: "$.error",
@@ -487,6 +506,7 @@ export class ReviewProcessor extends Construct {
       .next(planReadingTask)
       .next(readDocumentsMap)
       .next(storeReadingTask)
+      .next(recordReadingTask)
       .next(processItemsMap)
       .next(finalizeReviewTask);
 
