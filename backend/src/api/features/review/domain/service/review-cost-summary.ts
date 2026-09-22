@@ -51,6 +51,8 @@ export function summarizeCost(
     { name: string; totalCost: number; jobCount: number }
   >();
   const departments = new Map<string, { totalCost: number; jobCount: number }>();
+  // 部署の付いていない審査。合計には入るが内訳には入らないので、別に数える
+  const withoutDepartment = { totalCost: 0, jobCount: 0 };
   let totalCost = 0;
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
@@ -78,8 +80,9 @@ export function summarizeCost(
     checklist.jobCount += 1;
     checklists.set(row.checkListSetId, checklist);
 
-    // 部署の付いていない審査は、どこにも足さない。「未所属」という部署が
-    // あるように見せると、実在する部署と並んで紛らわしい
+    // 部署の付いていない審査は、部署の一覧には足さない。「未所属」という
+    // 部署があるように見せると、実在する部署と並んで紛らわしい。
+    // ただし数えないと内訳が合計に届かない理由が分からなくなるので、別に数える
     if (row.departmentId) {
       const department = departments.get(row.departmentId) ?? {
         totalCost: 0,
@@ -88,6 +91,9 @@ export function summarizeCost(
       department.totalCost += cost;
       department.jobCount += 1;
       departments.set(row.departmentId, department);
+    } else {
+      withoutDepartment.totalCost += cost;
+      withoutDepartment.jobCount += 1;
     }
   }
 
@@ -105,6 +111,7 @@ export function summarizeCost(
     byDepartment: [...departments.entries()]
       .map(([departmentId, values]) => ({ departmentId, ...values }))
       .sort((a, b) => b.totalCost - a.totalCost),
+    withoutDepartment,
     byChecklist: [...checklists.entries()]
       .map(([checkListSetId, values]) => ({ checkListSetId, ...values }))
       .sort((a, b) => b.totalCost - a.totalCost),

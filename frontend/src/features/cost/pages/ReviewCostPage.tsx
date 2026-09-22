@@ -213,6 +213,16 @@ export default function ReviewCostPage() {
                       </tbody>
                     </table>
                   </div>
+                  {/* 内訳を足しても合計に届かない理由を書いておく。
+                      黙って落とすと、部署ごとに按分するときに数が合わない */}
+                  {summary.withoutDepartment.jobCount > 0 && (
+                    <p className="mt-3 text-sm text-aws-font-color-gray">
+                      {t("cost.withoutDepartment", {
+                        count: summary.withoutDepartment.jobCount,
+                        cost: money(summary.withoutDepartment.totalCost),
+                      })}
+                    </p>
+                  )}
                 </section>
               )}
 

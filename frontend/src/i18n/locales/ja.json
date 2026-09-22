@@ -681,6 +681,7 @@
     "loadError": "費用を読み込めませんでした",
     "loadErrorMessage": "時間をおいて、もう一度お試しください。",
     "byDepartment": "部署別",
-    "byDepartmentHint": "どの部署が使っているかが分かると、費用の負担や利用の偏りを話せます。"
+    "byDepartmentHint": "どの部署が使っているかが分かると、費用の負担や利用の偏りを話せます。",
+    "withoutDepartment": "この内訳には、部署の付いていない審査 {{count}} 件（{{cost}}）を含みません。"
   }
 }

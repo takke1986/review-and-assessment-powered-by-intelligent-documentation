@@ -681,6 +681,7 @@
     "loadError": "Could not load the costs",
     "loadErrorMessage": "Please try again in a moment.",
     "byDepartment": "By department",
-    "byDepartmentHint": "Knowing which departments use it opens the conversation about who bears the cost."
+    "byDepartmentHint": "Knowing which departments use it opens the conversation about who bears the cost.",
+    "withoutDepartment": "This breakdown excludes {{count}} review(s) with no department ({{cost}})."
   }
 }

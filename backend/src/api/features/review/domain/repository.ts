@@ -48,6 +48,12 @@ export interface ReviewCostSummary {
     totalCost: number;
     jobCount: number;
   }>;
+  /**
+   * 部署の付いていない審査のぶん。byDepartment には入らないので、
+   * 内訳を足しても合計に届かない。その差を画面で説明できるように持つ。
+   * 部署を使わない運用や、部署が設定されていない人の審査がここに入る
+   */
+  withoutDepartment: { totalCost: number; jobCount: number };
   /** チェックリストごと。高い順。どの種類の審査に掛かっているかを見る */
   byChecklist: Array<{
     checkListSetId: string;

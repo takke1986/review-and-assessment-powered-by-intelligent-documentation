@@ -151,4 +151,31 @@ describe("部署ごとの費用", () => {
     // 総額には入る。使った費用であることに変わりはない
     expect(summary.total.totalCost).toBeCloseTo(0.5);
   });
+  it("部署の付いていない審査は、部署の内訳に入れず別に数える", () => {
+    // 「未所属」という部署があるように見せると、実在する部署と並んで
+    // 紛らわしい。かといって黙って落とすと、内訳を足しても合計に届かない
+    // 理由が分からなくなる
+    const summary = summarizeCost([
+      row({ departmentId: "営業部", totalCost: 3 }),
+      row({ departmentId: null, totalCost: 5 }),
+      row({ departmentId: null, totalCost: 2 }),
+    ]);
+
+    expect(summary.byDepartment).toEqual([
+      { departmentId: "営業部", totalCost: 3, jobCount: 1 },
+    ]);
+    expect(summary.withoutDepartment).toEqual({ totalCost: 7, jobCount: 2 });
+    // 合計には入っている
+    expect(summary.total.totalCost).toBe(10);
+    expect(summary.total.jobCount).toBe(3);
+  });
+
+  it("部署が全部付いていれば、部署なしは0になる", () => {
+    const summary = summarizeCost([
+      row({ departmentId: "営業部", totalCost: 3 }),
+      row({ departmentId: "法務部", totalCost: 4 }),
+    ]);
+
+    expect(summary.withoutDepartment).toEqual({ totalCost: 0, jobCount: 0 });
+  });
 });

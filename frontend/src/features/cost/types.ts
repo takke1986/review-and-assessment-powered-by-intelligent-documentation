@@ -20,6 +20,11 @@ export interface ReviewCostSummary {
     totalCost: number;
     jobCount: number;
   }>;
+  /**
+   * 部署の付いていない審査のぶん。byDepartment には入らないので、
+   * 足しても合計に届かない。その差を画面で説明するために使う
+   */
+  withoutDepartment: { totalCost: number; jobCount: number };
   /** 高い順 */
   byChecklist: Array<{
     checkListSetId: string;
