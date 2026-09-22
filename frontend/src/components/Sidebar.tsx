@@ -13,8 +13,10 @@ import {
   HiDownload,
   HiChartBar,
   HiCurrencyDollar,
+  HiOfficeBuilding,
 } from "react-icons/hi";
 import { useAuth } from "../contexts/AuthContext";
+import { useUserPreference } from "../features/user-preference/hooks/useUserPreferenceQueries";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { getVersion } from "../utils/version";
 
@@ -27,6 +29,11 @@ export default function Sidebar() {
   const location = useLocation();
   const { signOut, user } = useAuth();
   const { t } = useTranslation();
+  // 所属部署。サーバが決めた値をそのまま出す。画面がトークンから自分で
+  // 読むと、審査に記録される部署とずれる恐れがある。
+  // 問い合わせ先は同じ URL なので、作成画面と取得が重複しても1回で済む
+  const { preference } = useUserPreference();
+  const departments = preference?.departments ?? [];
 
   // 現在のパスに基づいてアクティブなメニュー項目を判定
   const isActive = (path: string) => {
@@ -177,11 +184,26 @@ export default function Sidebar() {
             {user && (
               <div className="border-t border-aws-font-color-white-light border-opacity-20 pt-4">
                 <div className="mb-2 flex items-center">
-                  <HiUser className="mr-2 h-5 w-5" />
+                  <HiUser className="mr-2 h-5 w-5 shrink-0" />
                   <span className="truncate text-sm">
                     {user.email || user.username}
                   </span>
                 </div>
+                {/* 所属部署。どの部署の仕事として審査が記録されるかが
+                    ここで分かる。属していなければ何も出さない
+                    （「未所属」と書くと、設定漏れなのか運用なのか分からない）。
+                    折り返すのは、兼務で幅に収まらないときに truncate だと
+                    2つ目が黙って消えるため */}
+                {departments.length > 0 && (
+                  <div
+                    className="mb-2 flex items-start"
+                    title={t("review.department")}>
+                    <HiOfficeBuilding className="mr-2 mt-0.5 h-4 w-4 shrink-0" />
+                    <span className="break-words text-xs text-aws-font-color-white-light text-opacity-80">
+                      {departments.join(" / ")}
+                    </span>
+                  </div>
+                )}
                 <button
                   onClick={handleLogout}
                   className="flex w-full items-center rounded-md px-4 py-2 text-sm transition-colors hover:bg-aws-sea-blue-hover-light">
