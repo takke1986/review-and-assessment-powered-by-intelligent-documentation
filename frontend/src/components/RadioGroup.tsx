@@ -41,7 +41,17 @@ export default function RadioGroup({
           {label}
         </label>
       )}
-      <div className={`space-y-2 ${inline ? 'flex space-x-4 space-y-0' : ''}`}>
+      {/* 横並びと縦並びで指定を混ぜない。space-y-2 と space-y-0 を重ねると、
+          生成される CSS では space-y-2 が後に来るので打ち消せず、2つ目以降が
+          下にずれる。gap なら向きごとに独立して効く。
+          flex-wrap があるのは、狭い画面で横にはみ出さないようにするため */}
+      <div
+        className={
+          inline
+            ? 'flex flex-wrap items-center gap-x-4 gap-y-2'
+            : 'space-y-2'
+        }
+      >
         {options.map((option) => (
           <div key={option.value} className="flex items-center">
             <input
