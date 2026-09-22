@@ -233,7 +233,7 @@ class TestStore:
         fake_s3, _ = wired()
         assert reader.store(
             {"bucket": "b", "reviewJobId": "job-1", "documents": [], "partials": []}
-        ) == {"stored": 0}
+        ) == {"stored": 0, "records": []}
         assert fake_s3.objects == {}
 
 
@@ -531,3 +531,44 @@ class TestNotSharedBetweenJobs:
 
         assert digest_store.load("b", "docs/a.pdf", "job-A", s3=fake_s3).pages
         assert not digest_store.load("b", "docs/a.pdf", "job-B", s3=fake_s3).pages
+
+
+def test_store_returns_where_it_wrote_and_what_it_read(monkeypatch, tmp_path):
+    """対応関係を残せるよう、書いた先と読めた中身を返す。
+
+    キーの規則から組み立て直すのではなく、実際に書いた値を渡す。
+    規則が崩れても対応が迷子にならないようにするため。
+    """
+    import document_reader_lambda as drl
+
+    saved: dict = {}
+
+    def fake_save(bucket, key, job_id, pages=None, images=None, s3=None):
+        saved["key"] = key
+
+    monkeypatch.setattr(drl.digest_store, "save", fake_save)
+    monkeypatch.setattr(drl, "_read_partial", lambda bucket, key: {
+        "pages": [{"page": 1, "text": "あり", "figures": ["図1"]},
+                  {"page": 2, "text": "", "figures": []}],
+        "images": [{"name": "image1.png", "text": "文字", "description": ""}],
+    })
+    monkeypatch.setattr(drl, "_forget_partials", lambda bucket, entries: None)
+    monkeypatch.setattr(drl, "s3", lambda: None)
+
+    result = drl.store({
+        "bucket": "b",
+        "reviewJobId": "job-1",
+        "documents": [{"key": "review/original/a.pdf", "pageCount": 2}],
+        "partials": [{"key": "review/original/a.pdf", "partial": "tmp/p1.json"}],
+    })
+
+    assert result["stored"] == 1
+    record = result["records"][0]
+    assert record["documentKey"] == "review/original/a.pdf"
+    assert record["s3Key"].startswith("digest/job-1/")
+    pages = {p["pageNumber"]: p for p in record["pages"]}
+    assert pages[1]["wasRead"] is True and pages[1]["hasFigure"] is True
+    assert pages[2]["wasRead"] is False, "中身が無いページは読めていない扱い"
+    assert record["images"][0] == {
+        "name": "image1.png", "hasText": True, "hasDescription": False
+    }

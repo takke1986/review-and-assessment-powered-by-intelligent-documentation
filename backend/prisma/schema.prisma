@@ -121,28 +121,86 @@ model CheckListDocument {
 }
 
 model ReviewDocument {
-  id                    String           @id @map("review_document_id") @db.VarChar(26)
-  filename              String           @db.VarChar(255)
-  s3Path                String           @map("s3_path") @db.VarChar(512)
-  fileType              String           @map("file_type") @db.VarChar(50)
-  uploadDate            DateTime         @map("upload_date") @db.Timestamp(0)
-  userId                String?          @map("user_id") @db.VarChar(50)
-  status                String           @default("pending") @db.VarChar(20)
-  reviewJobId           String           @map("review_job_id") @db.VarChar(26)
+  id                    String                @id @map("review_document_id") @db.VarChar(26)
+  filename              String                @db.VarChar(255)
+  s3Path                String                @map("s3_path") @db.VarChar(512)
+  fileType              String                @map("file_type") @db.VarChar(50)
+  uploadDate            DateTime              @map("upload_date") @db.Timestamp(0)
+  userId                String?               @map("user_id") @db.VarChar(50)
+  status                String                @default("pending") @db.VarChar(20)
+  reviewJobId           String                @map("review_job_id") @db.VarChar(26)
   /// 再審査で、元のジョブから引き継いだ文書（同じ S3 のファイルを指す）
-  carriedFromDocumentId String?          @map("carried_from_document_id") @db.VarChar(26)
+  carriedFromDocumentId String?               @map("carried_from_document_id") @db.VarChar(26)
   /// 再審査で、この文書が差し替えた元のジョブの文書
-  replacesDocumentId    String?          @map("replaces_document_id") @db.VarChar(26)
-  reviewJob             ReviewJob        @relation(fields: [reviewJobId], references: [id])
-  carriedFromDocument   ReviewDocument?  @relation("ReviewDocumentCarriedFrom", fields: [carriedFromDocumentId], references: [id], onDelete: SetNull)
-  carriedToDocuments    ReviewDocument[] @relation("ReviewDocumentCarriedFrom")
-  replacesDocument      ReviewDocument?  @relation("ReviewDocumentReplaces", fields: [replacesDocumentId], references: [id], onDelete: SetNull)
-  replacedByDocuments   ReviewDocument[] @relation("ReviewDocumentReplaces")
+  replacesDocumentId    String?               @map("replaces_document_id") @db.VarChar(26)
+  reviewJob             ReviewJob             @relation(fields: [reviewJobId], references: [id])
+  carriedFromDocument   ReviewDocument?       @relation("ReviewDocumentCarriedFrom", fields: [carriedFromDocumentId], references: [id], onDelete: SetNull)
+  carriedToDocuments    ReviewDocument[]      @relation("ReviewDocumentCarriedFrom")
+  replacesDocument      ReviewDocument?       @relation("ReviewDocumentReplaces", fields: [replacesDocumentId], references: [id], onDelete: SetNull)
+  replacedByDocuments   ReviewDocument[]      @relation("ReviewDocumentReplaces")
+  digest                ReviewDocumentDigest?
 
   @@index([reviewJobId], map: "review_documents_review_job_id_fkey")
   @@index([carriedFromDocumentId], map: "idx_review_documents_carried_from")
   @@index([replacesDocumentId], map: "idx_review_documents_replaces")
   @@map("review_documents")
+}
+
+/// 書類1つぶんの読み取り結果の在り処と状態。
+///
+/// 本文の書き起こしは大きく、検索もしないので S3 に置いたまま。ここが持つのは
+/// 「どこにあるか」と「何が読めたか」だけ。S3 のキーは規則から組み立てず、
+/// 実際に書いた値を控える。ファイルが差し替わってもキーの規則が崩れても、
+/// 対応が迷子にならないようにするため
+model ReviewDocumentDigest {
+  id               String                @id @map("review_document_digest_id") @db.VarChar(26)
+  /// 読み取り結果は書類1つにつき1つ。ジョブは書類から辿れるので持たない
+  reviewDocumentId String                @unique @map("review_document_id") @db.VarChar(26)
+  /// 実際に書き出した先。規則ではなく実測値
+  s3Key            String                @map("s3_key") @db.VarChar(1024)
+  /// completed / partial / failed
+  status           String                @default("completed") @db.VarChar(20)
+  createdAt        DateTime              @map("created_at") @db.Timestamp(0)
+  updatedAt        DateTime              @map("updated_at") @db.Timestamp(0)
+  reviewDocument   ReviewDocument        @relation(fields: [reviewDocumentId], references: [id], onDelete: Cascade)
+  pages            ReviewDocumentPage[]
+  images           ReviewDocumentImage[]
+
+  @@map("review_document_digests")
+}
+
+/// ページ1枚ぶんの読み取りの状態。読めなかったページを行で持つので、
+/// 「どの審査のどの書類の何ページが読めていないか」を問える
+model ReviewDocumentPage {
+  id         String               @id @map("review_document_page_id") @db.VarChar(26)
+  digestId   String               @map("digest_id") @db.VarChar(26)
+  pageNumber Int                  @map("page_number")
+  /// 読めたか。読めなかったページは審査で元のファイルを見に行く
+  wasRead    Boolean              @default(true) @map("was_read")
+  /// 図が含まれるか
+  hasFigure  Boolean              @default(false) @map("has_figure")
+  /// 取れた文字数。スキャンかどうかの判断材料
+  charCount  Int                  @default(0) @map("char_count")
+  digest     ReviewDocumentDigest @relation(fields: [digestId], references: [id], onDelete: Cascade)
+
+  @@unique([digestId, pageNumber], map: "uniq_review_document_page")
+  @@index([digestId, wasRead], map: "idx_review_document_page_read")
+  @@map("review_document_pages")
+}
+
+/// 画像1枚ぶんの読み取りの状態。Office の埋め込み画像と、審査に上げた画像の両方
+model ReviewDocumentImage {
+  id             String               @id @map("review_document_image_id") @db.VarChar(26)
+  digestId       String               @map("digest_id") @db.VarChar(26)
+  name           String               @db.VarChar(255)
+  /// 画像に写っている文字が取れたか
+  hasText        Boolean              @default(false) @map("has_text")
+  /// 何が描かれているかの説明が取れたか
+  hasDescription Boolean              @default(false) @map("has_description")
+  digest         ReviewDocumentDigest @relation(fields: [digestId], references: [id], onDelete: Cascade)
+
+  @@unique([digestId, name], map: "uniq_review_document_image")
+  @@map("review_document_images")
 }
 
 model ReviewJob {

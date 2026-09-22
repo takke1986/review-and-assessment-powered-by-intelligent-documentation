@@ -392,6 +392,7 @@ def store(event: dict[str, Any]) -> dict[str, Any]:
     }
 
     stored = 0
+    records: list[dict[str, Any]] = []
     for key, entries in by_document.items():
         pages_batches: list[list[PageDigest]] = []
         images: list[ImageDigest] = []
@@ -422,9 +423,34 @@ def store(event: dict[str, Any]) -> dict[str, Any]:
         )
         stored += 1
         _forget_partials(bucket, entries)
+        # 対応関係を残せるよう、どこに何を書いたかを返す。キーの規則から
+        # 組み立て直さずに済むよう、実際に書いた値をそのまま渡す
+        records.append(
+            {
+                "documentKey": key,
+                "s3Key": digest_store.key_for(key, job_id),
+                "pages": [
+                    {
+                        "pageNumber": page.page,
+                        "wasRead": bool(page.text or page.figures),
+                        "hasFigure": page.has_figure,
+                        "charCount": len(page.text or ""),
+                    }
+                    for page in pages
+                ],
+                "images": [
+                    {
+                        "name": image.name,
+                        "hasText": bool(image.text),
+                        "hasDescription": bool(image.description),
+                    }
+                    for image in images
+                ],
+            }
+        )
 
     logger.info("Stored what was read from %s documents", stored)
-    return {"stored": stored}
+    return {"stored": stored, "records": records}
 
 
 def _read_partial(bucket: str, key: str) -> dict[str, Any]:
