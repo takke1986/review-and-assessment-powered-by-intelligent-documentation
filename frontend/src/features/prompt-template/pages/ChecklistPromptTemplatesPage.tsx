@@ -107,6 +107,8 @@ export const ChecklistPromptTemplatesPage: React.FC = () => {
             prompt: data.prompt,
             description: data.description,
             type: PromptTemplateType.CHECKLIST,
+            // 兼務のときにモーダルで選ばれた部署。所属していなければサーバが弾く
+            departmentId: (data as { departmentId?: string }).departmentId,
           });
           await refetch();
         } else {

@@ -2,6 +2,7 @@
  * チェックリスト作成ページ
  */
 
+import DepartmentPicker, { useDepartmentChoice } from "../../../components/DepartmentPicker";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -35,7 +36,11 @@ export function CreateChecklistPage() {
   const [errors, setErrors] = useState({
     name: "",
     files: "",
+    department: "",
   });
+  // どの部署の仕事として記録するか。兼務の人だけ選ぶ
+  const [departmentId, setDepartmentId] = useState("");
+  const { mustChoose } = useDepartmentChoice();
   const [selectedTemplateId, setSelectedTemplateId] = useState<
     string | undefined
   >(undefined);
@@ -160,6 +165,7 @@ export function CreateChecklistPage() {
     const newErrors = {
       name: "",
       files: "",
+      department: "",
     };
 
     if (!formData.name.trim()) {
@@ -168,6 +174,12 @@ export function CreateChecklistPage() {
 
     if (!uploadedDocuments || uploadedDocuments.length === 0) {
       newErrors.files = t("checklist.fileRequired");
+    }
+
+    // 兼務なら選ばないと作れない。サーバも同じ判断で断るが、
+    // 画面で止めないと理由の分からない失敗になる
+    if (mustChoose && !departmentId) {
+      newErrors.department = t("review.departmentRequired");
     }
 
     setErrors(newErrors);
@@ -186,6 +198,7 @@ export function CreateChecklistPage() {
         description: formData.description,
         documents: uploadedDocuments || [],
         templateId: selectedTemplateId, // テンプレートIDを追加
+        departmentId: departmentId || undefined,
       });
 
       // アップロード済みドキュメントリストをクリア
@@ -248,6 +261,12 @@ export function CreateChecklistPage() {
             value={formData.description}
             onChange={handleInputChange}
             placeholder={t("checklist.descriptionPlaceholder")}
+          />
+
+          <DepartmentPicker
+            value={departmentId}
+            onChange={setDepartmentId}
+            error={errors.department}
           />
 
           <FormFileUpload

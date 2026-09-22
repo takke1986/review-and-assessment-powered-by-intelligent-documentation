@@ -31,6 +31,9 @@ export const getUserPreferenceHandler = async (
         // 所属部署も返す。画面がトークンから自分で読むと、サーバの
         // 決め方とずれる。兼務のときに部署を選ばせるのに使う
         departments: departmentsOf(request.user),
+        // 管理者かどうかも同じ理由でサーバが返す。押しても必ず失敗する
+        // ボタンを見せないために使う（本当の関門はサーバ側にある）
+        isAdmin: request.user?.isAdmin ?? false,
       },
     });
   } catch (error) {

@@ -1,3 +1,4 @@
+import DepartmentPicker, { useDepartmentChoice } from "../../../components/DepartmentPicker";
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { FormTextField } from "../../../components/FormTextField";
@@ -37,6 +38,12 @@ export const PromptTemplateEditor: React.FC<PromptTemplateEditorProps> = ({
           : "")
   );
   const [isDirty, setIsDirty] = useState(false);
+  // どの部署のものとして記録するか。兼務の人だけ選ぶ。
+  // 作り直しのときは変えない（既存の共有先が動くと、見えていた人から消える）
+  const [departmentId, setDepartmentId] = useState("");
+  const [departmentError, setDepartmentError] = useState("");
+  const { mustChoose } = useDepartmentChoice();
+  const isNew = !template;
 
   useEffect(() => {
     if (template) {
@@ -53,10 +60,18 @@ export const PromptTemplateEditor: React.FC<PromptTemplateEditorProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // 兼務なら選ばないと作れない。サーバも同じ判断で断るが、画面で
+    // 止めないと理由の分からない失敗になる
+    if (isNew && mustChoose && !departmentId) {
+      setDepartmentError(t("review.departmentRequired"));
+      return;
+    }
+    setDepartmentError("");
     await onSave({
       name,
       description,
       prompt,
+      ...(isNew && departmentId ? { departmentId } : {}),
     });
     setIsDirty(false);
   };
@@ -96,6 +111,18 @@ export const PromptTemplateEditor: React.FC<PromptTemplateEditorProps> = ({
             handleChange();
           }}
         />
+
+        {/* 作るときだけ。既存のものは共有先を変えない */}
+        {isNew && (
+          <DepartmentPicker
+            value={departmentId}
+            onChange={(value) => {
+              setDepartmentId(value);
+              handleChange();
+            }}
+            error={departmentError}
+          />
+        )}
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">

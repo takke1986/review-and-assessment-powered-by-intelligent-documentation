@@ -1,3 +1,4 @@
+import { useUserPreference } from "../../user-preference/hooks/useUserPreferenceQueries";
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -37,6 +38,10 @@ export default function ToolConfigurationListPage() {
     setCurrentPage(1);
   };
   const { deleteToolConfiguration } = useDeleteToolConfiguration();
+  // 管理者かどうかはサーバが決める。画面がトークンから自分で読むと、
+  // サーバの判断とずれる
+  const { preference } = useUserPreference();
+  const isAdmin = preference?.isAdmin ?? false;
 
   // 画面表示時またはlocationが変わった時にデータを再取得
   useEffect(() => {
@@ -52,10 +57,15 @@ export default function ToolConfigurationListPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <h1 className="text-3xl font-bold">{t("toolConfiguration.title")}</h1>
-        <Button onClick={() => navigate("/tool-configurations/new")}>
-          <HiPlus className="mr-2 h-5 w-5" />
-          {t("toolConfiguration.create")}
-        </Button>
+        {/* 全員が使う共有の設定なので、作れるのは管理者だけ。
+            押しても必ず失敗するボタンは見せない。
+            本当の関門はサーバ側にある（画面を書き換えても通らない） */}
+        {isAdmin && (
+          <Button onClick={() => navigate("/tool-configurations/new")}>
+            <HiPlus className="mr-2 h-5 w-5" />
+            {t("toolConfiguration.create")}
+          </Button>
+        )}
       </div>
 
       <div className="mb-4">
@@ -65,7 +75,7 @@ export default function ToolConfigurationListPage() {
       <ToolConfigurationList
         toolConfigurations={toolConfigurations}
         isLoading={isLoading}
-        onDelete={handleDelete}
+        onDelete={isAdmin ? handleDelete : undefined}
         emptyMessage={search.trim() ? t("common.noMatch") : undefined}
         sortBy={sortBy}
         sortOrder={sortOrder}

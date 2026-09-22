@@ -54,6 +54,8 @@ export interface CreateChecklistSetRequest {
   description?: string;
   documents: Document[];
   templateId?: string; // プロンプトテンプレートID
+  /** 兼務のときに選ばれた部署。所属していなければサーバが弾く */
+  departmentId?: string;
 }
 
 /**

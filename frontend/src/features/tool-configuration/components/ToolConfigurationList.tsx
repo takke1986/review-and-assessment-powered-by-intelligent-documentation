@@ -9,7 +9,8 @@ import { useAlert } from "../../../hooks/useAlert";
 type ToolConfigurationListProps = {
   toolConfigurations: ToolConfiguration[];
   isLoading: boolean;
-  onDelete: (id: string, name: string) => Promise<void>;
+  /** 管理者だけが消せる。渡されなければ削除の操作を出さない */
+  onDelete?: (id: string, name: string) => Promise<void>;
   /** 0件のときの文言。検索中は「無い」ではなく「見つからない」を出したい */
   emptyMessage?: string;
   /** 並び替え。サーバ側で並べるので状態は画面が持つ */
@@ -49,7 +50,7 @@ export default function ToolConfigurationList({
         confirmButtonText: t("toolConfiguration.deleteButton"),
         onConfirm: async () => {
           try {
-            await onDelete(item.id, item.name);
+            await onDelete?.(item.id, item.name);
           } catch {
             showError(t("toolConfiguration.deleteError"));
           }
@@ -126,7 +127,11 @@ export default function ToolConfigurationList({
       outline: true,
       className: "transition-all duration-200",
     },
-    {
+  ];
+
+  // 消せるのは管理者だけ。押しても必ず失敗するボタンは出さない
+  if (onDelete) {
+    actions.push({
       icon: <HiTrash className="mr-1 h-4 w-4" />,
       label: t("common.delete"),
       onClick: handleDelete,
@@ -134,8 +139,8 @@ export default function ToolConfigurationList({
       variant: "danger",
       outline: true,
       className: "transition-all duration-200",
-    },
-  ];
+    });
+  }
 
   return (
     <>

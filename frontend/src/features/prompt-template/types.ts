@@ -11,6 +11,8 @@ export interface PromptTemplate {
   name: string;
   description?: string;
   prompt: string;
+  /** 兼務のときに選ばれた部署。所属していなければサーバが弾く */
+  departmentId?: string;
   type: PromptTemplateType;
   createdAt: Date;
   updatedAt: Date;
