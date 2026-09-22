@@ -59,7 +59,11 @@ export function flattenInOrder(results: ReviewResultDetail[]): ReportRow[] {
   return rows;
 }
 
-/** 参照元を「ファイル名 p.3」の形にする。画像にはページが無い */
+/**
+ * 参照元を「ファイル名 p.3」の形にする。
+ * ページの無い Office は「ファイル名 Slide 3」のように見出しで示す。
+ * 画像にはどちらも無いので、ファイル名だけになる
+ */
 export function formatSources(
   result: ReviewResultDetail,
   filenameById: Map<string, string>,
@@ -71,8 +75,11 @@ export function formatSources(
   return result.sourceReferences.map((reference) => {
     const filename =
       filenameById.get(reference.documentId) ?? reference.documentId;
-    return reference.pageNumber
-      ? `${filename} ${t("review.export.page", { page: reference.pageNumber })}`
+    if (reference.pageNumber) {
+      return `${filename} ${t("review.export.page", { page: reference.pageNumber })}`;
+    }
+    return reference.locationLabel
+      ? `${filename} ${reference.locationLabel}`
       : filename;
   });
 }

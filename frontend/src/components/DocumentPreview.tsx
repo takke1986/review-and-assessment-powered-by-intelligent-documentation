@@ -8,12 +8,18 @@ interface DocumentPreviewProps {
   s3Key: string;
   filename: string;
   pageNumber?: number;
+  /**
+   * ページの無い書類で、どこを見たか。"Slide 3" や "Sheet: 売上高" など。
+   * Word・Excel・PowerPoint はページ割りを持たないので、ページの代わりに出す
+   */
+  location?: string;
 }
 
 export default function DocumentPreview({
   s3Key,
   filename,
   pageNumber,
+  location,
 }: DocumentPreviewProps) {
   const { t } = useTranslation();
   const [url, setUrl] = useState<string | null>(null);
@@ -61,7 +67,13 @@ export default function DocumentPreview({
         className="flex items-center text-aws-sea-blue hover:underline"
       >
         <span>{filename}</span>
-        {pageNumber && <span className="ml-1">{t("common.pageNumber", { page: pageNumber })}</span>}
+        {pageNumber ? (
+          <span className="ml-1">
+            {t("common.pageNumber", { page: pageNumber })}
+          </span>
+        ) : (
+          location && <span className="ml-1">{location}</span>
+        )}
         <HiExternalLink className="ml-1 h-4 w-4" />
       </a>
     </div>

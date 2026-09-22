@@ -539,11 +539,17 @@ export default function ReviewResultItem({
                                   <DocumentPreview
                                     s3Key={doc.s3Path}
                                     filename={doc.filename}
-                                    // ページがあるのは PDF だけ
+                                    // ページがあるのは PDF だけ。
+                                    // Office は代わりに見出しで場所を示す
                                     pageNumber={
                                       isPdfFileName(doc.filename)
                                         ? reference.pageNumber
                                         : undefined
+                                    }
+                                    location={
+                                      isPdfFileName(doc.filename)
+                                        ? undefined
+                                        : reference.locationLabel
                                     }
                                   />
                                 ) : doc.fileType === REVIEW_FILE_TYPE.IMAGE ? (

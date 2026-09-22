@@ -250,11 +250,20 @@ export interface DocumentInfo {
   documentId: string;
   filename: string;
   pageNumber?: number; // PDFで使用
+  /** 道具で読んだ Office の節番号 */
+  section?: number;
+  /** 書類の中のどこか。"Slide 3" や "Sheet: 売上高" など */
+  label?: string;
 }
 
 export interface SourceReference {
   documentId: string;
+  /** PDF のページ番号。PDF 以外には付かない */
   pageNumber?: number;
+  /** 道具で読んだ Office の節番号 */
+  section?: number;
+  /** 書類の中のどこか。"Slide 3" や "Sheet: 売上高" など */
+  locationLabel?: string;
   boundingBox?: {
     label: string;
     coordinates: [number, number, number, number]; // [x1, y1, x2, y2]
@@ -536,11 +545,13 @@ export const ReviewResultDomain = (() => {
 
       // レビュータイプによる分岐
       if (reviewType === "PDF") {
-        // PDFのソース参照作成
-        // ページは PDF にだけある。Word・Excel・PowerPoint の文書には付けない
+        // ページは PDF にだけある。Word・Excel・PowerPoint には
+        // 代わりに節番号と見出しが入る（source-documents.ts で振り分け済み）
         sourceReferences = documents.map((doc) => ({
           documentId: doc.documentId,
           pageNumber: doc.pageNumber,
+          section: doc.section,
+          locationLabel: doc.label,
         }));
       } else {
         // IMAGE

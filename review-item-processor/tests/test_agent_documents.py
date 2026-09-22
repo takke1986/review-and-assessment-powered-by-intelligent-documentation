@@ -97,6 +97,10 @@ def test_file_read_tool_reads_office_files_as_markdown(tmp_path, monkeypatch):
     assert result["sources"] == []
 
 
+def _source(file, page=None, section=None, label=None):
+    return {"file": file, "page": page, "section": section, "label": label}
+
+
 def test_sources_keep_only_well_formed_entries():
     assert agent._normalize_sources(
         [
@@ -109,12 +113,47 @@ def test_sources_keep_only_well_formed_entries():
             "not a source",
         ]
     ) == [
-        {"file": "見積書.xlsx", "page": None},
-        {"file": "稟議書.pdf", "page": 3},
-        {"file": "zero.pdf", "page": None},
-        {"file": "flag.pdf", "page": None},
+        _source("見積書.xlsx"),
+        _source("稟議書.pdf", page=3),
+        _source("zero.pdf"),
+        _source("flag.pdf"),
     ]
     assert agent._normalize_sources("not a list") == []
+
+
+def test_office_sources_keep_the_place_within_the_file():
+    """Office にはページが無いので、場所は label と section で持つ。
+    ここで捨てると、根拠の場所が explanation の文章にしか残らない"""
+    assert agent._normalize_sources(
+        [
+            {"file": "提案書.pptx", "page": None, "section": 3, "label": "Slide 3"},
+            {"file": "見積.xlsx", "label": "Sheet: 売上高"},
+            {"file": "規程.docx", "label": "  第2章 適用範囲  "},
+        ]
+    ) == [
+        _source("提案書.pptx", section=3, label="Slide 3"),
+        _source("見積.xlsx", label="Sheet: 売上高"),
+        _source("規程.docx", label="第2章 適用範囲"),
+    ]
+
+
+def test_a_malformed_place_is_dropped_rather_than_stored():
+    """節番号や場所が壊れていても、ファイル名まで捨てない"""
+    assert agent._normalize_sources(
+        [
+            {"file": "a.pptx", "section": 0, "label": "   "},
+            {"file": "b.pptx", "section": "3", "label": 7},
+            {"file": "c.pptx", "section": True},
+        ]
+    ) == [_source("a.pptx"), _source("b.pptx"), _source("c.pptx")]
+
+
+def test_a_long_place_is_cut_instead_of_carrying_the_body_text():
+    """label は場所の欄。本文を丸ごと入れられても切る"""
+    [source] = agent._normalize_sources(
+        [{"file": "規程.docx", "label": "あ" * 200}]
+    )
+    assert source["label"] == "あ" * agent.MAX_SOURCE_LABEL_CHARS
 
 
 @pytest.mark.parametrize("use_citations", [False, True])
@@ -123,10 +162,11 @@ def test_document_prompts_ask_which_files_the_judgment_relies_on(use_citations):
         "日本語", "check", "description", use_citations=use_citations
     )
 
-    assert (
-        '"sources": [{"file": "<file name>", "page": <page within that file, or null>}]'
-        in prompt
-    )
+    assert '"sources": [{"file": "<file name>", ' in prompt
+    # 場所の欄。PDF 以外でも根拠の場所を返させるために要る
+    assert '"page": <page number in a PDF, or null>' in prompt
+    assert '"section": <section number from list_documents, or null>' in prompt
+    assert '"label": "<where in the file' in prompt
     assert "<sources_instruction>" in prompt
     assert 'Set "sources": [] (empty array)' in prompt
 

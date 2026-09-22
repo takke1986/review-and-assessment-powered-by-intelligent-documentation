@@ -131,4 +131,72 @@ describe("selectSourceDocuments", () => {
       { documentId: "doc-1", filename: "稟議書.pdf", pageNumber: undefined },
     ]);
   });
+  it("Office の根拠は、ページではなく節と見出しで場所を持つ", () => {
+    // .docx はページ割りを保存しないなど、種類によってはページという単位が
+    // 無い。ここで捨てると、根拠の場所が explanation の文章にしか残らない
+    expect(
+      selectSourceDocuments({
+        documents: [
+          { id: "d-1", filename: "提案書.pptx" },
+          { id: "d-2", filename: "見積.xlsx" },
+        ],
+        documentIds: ["d-1", "d-2"],
+        sources: [
+          { file: "提案書.pptx", page: null, section: 3, label: "Slide 3" },
+          { file: "見積.xlsx", label: "Sheet: 売上高" },
+        ],
+      })
+    ).toEqual([
+      {
+        documentId: "d-1",
+        filename: "提案書.pptx",
+        section: 3,
+        label: "Slide 3",
+      },
+      {
+        documentId: "d-2",
+        filename: "見積.xlsx",
+        section: undefined,
+        label: "Sheet: 売上高",
+      },
+    ]);
+  });
+
+  it("PDF には節も見出しも付けない。ページで足りる", () => {
+    expect(
+      selectSourceDocuments({
+        documents: [{ id: "d-1", filename: "稟議書.pdf" }],
+        documentIds: ["d-1"],
+        sources: [
+          { file: "稟議書.pdf", page: 2, section: 9, label: "まぎらわしい見出し" },
+        ],
+      })
+    ).toEqual([{ documentId: "d-1", filename: "稟議書.pdf", pageNumber: 2 }]);
+  });
+
+  it("Office に付いてきたページ番号は捨てる", () => {
+    // 残すと結果画面が .pptx から PDF のページを切り出そうとする
+    const [source] = selectSourceDocuments({
+      documents: [{ id: "d-1", filename: "提案書.pptx" }],
+      documentIds: ["d-1"],
+      sources: [{ file: "提案書.pptx", page: 4, label: "Slide 4" }],
+    });
+
+    expect(source.pageNumber).toBeUndefined();
+    expect(source.label).toBe("Slide 4");
+  });
+
+  it("同じ場所を二度並べない。違う場所は別々に残す", () => {
+    expect(
+      selectSourceDocuments({
+        documents: [{ id: "d-1", filename: "提案書.pptx" }],
+        documentIds: ["d-1"],
+        sources: [
+          { file: "提案書.pptx", label: "Slide 3" },
+          { file: "提案書.pptx", label: "Slide 3" },
+          { file: "提案書.pptx", label: "Slide 8" },
+        ],
+      }).map((source) => source.label)
+    ).toEqual(["Slide 3", "Slide 8"]);
+  });
 });

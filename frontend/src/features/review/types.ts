@@ -396,7 +396,12 @@ export interface PreviousReviewResult {
  */
 export interface SourceReference {
   documentId: string;
+  /** PDF のページ番号。PDF 以外には付かない */
   pageNumber?: number;
+  /** 道具で読んだ Office の節番号 */
+  section?: number;
+  /** 書類の中のどこか。"Slide 3" や "Sheet: 売上高" など */
+  locationLabel?: string;
   boundingBox?: {
     label: string;
     coordinates: [number, number, number, number]; // [x1, y1, x2, y2]

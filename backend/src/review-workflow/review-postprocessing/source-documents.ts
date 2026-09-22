@@ -1,18 +1,29 @@
 /**
  * 審査結果の根拠にする文書を決める。
  *
- * 審査処理は、判定の根拠にしたファイルとそのページを sources で返す
+ * 審査処理は、判定の根拠にしたファイルとその中のどこかを sources で返す
  * （例: [{ file: "見積書.pdf", page: 2 }]）。審査に渡した文書のうち、名前が合う
  * ものだけを根拠にする。sources が無いとき、合う文書が無いときは、これまでどおり
  * 審査に渡したすべての文書を根拠にする。
  *
- * ページ番号は PDF にだけ付ける。Word・Excel・PowerPoint にはページが無く、
- * ページを付けると結果画面が PDF のページを切り出そうとする。
+ * 場所の表し方は書類の種類で変わる。
+ *
+ *   PDF    → pageNumber。結果画面はこれでページを切り出す
+ *   Office → label（"Slide 3" や "Sheet: 売上高"）と、道具で読んだときは section。
+ *            .docx がページ割りを保存しないなど、ページという単位が無いため
+ *   画像   → どれも付かない
+ *
+ * PDF 以外に pageNumber を付けてはいけない。結果画面が PDF のページを
+ * 切り出そうとして失敗する。
  */
 export interface SourceDocument {
   documentId: string;
   filename: string;
   pageNumber?: number;
+  /** 道具で読んだ Office の節番号（list_documents が振ったもの） */
+  section?: number;
+  /** 書類の中のどこか。"Slide 3" や "Sheet: 売上高" など、本文の見出しのまま */
+  label?: string;
 }
 
 const isPdf = (filename: string) => filename.toLowerCase().endsWith(".pdf");
@@ -21,9 +32,17 @@ const isPdf = (filename: string) => filename.toLowerCase().endsWith(".pdf");
 const normalizeName = (name: string) =>
   name.trim().normalize("NFC").toLowerCase();
 
+const positiveInt = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isInteger(value) && value >= 1
+    ? value
+    : undefined;
+
+const nonEmptyText = (value: unknown): string | undefined =>
+  typeof value === "string" && value.trim() ? value.trim() : undefined;
+
 const parseSources = (
   sources: unknown
-): Array<{ file: string; page?: number }> => {
+): Array<{ file: string; page?: number; section?: number; label?: string }> => {
   if (!Array.isArray(sources)) {
     return [];
   }
@@ -31,17 +50,21 @@ const parseSources = (
     if (!source || typeof source !== "object") {
       return [];
     }
-    const { file, page } = source as { file?: unknown; page?: unknown };
+    const { file, page, section, label } = source as {
+      file?: unknown;
+      page?: unknown;
+      section?: unknown;
+      label?: unknown;
+    };
     if (typeof file !== "string" || !file.trim()) {
       return [];
     }
     return [
       {
         file,
-        page:
-          typeof page === "number" && Number.isInteger(page) && page >= 1
-            ? page
-            : undefined,
+        page: positiveInt(page),
+        section: positiveInt(section),
+        label: nonEmptyText(label),
       },
     ];
   });
@@ -71,11 +94,23 @@ export const selectSourceDocuments = (params: {
       if (normalizeName(doc.filename) !== name) {
         continue;
       }
-      const pageNumber = isPdf(doc.filename) ? source.page : undefined;
-      const key = `${doc.documentId}:${pageNumber ?? ""}`;
+      // PDF はページで、それ以外は節と見出しで場所を表す。混ぜると
+      // 結果画面が Office のファイルから PDF のページを切り出そうとする
+      const pdf = isPdf(doc.filename);
+      const place = pdf
+        ? { pageNumber: source.page }
+        : { section: source.section, label: source.label };
+      // 同じ場所を二度並べない。鍵は実際に残す場所から作る。source の
+      // ままだと、PDF に付いてきた label 違いで同じページが二重に出る
+      const key = [
+        doc.documentId,
+        place.pageNumber ?? "",
+        place.section ?? "",
+        place.label ?? "",
+      ].join(":");
       if (!seen.has(key)) {
         seen.add(key);
-        selected.push({ ...doc, pageNumber });
+        selected.push({ ...doc, ...place });
       }
     }
   }

@@ -121,12 +121,20 @@ This feedback represents real-world review experience and should significantly i
 # どのファイルの何ページを根拠にしたか。結果画面の「根拠の文書」をそのファイルに絞るのに使う
 _SOURCES_INSTRUCTION = """
 <sources_instruction>
-Every attached file, whether a document or an image, is introduced by its original file name. In "sources", list every file your judgment relies on, including images you looked at, using the file name exactly as given. Give the page number within that file for a PDF, and null for an image or an Office file. When several files are joined into one document, name the original file, not the joined document.
+Every attached file, whether a document or an image, is introduced by its original file name. In "sources", list every file your judgment relies on, including images you looked at, using the file name exactly as given. When several files are joined into one document, name the original file, not the joined document.
+
+Say where in each file you looked:
+- PDF: put the page number in "page". Leave "section" and "label" null.
+- Word, Excel or PowerPoint: leave "page" null. Put the place in "label", copied from the text exactly as it appears there, such as "Slide 3", "Sheet: Sales" or the nearest heading. When you read the file through list_documents, also put that section number in "section".
+- Image: leave "page", "section" and "label" null.
 </sources_instruction>
 """
 
 _SOURCES_SCHEMA = (
-    '"sources": [{"file": "<file name>", "page": <page within that file, or null>}]'
+    '"sources": [{"file": "<file name>", '
+    '"page": <page number in a PDF, or null>, '
+    '"section": <section number from list_documents, or null>, '
+    '"label": "<where in the file, such as Slide 3 or Sheet: Sales, or null>"}]'
 )
 
 
@@ -146,7 +154,7 @@ DOCUMENT_TOOLS_ACCESS = f"""The files are too large to attach to this request, s
 2. Use search_documents to find where the check item is addressed. Search results are only pointers: read the places they point to before relying on them.
 3. Read PDFs with read_pdf_pages and Word, Excel and PowerPoint files with read_office_section. Use view_pdf_page when the layout, a figure, a table's shape, a stamp or a scanned page matters, and view_embedded_image for images in Office files. You can see at most {MAX_IMAGES_PER_REVIEW} images in total.
 4. Before judging that something is missing, look in every file and section where it could reasonably be.
-Page numbers in "pageNumber" and "sources" are page numbers within each PDF file."""
+Page numbers in "pageNumber" and "sources" are page numbers within each PDF file. For Word, Excel and PowerPoint files, report the place with "section" and "label" instead, using the section numbers list_documents gave you."""
 
 
 def _get_document_review_prompt_legacy(
