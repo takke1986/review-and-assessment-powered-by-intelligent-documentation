@@ -243,7 +243,6 @@ export const makePrismaCheckRepository = async (
               every: { status: "completed" },
             },
           };
-          console.log("[Repository] Using completed filter condition");
           break;
         case "pending":
           whereCondition = {
@@ -251,7 +250,6 @@ export const makePrismaCheckRepository = async (
               none: { status: "processing" },
             },
           };
-          console.log("[Repository] Using pending filter condition");
           break;
         case "processing":
           whereCondition = {
@@ -259,7 +257,6 @@ export const makePrismaCheckRepository = async (
               some: { status: "processing" },
             },
           };
-          console.log("[Repository] Using processing filter condition");
           break;
       }
     }
@@ -279,7 +276,6 @@ export const makePrismaCheckRepository = async (
       whereCondition = {
         AND: [whereCondition, { userId: ownerUserId }],
       };
-      console.log(`[Repository] Applying owner filter: ${ownerUserId}`);
     }
 
     // ページネーション用のクエリを並列実行
@@ -452,7 +448,9 @@ export const makePrismaCheckRepository = async (
     // 子要素の有無を一括確認
     const itemIds = (items as Array<{ id: string }>).map((item) => item.id);
 
-    console.log(`[Repository] Checking for children of itemIds:`, itemIds);
+    console.log(
+      `[Repository] Checking for children of ${itemIds.length} itemIds`
+    );
 
     const childItems = await client.checkList.findMany({
       where: {
@@ -494,12 +492,10 @@ export const makePrismaCheckRepository = async (
       )
     );
 
+    // 件数だけ出す。項目を全部並べると、200項目のチェックリストで
+    // 毎回それだけの文字列を組み立ててログに流すことになる
     console.log(
-      `[Repository] Final items with hasChildren:`,
-      mappedItems.map((i: CheckListItemDetail) => ({
-        id: i.id,
-        hasChildren: i.hasChildren,
-      }))
+      `[Repository] Final items with hasChildren: ${mappedItems.length} items`
     );
 
     return mappedItems;

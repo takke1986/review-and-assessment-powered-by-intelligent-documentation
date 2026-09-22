@@ -163,14 +163,6 @@ export const makePrismaReviewResultRepository = async (
 
     console.log(`[Repository] Found ${results.length} results`);
 
-    // 結果のcheckIdとparentIdをログ出力
-    console.log(
-      `[Repository] Result checkIds and parentIds:`,
-      results.map((r) => ({
-        checkId: r.checkId,
-        parentId: r.checkList.parentId,
-      }))
-    );
 
     if (results.length === 0) {
       return [];
@@ -179,7 +171,9 @@ export const makePrismaReviewResultRepository = async (
     // 子要素の有無を一括確認
     const checkIds = results.map((result) => result.checkId);
 
-    console.log(`[Repository] Checking for children of checkIds:`, checkIds);
+    console.log(
+      `[Repository] Checking for children of ${checkIds.length} checkIds`
+    );
 
     // すべてのチェックIDに対する子の存在を一度に確認する
     // まず、jobIdに関連するすべての結果を取得し、checkListのparentIdがcheckIdsに含まれるものを選択
