@@ -1,25 +1,31 @@
 import { ulid } from "ulid";
 import { getPrismaClient } from "../../api/core/db";
 
-/** 読み取りの結果。画面と問い合わせの両方でこの3つだけを使う */
+/** 読み取りの結果。画面と問い合わせの両方でこの4つだけを使う */
 export const READING_STATUS = {
+  /** ページを全部読めた */
   COMPLETED: "completed",
+  /** 一部のページが読めなかった */
   PARTIAL: "partial",
+  /** ページはあったが1枚も読めなかった */
   FAILED: "failed",
+  /**
+   * 読むページが無かった。Office のように、文字を XML から直に取れて
+   * ページという単位を持たない書類がこれにあたる。
+   *
+   * completed と混ぜると「読んだ結果、問題なし」と区別できない。
+   * 読み取りが働いたのかどうかを後から確かめられなくなる
+   */
+  NO_PAGES: "no_pages",
 } as const;
 
 export type ReadingStatus =
   (typeof READING_STATUS)[keyof typeof READING_STATUS];
 
-/**
- * 読めたページの数から状態を決める。
- *
- * ページが1枚も無い書類（Office など）は、読む対象が無いだけなので completed。
- * 「読めなかった」と混ぜると、画面に警告が出続けることになる
- */
+/** 読めたページの数から状態を決める */
 const statusOf = (pages: ReadingRecord["pages"]): ReadingStatus => {
   if (pages.length === 0) {
-    return READING_STATUS.COMPLETED;
+    return READING_STATUS.NO_PAGES;
   }
   const read = pages.filter((page) => page.wasRead).length;
   if (read === pages.length) {

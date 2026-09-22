@@ -482,9 +482,14 @@ export interface ReviewResultDetail extends ReviewResultEntity {
  */
 /** 先に読み取った結果の状態 */
 export const READING_STATUS = {
+  /** ページを全部読めた */
   COMPLETED: "completed",
+  /** 一部のページが読めなかった */
   PARTIAL: "partial",
+  /** ページはあったが1枚も読めなかった */
   FAILED: "failed",
+  /** 読むページが無かった（Office のようにページを持たない書類） */
+  NO_PAGES: "no_pages",
 } as const;
 
 export type ReadingStatus =

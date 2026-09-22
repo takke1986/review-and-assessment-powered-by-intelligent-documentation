@@ -112,15 +112,15 @@ describe("recordReading", () => {
     expect(state.digests[0].status).toBe("failed");
   });
 
-  it("ページの無い書類（Office など）は completed にする", async () => {
-    // 読む対象が無いだけで、読めなかったわけではない。failed にすると
-    // 画面に警告が出続ける
+  it("読むページが無かった書類は no_pages にする", async () => {
+    // Office のように、文字を XML から直に取れてページを持たない書類。
+    // completed と混ぜると「読んだ結果、問題なし」と区別できなくなる
     await recordReading({
       reviewJobId: "job-1",
       records: [record({ pages: [] })],
     });
 
-    expect(state.digests[0].status).toBe("completed");
+    expect(state.digests[0].status).toBe("no_pages");
     expect(state.pages).toHaveLength(0);
   });
 
