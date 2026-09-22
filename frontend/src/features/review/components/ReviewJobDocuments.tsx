@@ -49,6 +49,16 @@ const DocumentList = ({
                 })}
               </p>
             )}
+            {/* 先に読めなかったページ。審査は続けているが中身は分かって
+                いないので、判定をそのまま信じてよいかは人が決める。
+                書類の性質なので、審査結果ごとではなくここに1回だけ出す */}
+            {doc.reading && doc.reading.pagesNotRead.length > 0 && (
+              <p className="mt-1 rounded border border-aws-squid-ink-light/20 bg-yellow-50 px-2 py-1 text-xs text-aws-font-color-gray">
+                {t("review.pagesNotReadInDocument", {
+                  pages: doc.reading.pagesNotRead.join(", "),
+                })}
+              </p>
+            )}
           </li>
         );
       })}

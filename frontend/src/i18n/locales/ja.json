@@ -480,7 +480,6 @@
     "clearFilter": "絞り込みを解除",
     "searchPlaceholderJobs": "ジョブ名か、審査した文書の名前",
     "overriddenByOn": "{{who}} が変更（{{when}}）",
-    "pagesNotRead": "読み取れなかったページがあります（{{pages}}）。このページの内容は判定に含まれていません。",
     "imageLimitReached": "画像を{{seen}}枚まで見た時点で上限に達しました。書類の一部だけを見た判定です。",
     "resumed": "続きから審査を始めました",
     "resumeError": "続きから流せませんでした",
@@ -490,7 +489,8 @@
     "departmentHelp": "複数の部署に所属しているため、どの部署の仕事として記録するかを選んでください。選んだ部署の人が、この審査結果を見られます。",
     "departmentRequired": "部署を選んでください",
     "filterByDepartment": "部署で絞り込み中",
-    "readOnlyByOther": "同じ部署の他の人が行った審査です。内容は見られますが、判定は変更できません。"
+    "readOnlyByOther": "同じ部署の他の人が行った審査です。内容は見られますが、判定は変更できません。",
+    "pagesNotReadInDocument": "先に読み取れなかったページ: p.{{pages}}（審査は元のファイルを見て行いました）"
   },
   "fileUploader": {
     "dropFiles": "ファイルをドロップしてください",

@@ -369,6 +369,13 @@ export interface ReviewJobDocument {
   carriedFromDocumentId?: string;
   /** 再審査で、この文書が差し替えた元のジョブの文書 */
   replacesDocumentId?: string;
+  /** 先に読み取った結果の状態。読み取りを通っていない書類には無い */
+  reading?: {
+    /** completed / partial / failed */
+    status: string;
+    /** 読めなかったページ。審査は続くが中身は分かっていない */
+    pagesNotRead: number[];
+  };
 }
 
 /**
@@ -450,8 +457,6 @@ export interface ReviewResultEntity {
     image_limit?: number;
     /** 上限に達して、それ以上は見られなかったか */
     image_limit_reached?: boolean;
-    /** 先に読もうとして読めなかったページ。書類の名前 → ページ番号 */
-    pages_not_read?: Record<string, number[]>;
   };
   inputTokens?: number;
   outputTokens?: number;

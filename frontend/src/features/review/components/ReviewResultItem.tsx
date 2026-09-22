@@ -352,21 +352,6 @@ export default function ReviewResultItem({
               </div>
             )}
 
-            {/* 先に読めなかったページ。審査は続けているが中身は分かって
-                いないので、そのまま判定を信じてよいかは人が決める */}
-            {result.reviewMeta?.pages_not_read &&
-              Object.keys(result.reviewMeta.pages_not_read).length > 0 && (
-                <div className="mt-1 rounded border border-aws-squid-ink-light/20 bg-yellow-50 px-2 py-1">
-                  <p className="text-xs text-aws-font-color-gray">
-                    {t("review.pagesNotRead", {
-                      pages: Object.entries(result.reviewMeta.pages_not_read)
-                        .map(([file, pages]) => `${file} p.${pages.join(", ")}`)
-                        .join(" / "),
-                    })}
-                  </p>
-                </div>
-              )}
-
             {/* 短い説明文を表示 */}
             {result.shortExplanation && (
               <div className="mt-1">

@@ -480,7 +480,6 @@
     "clearFilter": "Clear the filter",
     "searchPlaceholderJobs": "Job name, or a document name",
     "overriddenByOn": "changed by {{who}} ({{when}})",
-    "pagesNotRead": "Some pages could not be read ({{pages}}), so what is on them is not part of this verdict.",
     "imageLimitReached": "This verdict was made after looking at {{seen}} pictures, which is the limit, so not everything was seen.",
     "resumed": "The review is carrying on from where it stopped",
     "resumeError": "Could not carry on with the review",
@@ -490,7 +489,8 @@
     "departmentHelp": "You belong to more than one department, so choose which one this review is for. People in that department can see the results.",
     "departmentRequired": "Please choose a department",
     "filterByDepartment": "Filtered by department",
-    "readOnlyByOther": "Someone else in your department ran this review. You can read it, but you cannot change its verdicts."
+    "readOnlyByOther": "Someone else in your department ran this review. You can read it, but you cannot change its verdicts.",
+    "pagesNotReadInDocument": "Pages that could not be read ahead: p.{{pages}} (the review used the original file)"
   },
   "fileUploader": {
     "dropFiles": "Drop files here",

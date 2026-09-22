@@ -123,12 +123,24 @@ const toReviewJobDocument = (doc: {
   uploadDate: Date;
   carriedFromDocumentId: string | null;
   replacesDocumentId: string | null;
+  /// 先に読み取った結果の状態。読み取りを通っていない書類には無い
+  digest?: {
+    status: string;
+    pages: Array<{ pageNumber: number }>;
+  } | null;
 }) => ({
   id: doc.id,
   filename: doc.filename,
   s3Path: doc.s3Path,
   fileType: doc.fileType as REVIEW_FILE_TYPE,
   uploadDate: doc.uploadDate,
+  // 読めなかったページ。書類の性質なので、審査結果ごとではなくここに置く
+  reading: doc.digest
+    ? {
+        status: doc.digest.status,
+        pagesNotRead: doc.digest.pages.map((page) => page.pageNumber),
+      }
+    : undefined,
   carriedFromDocumentId: doc.carriedFromDocumentId ?? undefined,
   replacesDocumentId: doc.replacesDocumentId ?? undefined,
 });
@@ -391,6 +403,20 @@ export const makePrismaReviewJobRepository = async (
         documents: {
           orderBy: {
             id: "asc",
+          },
+          include: {
+            // 先に読み取った結果の状態。読めなかったページだけを引く。
+            // 全ページ持ってくると、100ページの書類で無駄に大きくなる
+            digest: {
+              select: {
+                status: true,
+                pages: {
+                  where: { wasRead: false },
+                  select: { pageNumber: true },
+                  orderBy: { pageNumber: "asc" },
+                },
+              },
+            },
           },
         },
         checkListSet: {
