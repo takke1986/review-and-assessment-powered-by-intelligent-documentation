@@ -23,6 +23,8 @@ export interface CreatePromptTemplateRequest {
   description?: string;
   prompt: string;
   type: PromptTemplateType;
+  /** 共有先の部署。兼務のときにモーダルで選ばれる。省略すると所属から決まる */
+  departmentId?: string;
 }
 
 export interface UpdatePromptTemplateRequest {

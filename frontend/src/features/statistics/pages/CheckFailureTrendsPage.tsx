@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useChecklistSets } from "../../checklist/hooks/useCheckListSetQueries";
 import { useCheckFailureTrends } from "../hooks/useCheckFailureTrends";
-import { CheckFailureTrendItem } from "../types";
+import { CHECK_TREND_STATUS, CheckFailureTrendItem } from "../types";
 import { SORTABLE_COLUMNS, STATUS_VIEW } from "../trendView";
 
 export default function CheckFailureTrendsPage() {
