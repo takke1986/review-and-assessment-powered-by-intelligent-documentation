@@ -17,6 +17,10 @@ index.py（AgentCore の入口）から process_review が呼ばれ、1項目ぶ
 
 経路の決め方と判定の基準値は docs/05-審査の流れ.md にまとめてある。
 
+document_block の経路では、書類の直後にプロンプトキャッシュの区切り（cachePoint）を置く。
+項目ごとに変わる指示文を区切りより前に置くとキャッシュが一切読まれなくなる
+（docs/03-運用.md「落とし穴」）。
+
 ## 部品の置き場所
 
     review_prompts.py    モデルに渡す指示文
