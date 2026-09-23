@@ -23,5 +23,7 @@ export const focusFor = (results: ReviewResultDetail[]): string[] =>
     .filter((name) => name.length > 0)
     .slice(0, MAX_FOCUS_ITEMS)
     .map((name) =>
-      name.length > MAX_FOCUS_LENGTH ? `${name.slice(0, MAX_FOCUS_LENGTH)}…` : name
+      name.length > MAX_FOCUS_LENGTH
+        ? `${name.slice(0, MAX_FOCUS_LENGTH)}…`
+        : name
     );

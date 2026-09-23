@@ -163,7 +163,6 @@ export const makePrismaReviewResultRepository = async (
 
     console.log(`[Repository] Found ${results.length} results`);
 
-
     if (results.length === 0) {
       return [];
     }

@@ -19,5 +19,4 @@ import { REVIEW_JOB_STATUS } from "../model/review";
  * まだ走っているものも含めない。同じ項目を二重に審査してしまう
  */
 export const canResume = (status: REVIEW_JOB_STATUS): boolean =>
-  status === REVIEW_JOB_STATUS.FAILED ||
-  status === REVIEW_JOB_STATUS.CANCELLED;
+  status === REVIEW_JOB_STATUS.FAILED || status === REVIEW_JOB_STATUS.CANCELLED;

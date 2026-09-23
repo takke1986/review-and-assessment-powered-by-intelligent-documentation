@@ -1,5 +1,8 @@
 import { PrismaClient, getPrismaClient } from "../../../core/db";
-import { normalizeForStorage, normalizeSearchTerm } from "../../../core/utils/search-text";
+import {
+  normalizeForStorage,
+  normalizeSearchTerm,
+} from "../../../core/utils/search-text";
 import { NotFoundError } from "../../../core/errors";
 import {
   CheckListItemEntity,

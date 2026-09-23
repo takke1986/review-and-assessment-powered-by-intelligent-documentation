@@ -19,7 +19,10 @@ const bothDepartments = {
   rawClaims: { "custom:departments": "営業部,法務部" },
 } as unknown as RequestUser;
 
-const noDepartment = { userId: "u-none", isAdmin: false } as unknown as RequestUser;
+const noDepartment = {
+  userId: "u-none",
+  isAdmin: false,
+} as unknown as RequestUser;
 
 const admin = {
   userId: "u-admin",
@@ -34,10 +37,12 @@ const fakeClient = (model: "checkListSet" | "promptTemplate") => {
     seen,
     client: {
       [model]: {
-        findMany: vi.fn(async ({ where }: { where: Record<string, unknown> }) => {
-          seen.where = where;
-          return [];
-        }),
+        findMany: vi.fn(
+          async ({ where }: { where: Record<string, unknown> }) => {
+            seen.where = where;
+            return [];
+          }
+        ),
         count: vi.fn(async () => 0),
       },
     },

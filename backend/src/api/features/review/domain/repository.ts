@@ -1,5 +1,8 @@
 import { getPrismaClient, PrismaClient } from "../../../core/db";
-import { normalizeForStorage, normalizeSearchTerm } from "../../../core/utils/search-text";
+import {
+  normalizeForStorage,
+  normalizeSearchTerm,
+} from "../../../core/utils/search-text";
 import { NotFoundError } from "../../../core/errors";
 import { PaginatedResponse } from "../../../common/types";
 import {
@@ -17,10 +20,7 @@ import {
 import { CHECK_LIST_STATUS } from "../../checklist/domain/model/checklist";
 import { countCheckItems } from "./service/check-item-selection";
 import { countReviewProgress } from "./service/review-progress";
-import {
-  visibilityFilter,
-  type Viewer,
-} from "../../../core/access/visibility";
+import { visibilityFilter, type Viewer } from "../../../core/access/visibility";
 import { summarizeCost } from "./service/review-cost-summary";
 
 /** 期間で絞るための条件。片側だけの指定もできる */
@@ -71,18 +71,20 @@ export interface ReviewCostSummary {
 }
 
 export interface ReviewJobRepository {
-  findAllReviewJobs(params?: ListParams & {
-    status?: string;
-    // ownerUserId が指定された場合、そのユーザのジョブのみ返す（管理者は未指定）
-    /** 見える範囲。管理者は指定しない */
-    visibleTo?: Viewer;
-    /** 名前か、審査した文書の名前の一部での絞り込み */
-    search?: string;
-    /** このチェックリストを使ったジョブだけ */
-    checkListSetId?: string;
-    /** この部署の審査だけ。部署ごとの履歴を見るのに使う */
-    departmentId?: string;
-  }): Promise<PaginatedResponse<ReviewJobSummary>>;
+  findAllReviewJobs(
+    params?: ListParams & {
+      status?: string;
+      // ownerUserId が指定された場合、そのユーザのジョブのみ返す（管理者は未指定）
+      /** 見える範囲。管理者は指定しない */
+      visibleTo?: Viewer;
+      /** 名前か、審査した文書の名前の一部での絞り込み */
+      search?: string;
+      /** このチェックリストを使ったジョブだけ */
+      checkListSetId?: string;
+      /** この部署の審査だけ。部署ごとの履歴を見るのに使う */
+      departmentId?: string;
+    }
+  ): Promise<PaginatedResponse<ReviewJobSummary>>;
   summarizeReviewCost(
     params: {
       ownerUserId?: string;

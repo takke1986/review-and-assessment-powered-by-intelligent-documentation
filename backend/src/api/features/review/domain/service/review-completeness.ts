@@ -1,7 +1,4 @@
-import {
-  REVIEW_RESULT_STATUS,
-  ReviewResultDetail,
-} from "../model/review";
+import { REVIEW_RESULT_STATUS, ReviewResultDetail } from "../model/review";
 import { leafResults } from "./check-item-selection";
 
 /**

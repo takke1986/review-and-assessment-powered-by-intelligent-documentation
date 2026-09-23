@@ -19,7 +19,12 @@ export interface CreateToolConfigurationRequest {
 }
 
 /** 並べられるのは列と、関連の件数（使用状況）だけ */
-const SORTABLE_FIELDS = ["name", "createdAt", "updatedAt", "usageCount"] as const;
+const SORTABLE_FIELDS = [
+  "name",
+  "createdAt",
+  "updatedAt",
+  "usageCount",
+] as const;
 
 export const getAllToolConfigurationsHandler = async (
   request: FastifyRequest<{

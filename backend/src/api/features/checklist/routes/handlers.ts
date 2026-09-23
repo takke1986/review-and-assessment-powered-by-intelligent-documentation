@@ -152,9 +152,7 @@ export const getAllChecklistSetsHandler = async (
   }>,
   reply: FastifyReply
 ): Promise<void> => {
-  const {
-    status,
-  } = request.query;
+  const { status } = request.query;
 
   const result = await getAllChecklistSets({
     status,

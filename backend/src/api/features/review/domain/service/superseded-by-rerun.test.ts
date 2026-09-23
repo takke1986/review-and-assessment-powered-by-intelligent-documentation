@@ -9,9 +9,9 @@ describe("isSupersededByRerun", () => {
   });
 
   it("完了した再審査があれば、元のジョブは古い", () => {
-    expect(
-      isSupersededByRerun([{ status: REVIEW_JOB_STATUS.COMPLETED }])
-    ).toBe(true);
+    expect(isSupersededByRerun([{ status: REVIEW_JOB_STATUS.COMPLETED }])).toBe(
+      true
+    );
   });
 
   it("実行中の再審査でも古い扱いにする（結果を写している最中に変えられると困る）", () => {

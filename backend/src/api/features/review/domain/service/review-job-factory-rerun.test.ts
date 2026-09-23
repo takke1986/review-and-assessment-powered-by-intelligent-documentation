@@ -253,7 +253,9 @@ describe("再審査での、覆された記録の扱い", () => {
     const carried = results.find((r) => r.checkId === "C")!;
     expect(carried.carriedOver).toBe(true);
     expect(carried.aiResult).toBe(REVIEW_RESULT.FAIL);
-    expect(carried.overrideReason).toBe(OVERRIDE_REASON.CRITERIA_INTERPRETATION);
+    expect(carried.overrideReason).toBe(
+      OVERRIDE_REASON.CRITERIA_INTERPRETATION
+    );
     // 人が覆したという事実そのものも残る
     expect(carried.userOverride).toBe(true);
     // 誰がいつ決めたかも引き継ぐ。引き継ぎは同じ判定の写しなので
@@ -271,7 +273,11 @@ describe("再審査での、覆された記録の扱い", () => {
     const carried = results.find((r) => r.checkId === "C")!;
 
     const again = ReviewResultDomain.fromOverrideRequest({
-      current: { ...carried, checkList: overridden.checkList, hasChildren: false },
+      current: {
+        ...carried,
+        checkList: overridden.checkList,
+        hasChildren: false,
+      },
       result: REVIEW_RESULT.FAIL,
       userComment: "やはり不合格",
     });

@@ -25,5 +25,4 @@ export const canReviewAgain = (status: REVIEW_JOB_STATUS): boolean =>
  * 途中で終わったなら「続きから」で、利用者のすることが違う
  */
 export const endedEarly = (status: REVIEW_JOB_STATUS): boolean =>
-  status === REVIEW_JOB_STATUS.FAILED ||
-  status === REVIEW_JOB_STATUS.CANCELLED;
+  status === REVIEW_JOB_STATUS.FAILED || status === REVIEW_JOB_STATUS.CANCELLED;

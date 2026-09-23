@@ -17,6 +17,4 @@ import { REVIEW_JOB_STATUS } from "../model/review";
 export const isSupersededByRerun = (
   rerunJobs: Array<{ status: REVIEW_JOB_STATUS }> | undefined
 ): boolean =>
-  (rerunJobs ?? []).some(
-    (rerun) => rerun.status !== REVIEW_JOB_STATUS.FAILED
-  );
+  (rerunJobs ?? []).some((rerun) => rerun.status !== REVIEW_JOB_STATUS.FAILED);

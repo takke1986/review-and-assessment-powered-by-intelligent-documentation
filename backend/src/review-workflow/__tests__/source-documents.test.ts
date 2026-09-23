@@ -168,7 +168,12 @@ describe("selectSourceDocuments", () => {
         documents: [{ id: "d-1", filename: "稟議書.pdf" }],
         documentIds: ["d-1"],
         sources: [
-          { file: "稟議書.pdf", page: 2, section: 9, label: "まぎらわしい見出し" },
+          {
+            file: "稟議書.pdf",
+            page: 2,
+            section: 9,
+            label: "まぎらわしい見出し",
+          },
         ],
       })
     ).toEqual([{ documentId: "d-1", filename: "稟議書.pdf", pageNumber: 2 }]);

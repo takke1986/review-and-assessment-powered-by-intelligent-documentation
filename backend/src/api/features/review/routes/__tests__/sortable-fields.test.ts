@@ -15,7 +15,9 @@ const read = (relative: string) =>
 
 const serverFields = (): Set<string> => {
   const source = read("backend/src/api/features/review/routes/handlers.ts");
-  const block = source.match(/const SORTABLE_FIELDS = \[([\s\S]*?)\] as const;/);
+  const block = source.match(
+    /const SORTABLE_FIELDS = \[([\s\S]*?)\] as const;/
+  );
   if (!block) throw new Error("SORTABLE_FIELDS が見つからない");
   return new Set(
     Array.from(block[1].matchAll(/"([a-zA-Z]+)"/g)).map((m) => m[1])

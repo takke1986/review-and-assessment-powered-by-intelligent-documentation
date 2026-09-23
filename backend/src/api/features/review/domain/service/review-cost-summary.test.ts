@@ -85,7 +85,11 @@ describe("summarizeCost", () => {
 
   it("puts the most expensive checklist first", () => {
     const summary = summarizeCost([
-      row({ checkListSetId: "cheap", checkListSetName: "安い", totalCost: 0.001 }),
+      row({
+        checkListSetId: "cheap",
+        checkListSetName: "安い",
+        totalCost: 0.001,
+      }),
       row({
         id: "b",
         checkListSetId: "pricey",

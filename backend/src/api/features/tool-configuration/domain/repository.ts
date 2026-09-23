@@ -11,7 +11,9 @@ import { ToolConfigurationEntity } from "./model/tool-configuration";
 
 export interface ToolConfigurationRepository {
   create(config: ToolConfigurationEntity): Promise<void>;
-  findAll(params?: ListParams): Promise<PaginatedResponse<ToolConfigurationEntity>>;
+  findAll(
+    params?: ListParams
+  ): Promise<PaginatedResponse<ToolConfigurationEntity>>;
   findById(id: string): Promise<ToolConfigurationEntity>;
   delete(id: string): Promise<void>;
   isUsedByCheckLists(id: string): Promise<boolean>;

@@ -1,11 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { parseListQuery, resolvePaging, toPaginatedResponse } from "./pagination";
+import {
+  parseListQuery,
+  resolvePaging,
+  toPaginatedResponse,
+} from "./pagination";
 
 const SORTABLE = ["name", "createdAt", "updatedAt"] as const;
 
 describe("parseListQuery", () => {
   it("クエリの文字列を数値にそろえる", () => {
-    expect(parseListQuery({ page: "3", limit: "50" }, SORTABLE, "createdAt")).toMatchObject({
+    expect(
+      parseListQuery({ page: "3", limit: "50" }, SORTABLE, "createdAt")
+    ).toMatchObject({
       page: 3,
       limit: 50,
     });
@@ -27,19 +33,27 @@ describe("parseListQuery", () => {
   });
 
   it("数値にならない指定は既定値にする。以前は Prisma まで NaN が渡っていた", () => {
-    expect(parseListQuery({ page: "abc", limit: "" }, SORTABLE, "name")).toMatchObject({
+    expect(
+      parseListQuery({ page: "abc", limit: "" }, SORTABLE, "name")
+    ).toMatchObject({
       page: 1,
       limit: 10,
     });
   });
 
   it("向きは昇順だけ受け、それ以外は降順にする", () => {
-    expect(parseListQuery({ sortOrder: "asc" }, SORTABLE, "name").sortOrder).toBe("asc");
-    expect(parseListQuery({ sortOrder: "bogus" }, SORTABLE, "name").sortOrder).toBe("desc");
+    expect(
+      parseListQuery({ sortOrder: "asc" }, SORTABLE, "name").sortOrder
+    ).toBe("asc");
+    expect(
+      parseListQuery({ sortOrder: "bogus" }, SORTABLE, "name").sortOrder
+    ).toBe("desc");
   });
 
   it("検索語はそのまま渡す。正規化は検索する側で行う", () => {
-    expect(parseListQuery({ search: " 見積 " }, SORTABLE, "name").search).toBe(" 見積 ");
+    expect(parseListQuery({ search: " 見積 " }, SORTABLE, "name").search).toBe(
+      " 見積 "
+    );
   });
 });
 
@@ -68,6 +82,8 @@ describe("toPaginatedResponse", () => {
   });
 
   it("1件も無ければ0ページ", () => {
-    expect(toPaginatedResponse([], 0, { page: 1, limit: 10 }).totalPages).toBe(0);
+    expect(toPaginatedResponse([], 0, { page: 1, limit: 10 }).totalPages).toBe(
+      0
+    );
   });
 });

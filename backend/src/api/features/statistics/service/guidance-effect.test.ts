@@ -3,7 +3,9 @@ import { splitByGuidance, wasOverturned } from "./guidance-effect";
 
 const written = new Date("2026-09-10T00:00:00Z");
 
-const judged = (overrides: Partial<Parameters<typeof wasOverturned>[0]> = {}) => ({
+const judged = (
+  overrides: Partial<Parameters<typeof wasOverturned>[0]> = {}
+) => ({
   checkId: "check-1",
   createdAt: new Date("2026-09-01T00:00:00Z"),
   userOverride: false,
@@ -27,7 +29,9 @@ describe("wasOverturned", () => {
 
   it("AI の判定が分からない古い結果は数えない", () => {
     expect(
-      wasOverturned(judged({ userOverride: true, aiResult: null, result: "pass" }))
+      wasOverturned(
+        judged({ userOverride: true, aiResult: null, result: "pass" })
+      )
     ).toBe(false);
   });
 });
@@ -37,8 +41,16 @@ describe("splitByGuidance", () => {
     const effect = splitByGuidance({
       writtenAt: written,
       results: [
-        judged({ createdAt: new Date("2026-09-01T00:00:00Z"), userOverride: true, result: "pass" }),
-        judged({ createdAt: new Date("2026-09-05T00:00:00Z"), userOverride: true, result: "pass" }),
+        judged({
+          createdAt: new Date("2026-09-01T00:00:00Z"),
+          userOverride: true,
+          result: "pass",
+        }),
+        judged({
+          createdAt: new Date("2026-09-05T00:00:00Z"),
+          userOverride: true,
+          result: "pass",
+        }),
         judged({ createdAt: new Date("2026-09-08T00:00:00Z") }),
         judged({ createdAt: new Date("2026-09-12T00:00:00Z") }),
         judged({ createdAt: new Date("2026-09-15T00:00:00Z") }),

@@ -207,7 +207,9 @@ export async function processWithLLM({
     `[DEBUG] Final language used for checklist extraction: ${userLanguage}`
   );
   console.log(`[DEBUG] Using model: ${MODEL_ID}`);
-  console.log(`[DEBUG] Page size: ${pdfBytes?.length ?? pageText?.length} ${pageFormat === "pdf" ? "bytes" : "characters"}`);
+  console.log(
+    `[DEBUG] Page size: ${pdfBytes?.length ?? pageText?.length} ${pageFormat === "pdf" ? "bytes" : "characters"}`
+  );
 
   const checklistExtractionPrompt = getChecklistExtractionPrompt(userLanguage);
 

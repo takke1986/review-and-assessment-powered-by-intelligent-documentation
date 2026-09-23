@@ -120,8 +120,12 @@ describe("審査を作るとき", () => {
 
   it("管理者が選んだ部署も、そのまま記録する", async () => {
     expect(
-      (await create(adminWithDepartments, { name: "審査", departmentId: "法務部" }))
-        ?.departmentId
+      (
+        await create(adminWithDepartments, {
+          name: "審査",
+          departmentId: "法務部",
+        })
+      )?.departmentId
     ).toBe("法務部");
   });
 
@@ -145,10 +149,12 @@ describe("一覧を出すとき", () => {
     const seen: { where?: Record<string, unknown> } = {};
     const client = {
       reviewJob: {
-        findMany: vi.fn(async ({ where }: { where: Record<string, unknown> }) => {
-          seen.where = where;
-          return [];
-        }),
+        findMany: vi.fn(
+          async ({ where }: { where: Record<string, unknown> }) => {
+            seen.where = where;
+            return [];
+          }
+        ),
         count: vi.fn(async () => 0),
       },
       // 一覧は、項目を選んで作ったジョブを見分けるためにチェックリストも読む。
@@ -214,6 +220,8 @@ describe("費用のページ", () => {
   });
 
   it("部署に属する管理者でも、費用は全体を見る", async () => {
-    expect((await summarizeAs(adminWithDepartments)).ownerUserId).toBeUndefined();
+    expect(
+      (await summarizeAs(adminWithDepartments)).ownerUserId
+    ).toBeUndefined();
   });
 });

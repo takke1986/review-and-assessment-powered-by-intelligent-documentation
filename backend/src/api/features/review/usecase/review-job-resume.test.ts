@@ -70,8 +70,16 @@ describe("resumeReviewJob", () => {
   it("sends a fresh deduplication id, so the queue does not drop it", async () => {
     const repo = repoFor(job(REVIEW_JOB_STATUS.CANCELLED));
 
-    await resumeReviewJob({ reviewJobId: "job-1", user: owner, deps: { repo } });
-    await resumeReviewJob({ reviewJobId: "job-1", user: owner, deps: { repo } });
+    await resumeReviewJob({
+      reviewJobId: "job-1",
+      user: owner,
+      deps: { repo },
+    });
+    await resumeReviewJob({
+      reviewJobId: "job-1",
+      user: owner,
+      deps: { repo },
+    });
 
     const [first, second] = sendMessage.mock.calls;
     expect(first[3]).toBeTruthy();

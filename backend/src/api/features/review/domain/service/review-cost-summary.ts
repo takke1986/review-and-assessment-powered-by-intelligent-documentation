@@ -50,7 +50,10 @@ export function summarizeCost(
     string,
     { name: string; totalCost: number; jobCount: number }
   >();
-  const departments = new Map<string, { totalCost: number; jobCount: number }>();
+  const departments = new Map<
+    string,
+    { totalCost: number; jobCount: number }
+  >();
   // 部署の付いていない審査。合計には入るが内訳には入らないので、別に数える
   const withoutDepartment = { totalCost: 0, jobCount: 0 };
   let totalCost = 0;

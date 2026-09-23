@@ -82,18 +82,20 @@ export const computeGlobalConcurrency = async (): Promise<{
   return { isLimit: false };
 };
 
-export const getAllReviewJobs = async (params: ListParams & {
-  status?: string;
-  /** このチェックリストを使ったジョブだけ */
-  checkListSetId?: string;
-  /** この部署の審査だけ。部署ごとの履歴を見るのに使う */
-  departmentId?: string;
-  // オプショナルでリクエストユーザーを受け取り、一般ユーザの場合は ownerUserId を使って絞る
-  user: RequestUser;
-  deps?: {
-    repo?: ReviewJobRepository;
-  };
-}): Promise<PaginatedResponse<ReviewJobSummary>> => {
+export const getAllReviewJobs = async (
+  params: ListParams & {
+    status?: string;
+    /** このチェックリストを使ったジョブだけ */
+    checkListSetId?: string;
+    /** この部署の審査だけ。部署ごとの履歴を見るのに使う */
+    departmentId?: string;
+    // オプショナルでリクエストユーザーを受け取り、一般ユーザの場合は ownerUserId を使って絞る
+    user: RequestUser;
+    deps?: {
+      repo?: ReviewJobRepository;
+    };
+  }
+): Promise<PaginatedResponse<ReviewJobSummary>> => {
   const repo = params.deps?.repo || (await makePrismaReviewJobRepository());
 
   // 自分のものと、社内に公開されたものが見える（管理者は全件）

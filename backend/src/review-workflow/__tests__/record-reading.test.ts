@@ -85,7 +85,10 @@ describe("recordReading", () => {
       status: "completed",
     });
     expect(state.pages.map((p) => p.pageNumber)).toEqual([1, 2]);
-    expect(state.images[0]).toMatchObject({ name: "image1.png", hasText: true });
+    expect(state.images[0]).toMatchObject({
+      name: "image1.png",
+      hasText: true,
+    });
   });
 
   it("一部しか読めていなければ partial にする", async () => {

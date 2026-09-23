@@ -35,10 +35,13 @@ describe("assertIsAdminOrThrow", () => {
     // 誰が何を触ろうとしたかが分からないと、あとから追えない
     const warn = vi.fn();
     expect(() =>
-      assertIsAdminOrThrow({ userId: "u-9", isAdmin: false }, {
-        api: "createToolConfiguration",
-        logger: { warn },
-      })
+      assertIsAdminOrThrow(
+        { userId: "u-9", isAdmin: false },
+        {
+          api: "createToolConfiguration",
+          logger: { warn },
+        }
+      )
     ).toThrow();
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining("createToolConfiguration")

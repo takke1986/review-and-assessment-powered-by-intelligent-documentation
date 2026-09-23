@@ -84,7 +84,10 @@ export const decideCheckTrendStatus = (row: {
   if (row.failRate < HIGH_FAIL_RATE) {
     return CHECK_TREND_STATUS.STABLE;
   }
-  if (row.averageConfidence !== null && row.averageConfidence < LOW_CONFIDENCE) {
+  if (
+    row.averageConfidence !== null &&
+    row.averageConfidence < LOW_CONFIDENCE
+  ) {
     return CHECK_TREND_STATUS.NEEDS_GUIDANCE;
   }
   return CHECK_TREND_STATUS.OPERATIONAL_ISSUE;

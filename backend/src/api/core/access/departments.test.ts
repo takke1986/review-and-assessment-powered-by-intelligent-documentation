@@ -18,9 +18,9 @@ describe("departmentsOf", () => {
   });
 
   it("区切りは読点でも分号でも空白でもよい。IdP によって変わる", () => {
-    expect(departmentsOf(withDepartments("sales, legal;audit  procurement"))).toEqual(
-      ["sales", "legal", "audit", "procurement"]
-    );
+    expect(
+      departmentsOf(withDepartments("sales, legal;audit  procurement"))
+    ).toEqual(["sales", "legal", "audit", "procurement"]);
   });
 
   it("同じ部署が二度入っていても重複させない", () => {
@@ -52,9 +52,7 @@ describe("departmentsOf", () => {
 
 describe("resolveDepartment", () => {
   it("所属が1つなら選ぶまでもない", () => {
-    expect(
-      resolveDepartment({ user: withDepartments("sales") })
-    ).toBe("sales");
+    expect(resolveDepartment({ user: withDepartments("sales") })).toBe("sales");
   });
 
   it("兼務で選ばれていなければ止める", () => {

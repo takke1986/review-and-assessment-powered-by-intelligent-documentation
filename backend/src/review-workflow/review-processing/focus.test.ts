@@ -9,10 +9,9 @@ const item = (checkId: string, name: string, parentId?: string): any => ({
 
 describe("focusFor", () => {
   it("lists what the documents will be checked against", () => {
-    expect(focusFor([item("A", "押印の有無"), item("B", "金額の一致")])).toEqual([
-      "押印の有無",
-      "金額の一致",
-    ]);
+    expect(
+      focusFor([item("A", "押印の有無"), item("B", "金額の一致")])
+    ).toEqual(["押印の有無", "金額の一致"]);
   });
 
   // 親は子から集計して決まる。審査するのは子を持たない項目だけ
@@ -26,12 +25,18 @@ describe("focusFor", () => {
   });
 
   it("keeps the order the items are reviewed in", () => {
-    const results = [item("A", "一つ目"), item("B", "二つ目"), item("C", "三つ目")];
+    const results = [
+      item("A", "一つ目"),
+      item("B", "二つ目"),
+      item("C", "三つ目"),
+    ];
     expect(focusFor(results)).toEqual(["一つ目", "二つ目", "三つ目"]);
   });
 
   it("ignores an item with no name", () => {
-    expect(focusFor([item("A", "  "), item("B", "名前あり")])).toEqual(["名前あり"]);
+    expect(focusFor([item("A", "  "), item("B", "名前あり")])).toEqual([
+      "名前あり",
+    ]);
   });
 
   // 項目が数百あると読み取りの指示が膨らみ、読み取り自体の費用が増える

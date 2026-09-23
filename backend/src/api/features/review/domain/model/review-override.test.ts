@@ -38,7 +38,9 @@ describe("fromOverrideRequest", () => {
     expect(updated.result).toBe(REVIEW_RESULT.PASS);
     expect(updated.aiResult).toBe(REVIEW_RESULT.FAIL);
     expect(updated.userOverride).toBe(true);
-    expect(updated.overrideReason).toBe(OVERRIDE_REASON.CRITERIA_INTERPRETATION);
+    expect(updated.overrideReason).toBe(
+      OVERRIDE_REASON.CRITERIA_INTERPRETATION
+    );
   });
 
   it("recovers the AI verdict for a result judged before this was recorded", () => {

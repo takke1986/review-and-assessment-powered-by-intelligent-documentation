@@ -4,7 +4,9 @@ import {
   decideCheckTrendStatus,
 } from "./check-trend-status";
 
-const row = (overrides: Partial<Parameters<typeof decideCheckTrendStatus>[0]>) => ({
+const row = (
+  overrides: Partial<Parameters<typeof decideCheckTrendStatus>[0]>
+) => ({
   reviewedCount: 10,
   carriedOverCount: 0,
   failRate: 0,
@@ -28,9 +30,9 @@ describe("チェック項目の状態", () => {
   });
 
   it("審査回数が少ないうちは、割合が高くても判断材料が足りない", () => {
-    expect(
-      decideCheckTrendStatus(row({ reviewedCount: 2, failRate: 1 }))
-    ).toBe(CHECK_TREND_STATUS.INSUFFICIENT_DATA);
+    expect(decideCheckTrendStatus(row({ reviewedCount: 2, failRate: 1 }))).toBe(
+      CHECK_TREND_STATUS.INSUFFICIENT_DATA
+    );
   });
 
   it("よく落ちて信頼度が低ければ、AI が迷っている", () => {
@@ -87,13 +89,17 @@ describe("人が覆した記録からの状態", () => {
 
   it("不合格を3割以上合格に戻していれば、厳しすぎる", () => {
     expect(
-      decideCheckTrendStatus(row({ reviewedCount: 10, overturnedToPassCount: 3 }))
+      decideCheckTrendStatus(
+        row({ reviewedCount: 10, overturnedToPassCount: 3 })
+      )
     ).toBe(CHECK_TREND_STATUS.TOO_STRICT);
   });
 
   it("戻した割合が低ければ、厳しすぎるとは言わない", () => {
     expect(
-      decideCheckTrendStatus(row({ reviewedCount: 10, overturnedToPassCount: 2 }))
+      decideCheckTrendStatus(
+        row({ reviewedCount: 10, overturnedToPassCount: 2 })
+      )
     ).toBe(CHECK_TREND_STATUS.STABLE);
   });
 

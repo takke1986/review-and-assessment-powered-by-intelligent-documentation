@@ -58,8 +58,8 @@ describe("getReviewCostSummaryHandler", () => {
 
   it("falls back to UTC when the time zone cannot be read", async () => {
     expect((await call({}))?.tzOffsetMinutes).toBe(0);
-    expect((await call({ tzOffsetMinutes: "とうきょう" }))?.tzOffsetMinutes).toBe(
-      0
-    );
+    expect(
+      (await call({ tzOffsetMinutes: "とうきょう" }))?.tzOffsetMinutes
+    ).toBe(0);
   });
 });
