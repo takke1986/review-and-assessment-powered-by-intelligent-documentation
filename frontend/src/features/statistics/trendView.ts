@@ -91,3 +91,33 @@ export const SORTABLE_COLUMNS = [
   { key: "averageConfidence", label: "trends.confidence", alignRight: true },
   { key: "lastFailedAt", label: "trends.lastFailed", alignRight: false },
 ] as const;
+
+/**
+ * 横断一覧の列。既定の並びは「手を入れる項目」の多い順。
+ *
+ * 不合格率を既定にしない理由は set-trend-summary.ts に書いてある通りで、
+ * 1回しか審査していないセットが 100% で先頭に来てしまうため。
+ */
+interface SetTrendColumn {
+  key: string;
+  label: string;
+  alignRight: boolean;
+  /** 並べ替えの対象にしない列。既定は対象にする */
+  sortable?: boolean;
+}
+
+export const SET_TREND_COLUMNS: SetTrendColumn[] = [
+  { key: "name", label: "trends.checkListSet", alignRight: false },
+  { key: "reviewJobCount", label: "trends.reviewJobs", alignRight: true },
+  { key: "failRate", label: "trends.failRate", alignRight: false },
+  { key: "actionableCount", label: "trends.actionableItems", alignRight: true },
+  { key: "overturned", label: "trends.overturned", alignRight: true },
+  { key: "lastReviewedAt", label: "trends.lastReviewed", alignRight: false },
+  // 遷移のリンク。並べ替えの対象にしない
+  {
+    key: "link",
+    label: "trends.openColumn",
+    alignRight: false,
+    sortable: false,
+  },
+];

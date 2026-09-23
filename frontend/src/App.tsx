@@ -18,6 +18,7 @@ import {
 } from "./features/tool-configuration";
 import { ExamplesPage } from "./features/examples";
 import CheckFailureTrendsPage from "./features/statistics/pages/CheckFailureTrendsPage";
+import CheckListSetTrendsPage from "./features/statistics/pages/CheckListSetTrendsPage";
 import ReviewCostPage from "./features/cost/pages/ReviewCostPage";
 import ReviewReportPage from "./features/review/pages/ReviewReportPage";
 import NotFoundPage from "./pages/NotFoundPage";
@@ -86,7 +87,12 @@ function App() {
 
                   <Route path="examples" element={<ExamplesPage />} />
 
-                  <Route path="trends" element={<CheckFailureTrendsPage />} />
+                  {/* 横断一覧で対象を決め、個別の傾向へ降りる */}
+                  <Route path="trends" element={<CheckListSetTrendsPage />} />
+                  <Route
+                    path="trends/:setId"
+                    element={<CheckFailureTrendsPage />}
+                  />
                   <Route path="costs" element={<ReviewCostPage />} />
 
                   <Route

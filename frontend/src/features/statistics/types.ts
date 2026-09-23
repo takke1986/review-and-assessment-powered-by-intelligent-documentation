@@ -47,3 +47,30 @@ export type GetCheckFailureTrendsResponse = ApiResponse<{
   reviewJobCount: number;
   items: CheckFailureTrendItem[];
 }>;
+
+/** 横断一覧の1行。セット同士を比べるための要約で、項目は含まない */
+export interface CheckListSetTrendSummary {
+  checkListSetId: string;
+  name: string;
+  departmentId: string | null;
+  /** 末端のチェック項目の数 */
+  itemCount: number;
+  reviewJobCount: number;
+  /** 0〜1。審査が無ければ null（0% とは違う） */
+  failRate: number | null;
+  /** 手を入れる価値がある項目の数 */
+  actionableCount: number;
+  /** 傾向として読むには審査が足りない */
+  insufficientData: boolean;
+  missedCount: number;
+  overturnedToPassCount: number;
+  lastReviewedAt: string | null;
+}
+
+export type GetCheckListSetTrendsResponse = ApiResponse<{
+  items: CheckListSetTrendSummary[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}>;

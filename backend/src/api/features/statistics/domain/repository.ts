@@ -3,10 +3,13 @@ import {
   CHECK_TREND_STATUS,
   decideCheckTrendStatus,
 } from "../service/check-trend-status";
+import { GuidanceEffect, splitByGuidance } from "../service/guidance-effect";
 import {
-  GuidanceEffect,
-  splitByGuidance,
-} from "../service/guidance-effect";
+  CheckItemCounts,
+  CheckListSetTrendSummary,
+  summarizeSets,
+} from "../service/set-trend-summary";
+import { Viewer, visibilityFilter } from "../../../core/access/visibility";
 
 /** 審査結果の合否。DB には小文字で入る */
 const RESULT_FAIL = "fail";
@@ -44,6 +47,10 @@ export interface StatisticsRepository {
     checkListSetId: string;
   }): Promise<CheckFailureTrendRow[]>;
   countReviewJobs(params: { checkListSetId: string }): Promise<number>;
+  /** チェックリストを横断した要約。見える範囲に絞る */
+  findCheckListSetTrendSummaries(params: {
+    visibleTo?: Viewer;
+  }): Promise<CheckListSetTrendSummary[]>;
 }
 
 export const makePrismaStatisticsRepository = async (
@@ -169,9 +176,11 @@ export const makePrismaStatisticsRepository = async (
           const failure = failureByCheckId.get(checkId);
           const reviewedCount = total?._count._all ?? 0;
           const failedCount = failure?._count._all ?? 0;
-          const failRate = reviewedCount === 0 ? 0 : failedCount / reviewedCount;
+          const failRate =
+            reviewedCount === 0 ? 0 : failedCount / reviewedCount;
           const averageConfidence = total?._avg.confidenceScore ?? null;
-          const carriedOverCount = carriedByCheckId.get(checkId)?._count._all ?? 0;
+          const carriedOverCount =
+            carriedByCheckId.get(checkId)?._count._all ?? 0;
           const missedCount = countOverturns(checkId, RESULT_PASS, RESULT_FAIL);
           const overturnedToPassCount = countOverturns(
             checkId,
@@ -211,6 +220,121 @@ export const makePrismaStatisticsRepository = async (
 
     async countReviewJobs({ checkListSetId }) {
       return client.reviewJob.count({ where: { checkListSetId } });
+    },
+
+    /**
+     * セットごとの要約。
+     *
+     * 個別の傾向を全セット分呼ぶと問い合わせがセット数に比例するので、
+     * 同じ集計を checkListSetId で絞らずに1回ずつ引き、あとでセットに
+     * 振り分ける。着眼点の効果はセット単位では使わないので引かない。
+     */
+    async findCheckListSetTrendSummaries({ visibleTo }) {
+      const visible = visibilityFilter(visibleTo);
+      const setWhere = visible ? { AND: [visible] } : {};
+
+      const sets = await client.checkListSet.findMany({
+        where: setWhere,
+        select: { id: true, name: true, departmentId: true },
+      });
+      if (sets.length === 0) {
+        return [];
+      }
+      const setIds = sets.map((set) => set.id);
+
+      // 末端の項目だけを対象にする。親は子から導いた結果を持つため
+      const judged = {
+        status: STATUS_COMPLETED,
+        carriedOver: false,
+        result: { not: null },
+        reviewJob: { checkListSetId: { in: setIds } },
+        checkList: { children: { none: {} } },
+      };
+
+      const [totals, failures, carriedOvers, overturns, jobs, leaves] =
+        await Promise.all([
+          client.reviewResult.groupBy({
+            by: ["checkId"],
+            where: judged,
+            _count: { _all: true },
+            _avg: { confidenceScore: true },
+          }),
+          client.reviewResult.groupBy({
+            by: ["checkId"],
+            where: { ...judged, result: RESULT_FAIL },
+            _count: { _all: true },
+          }),
+          client.reviewResult.groupBy({
+            by: ["checkId"],
+            where: { ...judged, carriedOver: true },
+            _count: { _all: true },
+          }),
+          client.reviewResult.groupBy({
+            by: ["checkId", "aiResult", "result"],
+            where: { ...judged, userOverride: true, aiResult: { not: null } },
+            _count: { _all: true },
+          }),
+          client.reviewJob.groupBy({
+            by: ["checkListSetId"],
+            where: { checkListSetId: { in: setIds } },
+            _count: { _all: true },
+            _max: { createdAt: true },
+          }),
+          // 末端の項目とその所属セット。項目数と振り分けに使う
+          client.checkList.findMany({
+            where: { checkListSetId: { in: setIds }, children: { none: {} } },
+            select: { id: true, checkListSetId: true },
+          }),
+        ]);
+
+      const setIdByCheckId = new Map(
+        leaves.map((leaf) => [leaf.id, leaf.checkListSetId])
+      );
+      const totalByCheckId = new Map(totals.map((row) => [row.checkId, row]));
+      const failedByCheckId = new Map(
+        failures.map((row) => [row.checkId, row])
+      );
+      const carriedByCheckId = new Map(
+        carriedOvers.map((row) => [row.checkId, row])
+      );
+      const countOverturns = (checkId: string, from: string, to: string) =>
+        overturns
+          .filter(
+            (row) =>
+              row.checkId === checkId &&
+              row.aiResult === from &&
+              row.result === to
+          )
+          .reduce((sum, row) => sum + row._count._all, 0);
+
+      // 一度も審査されていない項目も項目数に含める。セットの大きさを示すため
+      const items: CheckItemCounts[] = leaves.map((leaf) => ({
+        checkId: leaf.id,
+        checkListSetId: setIdByCheckId.get(leaf.id) ?? leaf.checkListSetId,
+        reviewedCount: totalByCheckId.get(leaf.id)?._count._all ?? 0,
+        failedCount: failedByCheckId.get(leaf.id)?._count._all ?? 0,
+        carriedOverCount: carriedByCheckId.get(leaf.id)?._count._all ?? 0,
+        averageConfidence:
+          totalByCheckId.get(leaf.id)?._avg.confidenceScore ?? null,
+        missedCount: countOverturns(leaf.id, RESULT_PASS, RESULT_FAIL),
+        overturnedToPassCount: countOverturns(
+          leaf.id,
+          RESULT_FAIL,
+          RESULT_PASS
+        ),
+      }));
+
+      const jobBySetId = new Map(jobs.map((row) => [row.checkListSetId, row]));
+      return summarizeSets({
+        sets: sets.map((set) => ({
+          id: set.id,
+          name: set.name,
+          departmentId: set.departmentId ?? null,
+          reviewJobCount: jobBySetId.get(set.id)?._count._all ?? 0,
+          lastReviewedAt: jobBySetId.get(set.id)?._max.createdAt ?? null,
+        })),
+        items,
+      });
     },
   };
 };
