@@ -1,8 +1,5 @@
 import type { TFunction } from "i18next";
-import {
-  type ReviewJobDocument,
-  type ReviewResultDetail,
-} from "../types";
+import { type ReviewJobDocument, type ReviewResultDetail } from "../types";
 import {
   filenamesById,
   flattenInOrder,

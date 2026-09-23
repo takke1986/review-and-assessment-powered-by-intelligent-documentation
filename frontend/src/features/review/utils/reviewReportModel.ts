@@ -88,10 +88,7 @@ export const filenamesById = (documents: ReviewJobDocument[]) =>
   new Map(documents.map((document) => [document.id, document.filename]));
 
 /** 判定の文言。判定がまだ無い項目は空にする */
-export function verdictLabel(
-  result: ReviewResultDetail,
-  t: TFunction
-): string {
+export function verdictLabel(result: ReviewResultDetail, t: TFunction): string {
   if (result.result === REVIEW_RESULT.PASS) return t("review.pass");
   if (result.result === REVIEW_RESULT.FAIL) return t("review.fail");
   return "";

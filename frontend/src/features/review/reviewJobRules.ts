@@ -44,8 +44,7 @@ export const canReviewAgain = (status: REVIEW_JOB_STATUS): boolean =>
  * 履歴に残り続けるのを避けるため
  */
 export const canResume = (status: REVIEW_JOB_STATUS): boolean =>
-  status === REVIEW_JOB_STATUS.FAILED ||
-  status === REVIEW_JOB_STATUS.CANCELLED;
+  status === REVIEW_JOB_STATUS.FAILED || status === REVIEW_JOB_STATUS.CANCELLED;
 
 /**
  * 途中で終わったジョブか。
@@ -54,5 +53,4 @@ export const canResume = (status: REVIEW_JOB_STATUS): boolean =>
  * 利用者のすることが違うので、言い回しを変える
  */
 export const endedEarly = (status: REVIEW_JOB_STATUS): boolean =>
-  status === REVIEW_JOB_STATUS.FAILED ||
-  status === REVIEW_JOB_STATUS.CANCELLED;
+  status === REVIEW_JOB_STATUS.FAILED || status === REVIEW_JOB_STATUS.CANCELLED;

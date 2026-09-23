@@ -1,5 +1,9 @@
 import type { TFunction } from "i18next";
-import { REVIEW_RESULT, type ReviewJobDocument, type ReviewResultDetail } from "../types";
+import {
+  REVIEW_RESULT,
+  type ReviewJobDocument,
+  type ReviewResultDetail,
+} from "../types";
 import {
   countVerdicts,
   filenamesById,
@@ -71,7 +75,9 @@ export function buildReviewResultText(params: {
     }
     const sources = formatSources(result, filenameById, t);
     if (sources.length > 0) {
-      lines.push(`${indent}  ${t("review.report.source")}: ${sources.join(", ")}`);
+      lines.push(
+        `${indent}  ${t("review.report.source")}: ${sources.join(", ")}`
+      );
     }
     if (result.userOverride) {
       const who = overriddenByLabel(result, t);
