@@ -1,4 +1,5 @@
 import { FastifyReply, FastifyRequest } from "fastify";
+import { displayNameOf } from "../../../core/access/display-name";
 import { parseListQuery } from "../../../common/pagination";
 import {
   computeGlobalConcurrency,
@@ -220,6 +221,11 @@ export interface CreateReviewJobRequest {
   }>;
   userId?: string;
   /**
+   * 審査を始めた人の表示名。画面からは受け取らず、サーバがトークンから
+   * 読む。画面に送らせると別人の名前を入れられる
+   */
+  userName?: string;
+  /**
    * この審査をどの部署の仕事として記録するか。兼務があるので、作った人の
    * 所属が1つに決まらないときは画面で選んでもらう
    */
@@ -256,6 +262,8 @@ export const createReviewJobHandler = async (
     requestBody: {
       ...request.body,
       userId: request.user?.userId,
+      // 名前も送られてきた値は使わず、トークンから読む
+      userName: displayNameOf(request.user),
       // どの部署の仕事として記録するかは、送られてきた値をそのまま信じず、
       // その人が属している部署かどうかを見て決める
       departmentId: resolveDepartment({

@@ -230,6 +230,10 @@ model ReviewJob {
   /// 社内に公開したジョブ。公開しても見られるだけで、判定の変更と削除は作成者のまま
   sharedWithOrg     Boolean          @default(false) @map("shared_with_org")
   userId            String?          @map("user_id") @db.VarChar(50)
+  /// 審査を始めた人の表示名（Cognito の custom:name）。誰が回したかを一覧で
+  /// 出すために、そのときの名前を写し取る。後で改名されても当時の記録は変えない。
+  /// 属性が入っていない利用者もいるので空になりうる
+  userName          String?          @map("user_name") @db.VarChar(255)
   totalInputTokens  Int?             @map("total_input_tokens")
   totalOutputTokens Int?             @map("total_output_tokens")
   totalCost         Decimal?         @map("total_cost") @db.Decimal(10, 4)

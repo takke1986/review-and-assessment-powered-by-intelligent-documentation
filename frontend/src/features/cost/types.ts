@@ -32,6 +32,8 @@ export interface ReviewCostSummary {
     totalCost: number;
     jobCount: number;
   }>;
+  /** チェックリストの総数。byChecklist は上位だけなので、切った件数が分かる */
+  checklistCount: number;
   /** 高い順、最大10件 */
   topJobs: Array<{
     id: string;

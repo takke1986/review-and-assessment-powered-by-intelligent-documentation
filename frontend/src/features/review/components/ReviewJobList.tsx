@@ -150,6 +150,20 @@ export const ReviewJobList: React.FC<ReviewJobListProps> = ({
       ),
     },
     {
+      key: "userName",
+      header: t("review.reviewer"),
+      // 並べ替えはサーバ側の対応列に入っていないので付けない
+      sortable: false,
+      render: (job) => (
+        <div className="whitespace-nowrap text-sm text-aws-font-color-gray">
+          {/* 名前の属性が無い利用者や、この機能より前の審査は空になる。
+              「-」にしておくと、取得できなかったのか本当に無いのかは
+              区別できないが、一覧で確かめる話ではないので割り切る */}
+          {job.userName ?? "-"}
+        </div>
+      ),
+    },
+    {
       key: "departmentId",
       header: t("review.department"),
       sortable: true,

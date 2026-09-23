@@ -252,6 +252,16 @@ export default function ReviewCostPage() {
 
               {/* どのチェックリストに掛かっているか */}
               <CostSection title={t("cost.byChecklist")} hint={t("cost.byChecklistHint")}>
+                {/* 上限で切ったときだけ総数を出す。全部出ているときに
+                    「10件のうち10件」と書いても意味がない */}
+                {summary.checklistCount > summary.byChecklist.length && (
+                  <p className="mb-2 text-xs text-aws-font-color-gray">
+                    {t("cost.checklistTotal", {
+                      count: summary.checklistCount,
+                      shown: summary.byChecklist.length,
+                    })}
+                  </p>
+                )}
                 {/* どの審査に掛かっているかは、並べると一目で分かる。
                     総額だけ見ても打ち手にならない */}
                 <BarChart

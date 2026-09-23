@@ -17,6 +17,13 @@ export interface ReviewCostRow {
 
 /** 内訳に出す上限。全部出しても読めない */
 const TOP_JOB_COUNT = 10;
+/**
+ * 費用の高いチェックリストとして出す数。
+ *
+ * 全件出すと、チェックリストが増えたぶんだけ図が縦に伸びる。費用を削る
+ * ときに見るのは上の数件なので、そこから先は読まれない
+ */
+const TOP_CHECKLIST_COUNT = 10;
 
 /**
  * 利用者の暦に合わせて年月を取り出す。
@@ -117,7 +124,10 @@ export function summarizeCost(
     withoutDepartment,
     byChecklist: [...checklists.entries()]
       .map(([checkListSetId, values]) => ({ checkListSetId, ...values }))
-      .sort((a, b) => b.totalCost - a.totalCost),
+      .sort((a, b) => b.totalCost - a.totalCost)
+      .slice(0, TOP_CHECKLIST_COUNT),
+    // 上限で切ったぶん。「合計と内訳が合わない」に見えないよう件数を出す
+    checklistCount: checklists.size,
     topJobs: rows
       .filter((row) => row.totalCost !== null && row.totalCost > 0)
       .sort((a, b) => (b.totalCost ?? 0) - (a.totalCost ?? 0))

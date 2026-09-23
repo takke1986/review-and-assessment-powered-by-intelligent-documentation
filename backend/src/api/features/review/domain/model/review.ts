@@ -75,6 +75,8 @@ export interface ReviewJobEntity {
   status: REVIEW_JOB_STATUS;
   checkListSetId: string;
   userId?: string;
+  /** 審査を始めた人の表示名。当時の値の写し。属性が無い利用者は空 */
+  userName?: string;
   /** この審査がどの部署の仕事か。部署を使わない運用では空 */
   departmentId?: string;
   /** 再審査の元になったジョブ */
@@ -134,6 +136,8 @@ export interface ReviewJobSummary {
   updatedAt: Date;
   completedAt?: Date;
   userId?: string;
+  /** 審査を始めた人の表示名。当時の値の写し。属性が無い利用者は空 */
+  userName?: string;
   /** この審査がどの部署の仕事か */
   departmentId?: string;
   /** 実行中や失敗したジョブには入らない */
@@ -175,6 +179,8 @@ export interface ReviewJobDetail {
   documents: ReviewJobDocument[];
   // ジョブ作成者（所有者） - 存在しない場合もあるためオプショナル
   userId?: string;
+  /** 審査を始めた人の表示名。当時の値の写し。属性が無い利用者は空 */
+  userName?: string;
   createdAt: Date;
   updatedAt: Date;
   completedAt?: Date;

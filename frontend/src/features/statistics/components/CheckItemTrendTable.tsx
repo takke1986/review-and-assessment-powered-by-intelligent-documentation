@@ -88,8 +88,12 @@ export default function CheckItemTrendTable({
     return (
       <div className="text-sm">
         <span>{t(STATUS_VIEW[item.status].action)}</span>
+        {/* リンクは行を分ける。同じ行に続けると、狭い画面で
+            「審査結果を見る」の途中で折り返して読みにくくなる */}
         {link && (
-          <Link to={link.to} className="ml-2 text-aws-font-color-blue underline">
+          <Link
+            to={link.to}
+            className="mt-0.5 block text-aws-font-color-blue underline">
             {link.label}
           </Link>
         )}

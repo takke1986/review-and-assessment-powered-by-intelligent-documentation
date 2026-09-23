@@ -183,3 +183,57 @@ describe("部署ごとの費用", () => {
     expect(summary.withoutDepartment).toEqual({ totalCost: 0, jobCount: 0 });
   });
 });
+
+describe("費用の高いチェックリスト", () => {
+  it("上位10件に絞り、総数は別に返す", () => {
+    // 12 個のチェックリストを、費用の小さい順に作る
+    const rows = Array.from({ length: 12 }, (_, i) =>
+      row({
+        checkListSetId: `set-${i}`,
+        checkListSetName: `リスト${i}`,
+        totalCost: (i + 1) * 0.01,
+      })
+    );
+
+    const summary = summarizeCost(rows, JST);
+
+    expect(summary.byChecklist).toHaveLength(10);
+    // 切っても総数は分かる。合計と内訳が合わない理由が読めるように
+    expect(summary.checklistCount).toBe(12);
+    // 高い順に並ぶ。上位を見るための表なので
+    expect(summary.byChecklist[0].name).toBe("リスト11");
+    expect(summary.byChecklist[9].name).toBe("リスト2");
+  });
+
+  it("10件以下なら全部返す", () => {
+    const rows = [
+      row({ checkListSetId: "a", checkListSetName: "A", totalCost: 0.02 }),
+      row({ checkListSetId: "b", checkListSetName: "B", totalCost: 0.01 }),
+    ];
+
+    const summary = summarizeCost(rows, JST);
+
+    expect(summary.byChecklist).toHaveLength(2);
+    expect(summary.checklistCount).toBe(2);
+  });
+
+  it("費用が未記録のチェックリストも件数に数える", () => {
+    // 実行中や失敗した審査は費用が入らない。隠すと件数が合わなく見える
+    const rows = [
+      row({ checkListSetId: "a", checkListSetName: "A", totalCost: null }),
+    ];
+
+    const summary = summarizeCost(rows, JST);
+
+    expect(summary.byChecklist).toHaveLength(1);
+    expect(summary.byChecklist[0].totalCost).toBe(0);
+    expect(summary.byChecklist[0].jobCount).toBe(1);
+  });
+
+  it("審査が1件も無ければ空になる", () => {
+    const summary = summarizeCost([], JST);
+
+    expect(summary.byChecklist).toEqual([]);
+    expect(summary.checklistCount).toBe(0);
+  });
+});

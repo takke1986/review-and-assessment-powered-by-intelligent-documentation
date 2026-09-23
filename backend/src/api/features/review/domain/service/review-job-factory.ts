@@ -63,6 +63,8 @@ export const createInitialReviewJobModel = async (params: {
     status: REVIEW_JOB_STATUS.PENDING,
     checkListSetId: req.checkListSetId,
     userId: req.userId,
+    // 誰が回したかを一覧に出すため、そのときの表示名を写し取る
+    userName: req.userName,
     departmentId: req.departmentId,
     sourceReviewJobId: source?.reviewJobId,
     revisionNote: normalizeRevisionNote(req.revisionNote),

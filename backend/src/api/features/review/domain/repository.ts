@@ -61,6 +61,8 @@ export interface ReviewCostSummary {
     totalCost: number;
     jobCount: number;
   }>;
+  /** チェックリストの総数。byChecklist は上位だけなので、切った件数が分かる */
+  checklistCount: number;
   /** 費用の高いジョブ。突出したものを見つける */
   topJobs: Array<{
     id: string;
@@ -287,6 +289,7 @@ export const makePrismaReviewJobRepository = async (
         updatedAt: job.updatedAt,
         completedAt: job.completedAt || undefined,
         userId: job.userId || undefined,
+        userName: job.userName || undefined,
         departmentId: job.departmentId ?? undefined,
         // 実行中や失敗したジョブには費用が入っていない
         totalCost: job.totalCost ? Number(job.totalCost) : undefined,
@@ -480,6 +483,7 @@ export const makePrismaReviewJobRepository = async (
       },
       documents: job.documents.map(toReviewJobDocument),
       userId: job.userId || undefined,
+      userName: job.userName || undefined,
       departmentId: job.departmentId ?? undefined,
       executionArn: job.executionArn ?? undefined,
       createdAt: job.createdAt,
@@ -528,6 +532,7 @@ export const makePrismaReviewJobRepository = async (
           createdAt: now,
           updatedAt: now,
           userId: params.userId,
+          userName: params.userName,
           departmentId: params.departmentId,
           sourceReviewJobId: params.sourceReviewJobId,
           revisionNote: params.revisionNote,

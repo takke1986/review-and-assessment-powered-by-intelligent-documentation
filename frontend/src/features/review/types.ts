@@ -115,6 +115,8 @@ export interface CreateReviewJobRequest {
    * この審査をどの部署の仕事として記録するか。兼務のときだけ送る。
    * 所属が1つならサーバが決める
    */
+  /** 審査を始めた人の表示名。属性が無い利用者や、機能より前の審査は空 */
+  userName?: string;
   departmentId?: string;
   mcpServerName?: string;
   /** 審査するチェック項目。省略するとすべての項目を審査する */
@@ -278,6 +280,8 @@ export interface ReviewJobSummary {
   completedAt?: Date;
   userId?: string;
   /** この審査がどの部署の仕事か。部署を使わない運用では無い */
+  /** 審査を始めた人の表示名。属性が無い利用者や、機能より前の審査は空 */
+  userName?: string;
   departmentId?: string;
   /** 実行中や失敗したジョブには入らない */
   totalCost?: number;
@@ -305,6 +309,8 @@ export interface ReviewJobDetail {
   name: string;
   status: REVIEW_JOB_STATUS;
   /** この審査がどの部署の仕事か。部署を使わない運用では無い */
+  /** 審査を始めた人の表示名。属性が無い利用者や、機能より前の審査は空 */
+  userName?: string;
   departmentId?: string;
   /**
    * このジョブを直せるか（判定の変更・再審査・中止・削除）。

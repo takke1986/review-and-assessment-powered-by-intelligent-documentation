@@ -268,6 +268,7 @@
     "lockedItemNotice": "審査に使ったチェックリストなので、項目そのものは変えられません。着眼点は書けます（次の審査から効きます）。"
   },
   "review": {
+    "reviewer": "実施者",
     "title": "審査ジョブ一覧",
     "description": "審査ジョブを管理します",
     "create": "新規ジョブ作成",
@@ -697,14 +698,15 @@
     "average": "1件あたり",
     "tokens": "トークン（入力 / 出力）",
     "byMonth": "月ごとの推移",
-    "byChecklist": "チェックリスト別",
-    "byChecklistHint": "どの審査に掛かっているかが分かると、項目数やモデルの見直しにつながります。",
+    "byChecklist": "費用の高いチェックリスト",
+    "byChecklistHint": "上位10件です。項目数やモデルの見直し先が分かります。使われていないチェックリストはここに出ません。",
     "topJobs": "費用の高い審査",
     "empty": "この期間に審査はありません。",
     "loadError": "費用を読み込めませんでした",
     "loadErrorMessage": "時間をおいて、もう一度お試しください。",
     "byDepartment": "部署別",
     "byDepartmentHint": "どの部署が使っているかが分かると、費用の負担や利用の偏りを話せます。",
-    "withoutDepartment": "この内訳には、部署の付いていない審査 {{count}} 件（{{cost}}）を含みません。"
+    "withoutDepartment": "この内訳には、部署の付いていない審査 {{count}} 件（{{cost}}）を含みません。",
+    "checklistTotal": "チェックリスト {{count}} 件のうち上位 {{shown}} 件"
   }
 }

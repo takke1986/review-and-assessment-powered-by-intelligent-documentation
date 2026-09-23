@@ -268,6 +268,7 @@
     "lockedItemNotice": "This checklist has been used for a review, so the item itself cannot change. You can still write what to look at; it applies to future reviews."
   },
   "review": {
+    "reviewer": "Reviewer",
     "title": "Review Jobs",
     "description": "Manage review jobs",
     "create": "Create New Job",
@@ -697,14 +698,15 @@
     "average": "Per review",
     "tokens": "Tokens (in / out)",
     "byMonth": "By month",
-    "byChecklist": "By checklist",
-    "byChecklistHint": "Knowing which reviews cost the most tells you where to trim items or change the model.",
+    "byChecklist": "Checklists that cost the most",
+    "byChecklistHint": "Top 10. Tells you where to trim items or change the model. Checklists with no reviews do not appear here.",
     "topJobs": "Most expensive reviews",
     "empty": "There were no reviews in this period.",
     "loadError": "Could not load the costs",
     "loadErrorMessage": "Please try again in a moment.",
     "byDepartment": "By department",
     "byDepartmentHint": "Knowing which departments use it opens the conversation about who bears the cost.",
-    "withoutDepartment": "This breakdown excludes {{count}} review(s) with no department ({{cost}})."
+    "withoutDepartment": "This breakdown excludes {{count}} review(s) with no department ({{cost}}).",
+    "checklistTotal": "Top {{shown}} of {{count}} checklists"
   }
 }
