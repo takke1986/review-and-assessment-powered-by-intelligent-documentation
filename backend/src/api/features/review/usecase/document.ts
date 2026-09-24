@@ -5,6 +5,7 @@ import {
 } from "../../../core/s3";
 import { canView, toViewer } from "../../../core/access/visibility";
 import type { RequestUser } from "../../../core/middleware/authorization";
+import { downloadResponseHeaders } from "../../../core/upload-types";
 import {
   ForbiddenError,
   NotFoundError,
@@ -77,7 +78,12 @@ export async function getDocumentDownloadUrl(
     if (!jobs.some((job) => canView(viewer, job))) {
       deny(user, `resource_id=${key}`);
     }
-    return getDownloadPresignedUrl(bucket, key, expiresIn);
+    return getDownloadPresignedUrl(
+      bucket,
+      key,
+      expiresIn,
+      downloadResponseHeaders(key)
+    );
   }
 
   if (!params.reviewJobId) {
@@ -95,7 +101,12 @@ export async function getDocumentDownloadUrl(
   if (!allowed.has(`${bucket}/${key}`)) {
     deny(user, `bucket=${bucket} not cited in ${job.id}`);
   }
-  return getDownloadPresignedUrl(bucket, key, expiresIn);
+  return getDownloadPresignedUrl(
+    bucket,
+    key,
+    expiresIn,
+    downloadResponseHeaders(key)
+  );
 }
 
 /** アップロードのときにサーバが振る文書 ID（ULID） */

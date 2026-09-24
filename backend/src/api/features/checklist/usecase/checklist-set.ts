@@ -35,6 +35,10 @@ import {
 } from "../../../core/access/checklist-access";
 import { ValidationError } from "../../../core/errors";
 import { assertUploadKeyOrThrow } from "../../../core/access/upload-key";
+import {
+  CHECKLIST_UPLOAD_EXTENSIONS,
+  uploadContentTypeOrThrow,
+} from "../../../core/upload-types";
 
 export const createChecklistSet = async (params: {
   req: CreateChecklistSetRequest;
@@ -53,6 +57,7 @@ export const createChecklistSet = async (params: {
     assertUploadKeyOrThrow({ id: doc.documentId, s3Key: doc.s3Key }, [
       "checklist/original/",
     ]);
+    uploadContentTypeOrThrow(doc.s3Key, CHECKLIST_UPLOAD_EXTENSIONS);
   }
   const checkListSet = CheckListSetDomain.fromCreateRequest(req);
   await repo.storeCheckListSet({
@@ -276,17 +281,27 @@ export const getAllChecklistSets = async (
 export const getCheckListDocumentPresignedUrl = async (params: {
   filename: string;
   contentType: string;
-}): Promise<{ url: string; key: string; documentId: string }> => {
-  const { filename, contentType } = params;
+}): Promise<{
+  url: string;
+  key: string;
+  documentId: string;
+  contentType: string;
+}> => {
+  const { filename } = params;
   const bucketName = process.env.DOCUMENT_BUCKET;
   if (!bucketName) {
     throw new Error("S3_BUCKET_NAME is not defined");
   }
+  // 送られてきた Content-Type は使わず、拡張子から決める（core/upload-types.ts）
+  const contentType = uploadContentTypeOrThrow(
+    filename,
+    CHECKLIST_UPLOAD_EXTENSIONS
+  );
   const documentId = ulid();
   const key = getChecklistOriginalKey(documentId, filename);
   const url = await getPresignedUrl(bucketName, key, contentType);
 
-  return { url, key, documentId };
+  return { url, key, documentId, contentType };
 };
 
 export const getChecklistItems = async (params: {

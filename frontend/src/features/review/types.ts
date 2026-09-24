@@ -183,6 +183,8 @@ export type GetReviewImagesPresignedUrlResponse = ApiResponse<{
     key: string;
     filename: string;
     documentId: string;
+    /** サーバが拡張子から決めた Content-Type。この値で署名されている */
+    contentType?: string;
   }>;
 }>;
 

@@ -7,6 +7,11 @@ import {
 } from "../domain/model/review";
 import { assertCanUseCheckListSetOrThrow } from "../../../core/access/checklist-access";
 import { assertUploadKeyOrThrow } from "../../../core/access/upload-key";
+import {
+  REVIEW_IMAGE_EXTENSIONS,
+  REVIEW_UPLOAD_EXTENSIONS,
+  uploadContentTypeOrThrow,
+} from "../../../core/upload-types";
 import { PaginatedResponse } from "../../../common/types";
 import { ListParams } from "../../../common/pagination";
 import {
@@ -252,17 +257,27 @@ export const resumeReviewJob = async (params: {
 export const getReviewDocumentPresignedUrl = async (params: {
   filename: string;
   contentType: string;
-}): Promise<{ url: string; key: string; documentId: string }> => {
-  const { filename, contentType } = params;
+}): Promise<{
+  url: string;
+  key: string;
+  documentId: string;
+  contentType: string;
+}> => {
+  const { filename } = params;
   const bucketName = process.env.DOCUMENT_BUCKET;
   if (!bucketName) {
     throw new Error("S3_BUCKET_NAME is not defined");
   }
+  // 送られてきた Content-Type は使わず、拡張子から決める（core/upload-types.ts）
+  const contentType = uploadContentTypeOrThrow(
+    filename,
+    REVIEW_UPLOAD_EXTENSIONS
+  );
   const documentId = ulid();
   const key = getReviewDocumentKey(documentId, filename);
   const url = await getPresignedUrl(bucketName, key, contentType);
 
-  return { url, key, documentId };
+  return { url, key, documentId, contentType };
 };
 
 export const getReviewDocumentsPresignedUrl = async (params: {
@@ -274,9 +289,10 @@ export const getReviewDocumentsPresignedUrl = async (params: {
     key: string;
     filename: string;
     documentId: string;
+    contentType: string;
   }>;
 }> => {
-  const { filenames, contentTypes } = params;
+  const { filenames } = params;
   const bucketName = process.env.DOCUMENT_BUCKET;
   if (!bucketName) {
     throw new Error("S3_BUCKET_NAME is not defined");
@@ -291,12 +307,16 @@ export const getReviewDocumentsPresignedUrl = async (params: {
 
   const results = await Promise.all(
     filenames.map(async (filename, index) => {
-      const contentType = contentTypes[index];
+      // 送られてきた Content-Type は使わず、拡張子から決める
+      const contentType = uploadContentTypeOrThrow(
+        filename,
+        REVIEW_UPLOAD_EXTENSIONS
+      );
       const documentId = ulid();
       const key = getReviewDocumentKey(documentId, filename);
       const url = await getPresignedUrl(bucketName, key, contentType);
 
-      return { url, key, filename, documentId };
+      return { url, key, filename, documentId, contentType };
     })
   );
 
@@ -312,9 +332,10 @@ export const getReviewImagesPresignedUrl = async (params: {
     key: string;
     filename: string;
     documentId: string;
+    contentType: string;
   }>;
 }> => {
-  const { filenames, contentTypes } = params;
+  const { filenames } = params;
   const bucketName = process.env.DOCUMENT_BUCKET;
   if (!bucketName) {
     throw new Error("S3_BUCKET_NAME is not defined");
@@ -328,11 +349,15 @@ export const getReviewImagesPresignedUrl = async (params: {
 
   const results = await Promise.all(
     filenames.map(async (filename, index) => {
-      const contentType = contentTypes[index];
+      // 送られてきた Content-Type は使わず、拡張子から決める
+      const contentType = uploadContentTypeOrThrow(
+        filename,
+        REVIEW_IMAGE_EXTENSIONS
+      );
       const documentId = ulid();
       const key = getReviewImageKey(documentId, filename);
       const url = await getPresignedUrl(bucketName, key, contentType);
-      return { url, key, filename, documentId };
+      return { url, key, filename, documentId, contentType };
     })
   );
 
@@ -361,9 +386,11 @@ const validateJobDocuments = async (
     );
   }
 
-  // 他人がアップロードした書類のキーを書かれても使わない
+  // 他人がアップロードした書類のキーを書かれても使わない。受け付けない
+  // 種類のファイルも使わない（アップロード先の発行を通さずに置かれたもの）
   for (const doc of uploadedDocuments) {
     assertUploadKeyOrThrow(doc, ["review/original/", "review/images/"]);
+    uploadContentTypeOrThrow(doc.s3Key, REVIEW_UPLOAD_EXTENSIONS);
   }
 
   // Validate file sizes from S3

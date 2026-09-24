@@ -15,6 +15,8 @@ interface PresignedUrlResponse {
     url: string;
     key: string;
     documentId: string;
+    /** サーバが拡張子から決めた Content-Type。この値で署名されている */
+    contentType?: string;
   };
   error?: string;
 }
@@ -86,14 +88,16 @@ export function useDocumentUpload(options: UseDocumentUploadOptions = {}) {
         );
       }
 
-      const { url, key, documentId } = presignedResponse.data.data;
+      const { url, key, documentId, contentType } =
+        presignedResponse.data.data;
 
-      // S3にファイルをアップロード
+      // S3にファイルをアップロード。Content-Type はサーバが拡張子から決めた
+      // 値で署名されているので、それを使う（ブラウザの判定は環境でぶれる）
       const uploadResponse = await fetch(url, {
         method: "PUT",
         body: file,
         headers: {
-          "Content-Type": file.type,
+          "Content-Type": contentType ?? file.type,
         },
       });
 
@@ -161,7 +165,8 @@ export function useDocumentUpload(options: UseDocumentUploadOptions = {}) {
           method: "PUT",
           body: file,
           headers: {
-            "Content-Type": file.type,
+            // サーバが拡張子から決めた値で署名されている
+            "Content-Type": presigned.contentType ?? file.type,
           },
         });
 

@@ -64,12 +64,20 @@ export async function getPresignedUrl(
 export async function getDownloadPresignedUrl(
   bucket: string,
   key: string,
-  expiresIn = 3600
+  expiresIn = 3600,
+  /** S3 に返させる Content-Type と Content-Disposition。保存時の値を使わせない */
+  response?: { contentType: string; contentDisposition: string }
 ): Promise<string> {
   const client = getS3Client();
   const command = new GetObjectCommand({
     Bucket: bucket,
     Key: key,
+    ...(response
+      ? {
+          ResponseContentType: response.contentType,
+          ResponseContentDisposition: response.contentDisposition,
+        }
+      : {}),
   });
 
   return getSignedUrl(client, command, { expiresIn });
