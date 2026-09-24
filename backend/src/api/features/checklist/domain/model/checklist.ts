@@ -279,14 +279,28 @@ export const CheckListItemDomain = {
       feedbackSummary: item.feedbackSummary ?? null,
       feedbackSummaryUpdatedAt: item.feedbackSummaryUpdatedAt ?? null,
       reviewGuidance: item.reviewGuidance ?? null,
-      ambiguityReview: item.ambiguityReview
-        ? {
-            suggestions: item.ambiguityReview.suggestions,
-            detectedAt: item.ambiguityReview.detectedAt.toISOString(),
-          }
-        : null,
+      ambiguityReview: CheckListItemDomain.toPrismaAmbiguityReview(
+        item.ambiguityReview
+      ),
     };
   },
+
+  /**
+   * 曖昧さの検出結果だけを保存の形にする。
+   * 検出結果の保存は項目の一部だけを書き換えるので、項目全体の変換
+   * （toPrismaCheckListItem）に通さない。通すと、渡していない名前まで
+   * 正規化しようとして落ちる。実際にそれでチェックリストの作成が
+   * すべて失敗していた
+   */
+  toPrismaAmbiguityReview: (
+    review: AmbiguityDetectionResult | undefined
+  ): PrismaCheckList["ambiguityReview"] =>
+    review
+      ? {
+          suggestions: review.suggestions,
+          detectedAt: review.detectedAt.toISOString(),
+        }
+      : null,
 
   fromPrismaCheckListItemWithDetail: (
     prismaItem: PrismaCheckList & {

@@ -806,15 +806,12 @@ export const makePrismaCheckRepository = async (
     itemId: string;
     ambiguityReview: AmbiguityDetectionResult;
   }): Promise<void> => {
-    const prismaData = CheckListItemDomain.toPrismaCheckListItem({
-      id: params.itemId,
-      ambiguityReview: params.ambiguityReview,
-    } as CheckListItemEntity);
-
     await client.checkList.update({
       where: { id: params.itemId },
       data: {
-        ambiguityReview: prismaData.ambiguityReview as any,
+        ambiguityReview: CheckListItemDomain.toPrismaAmbiguityReview(
+          params.ambiguityReview
+        ) as any,
       },
     });
   };
