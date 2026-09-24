@@ -8,8 +8,6 @@
     "reviewJobs": "審査",
     "actionableItems": "手を入れる項目",
     "lastReviewed": "直近の審査",
-    "openColumn": "",
-    "openTrends": "傾向を見る",
     "insufficient": "判断に足りない",
     "itemCount": "項目 {{count}}",
     "neverReviewed": "未審査",

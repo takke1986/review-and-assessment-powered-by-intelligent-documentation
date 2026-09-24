@@ -84,7 +84,7 @@ export const SORTABLE_COLUMNS = [
   { key: "name", label: "trends.item", alignRight: false },
   { key: "status", label: "trends.status", alignRight: false },
   { key: "action", label: "trends.action", alignRight: false },
-  { key: "overturned", label: "trends.overturned", alignRight: true },
+  { key: "overturned", label: "trends.overturned", alignRight: false },
   { key: "failRate", label: "trends.failRate", alignRight: true },
   { key: "failedCount", label: "trends.failed", alignRight: true },
   { key: "reviewedCount", label: "trends.reviewed", alignRight: true },
@@ -113,11 +113,4 @@ export const SET_TREND_COLUMNS: SetTrendColumn[] = [
   { key: "actionableCount", label: "trends.actionableItems", alignRight: true },
   { key: "overturned", label: "trends.overturned", alignRight: true },
   { key: "lastReviewedAt", label: "trends.lastReviewed", alignRight: false },
-  // 遷移のリンク。並べ替えの対象にしない
-  {
-    key: "link",
-    label: "trends.openColumn",
-    alignRight: false,
-    sortable: false,
-  },
 ];

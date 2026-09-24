@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { useRowLink } from "../rowLink";
 import { useTranslation } from "react-i18next";
 import { CheckListSetTrendSummary } from "../types";
 import { SET_TREND_COLUMNS } from "../trendView";
@@ -25,6 +25,7 @@ export default function CheckListSetTrendTable({
   onSortChange,
 }: Props) {
   const { t } = useTranslation();
+  const rowLink = useRowLink();
   const percent = (rate: number) => `${Math.round(rate * 100)}%`;
 
   /** 覆された数は向きが分かるように出す。数だけでは打ち手が決まらない */
@@ -67,9 +68,7 @@ export default function CheckListSetTrendTable({
         </span>
         <span
           className={
-            calm
-              ? "text-aws-font-color-gray"
-              : "whitespace-nowrap font-bold"
+            calm ? "text-aws-font-color-gray" : "whitespace-nowrap font-bold"
           }>
           {percent(row.failRate)}
         </span>
@@ -141,7 +140,11 @@ export default function CheckListSetTrendTable({
         </thead>
         <tbody>
           {items.map((row) => (
-            <tr key={row.checkListSetId} className="border-t border-light-gray">
+            <tr
+              key={row.checkListSetId}
+              {...rowLink(
+                row.reviewJobCount > 0 ? `/trends/${row.checkListSetId}` : null
+              )}>
               <td className="min-w-[12rem] px-4 py-3">
                 <div className="font-medium">{row.name}</div>
                 <div className="mt-0.5 text-xs text-aws-font-color-gray">
@@ -162,18 +165,6 @@ export default function CheckListSetTrendTable({
                 {row.lastReviewedAt
                   ? new Date(row.lastReviewedAt).toLocaleString()
                   : t("trends.neverReviewed")}
-              </td>
-              <td className="whitespace-nowrap px-4 py-3">
-                {/* 審査が無いセットは開いても何も無いので案内を出さない */}
-                {row.reviewJobCount > 0 ? (
-                  <Link
-                    to={`/trends/${row.checkListSetId}`}
-                    className="text-aws-font-color-blue underline">
-                    {t("trends.openTrends")}
-                  </Link>
-                ) : (
-                  <span className="text-aws-font-color-gray">—</span>
-                )}
               </td>
             </tr>
           ))}

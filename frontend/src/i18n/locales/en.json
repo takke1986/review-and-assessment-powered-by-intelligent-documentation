@@ -8,8 +8,6 @@
     "reviewJobs": "Reviews",
     "actionableItems": "Items to act on",
     "lastReviewed": "Last review",
-    "openColumn": "",
-    "openTrends": "View trends",
     "insufficient": "Too few reviews",
     "itemCount": "{{count}} items",
     "neverReviewed": "Not reviewed",

@@ -2,6 +2,10 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { CHECK_TREND_STATUS, CheckFailureTrendItem } from "../types";
 import { SORTABLE_COLUMNS, STATUS_VIEW } from "../trendView";
+import { useRowLink } from "../rowLink";
+
+/** これより長い「すべきこと」は折り返して読ませる */
+const LONG_ACTION_CHARS = 20;
 
 /**
  * チェック項目の表。
@@ -28,6 +32,14 @@ export default function CheckItemTrendTable({
   onSortChange,
 }: Props) {
   const { t } = useTranslation();
+  const rowLink = useRowLink();
+  // すべきことには一言のものと数十字の文がある。文があるときだけ読める幅を
+  // 取り、一言だけの表では中身の幅に詰めて隣の列との間を空けない
+  const actionWidth = items.some(
+    (item) => t(STATUS_VIEW[item.status].action).length > LONG_ACTION_CHARS
+  )
+    ? "min-w-[16rem]"
+    : "whitespace-nowrap";
   const percent = (rate: number) => `${Math.round(rate * 100)}%`;
 
   /**
@@ -145,7 +157,7 @@ export default function CheckItemTrendTable({
         </thead>
         <tbody>
           {items.map((item) => (
-            <tr key={item.checkId} className="border-t border-light-gray">
+            <tr key={item.checkId} {...rowLink(destination(item)?.to ?? null)}>
               <td className="min-w-[12rem] px-4 py-3">
                 {item.name}
                 {item.carriedOverCount > 0 && (
@@ -169,14 +181,16 @@ export default function CheckItemTrendTable({
                   {t(STATUS_VIEW[item.status].label)}
                 </span>
               </td>
-              <td className="min-w-[16rem] px-4 py-3">{action(item)}</td>
-              <td className="whitespace-nowrap px-4 py-3 text-right text-sm">
+              <td className={`${actionWidth} px-4 py-3`}>{action(item)}</td>
+              {/* 左寄せにして、すべきことの文のすぐ横に並べる。右寄せだと
+                  見出しの幅のぶん間が空き、どの行の数か追いにくい */}
+              <td className="whitespace-nowrap px-4 py-3 text-sm">
                 {/* 向きが分からないと打ち手が決まらないので、数だけでなく
                     どちらに覆されたかを出す */}
                 {item.missedCount === 0 && item.overturnedToPassCount === 0 ? (
                   "-"
                 ) : (
-                  <div className="flex flex-col items-end gap-0.5">
+                  <div className="flex flex-col items-start gap-0.5">
                     {item.missedCount > 0 && (
                       <span className="whitespace-nowrap text-red">
                         {t("trends.missed", { count: item.missedCount })}
