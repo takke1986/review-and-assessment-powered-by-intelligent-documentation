@@ -6,6 +6,7 @@ import {
   ReviewResultDetail,
 } from "../domain/model/review";
 import { assertCanUseCheckListSetOrThrow } from "../../../core/access/checklist-access";
+import { assertUploadKeyOrThrow } from "../../../core/access/upload-key";
 import { PaginatedResponse } from "../../../common/types";
 import { ListParams } from "../../../common/pagination";
 import {
@@ -358,6 +359,11 @@ const validateJobDocuments = async (
     throw new ApplicationError(
       `Maximum ${MAX_REVIEW_DOCUMENTS} documents allowed`
     );
+  }
+
+  // 他人がアップロードした書類のキーを書かれても使わない
+  for (const doc of uploadedDocuments) {
+    assertUploadKeyOrThrow(doc, ["review/original/", "review/images/"]);
   }
 
   // Validate file sizes from S3

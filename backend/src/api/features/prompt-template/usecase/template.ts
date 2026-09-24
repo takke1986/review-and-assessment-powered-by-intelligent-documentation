@@ -1,6 +1,12 @@
 import type { RequestUser } from "../../../core/middleware/authorization";
 import { toViewer } from "../../../core/access/visibility";
 import {
+  assertCanDeletePromptTemplateOrThrow,
+  assertCanEditPromptTemplateOrThrow,
+  assertCanUsePromptTemplateOrThrow,
+  canDeletePromptTemplate,
+} from "../../../core/access/checklist-access";
+import {
   PromptTemplateEntity,
   PromptTemplateDomain,
   PromptTemplateType,
@@ -23,27 +29,47 @@ export const getPromptTemplates = async (
       repo?: PromptTemplateRepository;
     };
   }
-): Promise<PaginatedResponse<PromptTemplateEntity>> => {
+): Promise<
+  PaginatedResponse<PromptTemplateEntity & { canDelete: boolean }>
+> => {
   const repo =
     params.deps?.repo || (await makePrismaPromptTemplateRepository());
-  return repo.getPromptTemplates(toViewer(params.user), params.type, {
-    page: params.page,
-    limit: params.limit,
-    sortBy: params.sortBy,
-    sortOrder: params.sortOrder,
-    search: params.search,
-  });
+  const result = await repo.getPromptTemplates(
+    toViewer(params.user),
+    params.type,
+    {
+      page: params.page,
+      limit: params.limit,
+      sortBy: params.sortBy,
+      sortOrder: params.sortOrder,
+      search: params.search,
+    }
+  );
+  // 同じ部署の人は直せるが消せない。画面でボタンを押せなくするために付ける
+  return {
+    ...result,
+    items: result.items.map((template) => ({
+      ...template,
+      canDelete: canDeletePromptTemplate(params.user, template),
+    })),
+  };
 };
 
 export const getPromptTemplateById = async (params: {
   id: string;
+  user: RequestUser;
   deps?: {
     repo?: PromptTemplateRepository;
   };
 }): Promise<PromptTemplateEntity> => {
   const repo =
     params.deps?.repo || (await makePrismaPromptTemplateRepository());
-  return repo.getPromptTemplateById(params.id);
+  const template = await repo.getPromptTemplateById(params.id);
+  assertCanUsePromptTemplateOrThrow(params.user, template, {
+    api: "getPromptTemplateById",
+    logger: console,
+  });
+  return template;
 };
 
 export const createPromptTemplate = async (params: {
@@ -73,6 +99,7 @@ export const updatePromptTemplate = async (params: {
     description?: string;
     prompt?: string;
   };
+  user: RequestUser;
   deps?: {
     repo?: PromptTemplateRepository;
   };
@@ -82,6 +109,10 @@ export const updatePromptTemplate = async (params: {
 
   try {
     const existing = await repo.getPromptTemplateById(params.request.id);
+    assertCanEditPromptTemplateOrThrow(params.user, existing, {
+      api: "updatePromptTemplate",
+      logger: console,
+    });
     const updated = PromptTemplateDomain.fromUpdateRequest(
       existing,
       params.request
@@ -98,12 +129,18 @@ export const updatePromptTemplate = async (params: {
 
 export const deletePromptTemplate = async (params: {
   id: string;
+  user: RequestUser;
   deps?: {
     repo?: PromptTemplateRepository;
   };
 }): Promise<void> => {
   const repo =
     params.deps?.repo || (await makePrismaPromptTemplateRepository());
+  const existing = await repo.getPromptTemplateById(params.id);
+  assertCanDeletePromptTemplateOrThrow(params.user, existing, {
+    api: "deletePromptTemplate",
+    logger: console,
+  });
   await repo.deletePromptTemplate(params.id);
 };
 

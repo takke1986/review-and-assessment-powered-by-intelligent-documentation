@@ -14,7 +14,6 @@ import {
   getReviewImagesPresignedUrl,
   removeReviewJob,
 } from "../usecase/review-job";
-import { deleteS3Object } from "../../../core/s3";
 import {
   isOverrideReason,
   REVIEW_FILE_TYPE,
@@ -24,7 +23,10 @@ import {
   overrideReviewResult,
   getReviewResults,
 } from "../usecase/review-result";
-import { getDocumentDownloadUrl } from "../usecase/document";
+import {
+  deleteUnattachedUpload,
+  getDocumentDownloadUrl,
+} from "../usecase/document";
 import { MAX_REVIEW_DOCUMENTS } from "../../../constants";
 import { resolveDepartment } from "../../../core/access/departments";
 
@@ -194,11 +196,13 @@ export const deleteReviewDocumentHandler = async (
   reply: FastifyReply
 ): Promise<void> => {
   const { key } = request.params;
-  const bucketName = process.env.DOCUMENT_BUCKET;
-  if (!bucketName) {
-    throw new Error("Bucket name is not defined");
-  }
-  await deleteS3Object(bucketName, key);
+  // 画面が送ってくるのは S3 のキーではなく文書 ID。使われていない
+  // アップロードだけ消せる（審査・チェックリストの文書は消せない）
+  await deleteUnattachedUpload({
+    documentId: key,
+    uploadAreas: ["review/original/", "review/images/"],
+    user: request.user!,
+  });
 
   reply.code(200).send({
     success: true,
@@ -400,6 +404,8 @@ export const getReviewJobByIdHandler = async (
 interface GetDownloadPresignedUrlRequest {
   key: string;
   bucket?: string;
+  /** ナレッジベースの出典を開くときの、出典が出てきた審査 */
+  reviewJobId?: string;
   expiresIn?: number;
 }
 
@@ -410,13 +416,15 @@ export const getDownloadPresignedUrlHandler = async (
   request: FastifyRequest<{ Querystring: GetDownloadPresignedUrlRequest }>,
   reply: FastifyReply
 ): Promise<void> => {
-  const { key, bucket, expiresIn = 3600 } = request.query;
+  const { key, bucket, reviewJobId, expiresIn = 3600 } = request.query;
 
   const url = await getDocumentDownloadUrl({
     key,
     bucket,
+    reviewJobId,
     expiresIn:
       typeof expiresIn === "string" ? parseInt(expiresIn, 10) : expiresIn,
+    user: request.user!,
   });
 
   reply.code(200).send({

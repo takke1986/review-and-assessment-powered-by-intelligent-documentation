@@ -90,6 +90,7 @@ export const PromptTemplateList: React.FC<PromptTemplateListProps> = ({
       icon: <HiTrash className="mr-1 h-4 w-4" />,
       label: t("common.delete"),
       onClick: onDelete,
+      disabled: (template) => template.canDelete === false,
       variant: "danger",
       outline: true,
       className: "transition-all duration-200",

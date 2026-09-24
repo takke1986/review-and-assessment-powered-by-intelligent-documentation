@@ -14,6 +14,8 @@ export interface PromptTemplate {
   /** 兼務のときに選ばれた部署。所属していなければサーバが弾く */
   departmentId?: string;
   type: PromptTemplateType;
+  /** 見ている人が消せるか。作成者と管理者だけ。同じ部署の人は直せるが消せない */
+  canDelete?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

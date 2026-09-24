@@ -34,6 +34,7 @@ import {
   canDeleteCheckListSet,
 } from "../../../core/access/checklist-access";
 import { ValidationError } from "../../../core/errors";
+import { assertUploadKeyOrThrow } from "../../../core/access/upload-key";
 
 export const createChecklistSet = async (params: {
   req: CreateChecklistSetRequest;
@@ -47,6 +48,12 @@ export const createChecklistSet = async (params: {
   const repo = params.deps?.repo || (await makePrismaCheckRepository());
 
   const { req } = params;
+  // 他人がアップロードした書類のキーを書かれても使わない
+  for (const doc of req.documents) {
+    assertUploadKeyOrThrow({ id: doc.documentId, s3Key: doc.s3Key }, [
+      "checklist/original/",
+    ]);
+  }
   const checkListSet = CheckListSetDomain.fromCreateRequest(req);
   await repo.storeCheckListSet({
     checkListSet,

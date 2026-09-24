@@ -1,5 +1,6 @@
 import { resolveDepartment } from "../../../core/access/departments";
 import { FastifyReply, FastifyRequest } from "fastify";
+import { deleteUnattachedUpload } from "../../review/usecase/document";
 import { parseListQuery } from "../../../common/pagination";
 import {
   createChecklistSet,
@@ -11,7 +12,6 @@ import {
   duplicateChecklistSet,
   startAmbiguityDetection,
 } from "../usecase/checklist-set";
-import { deleteS3Object } from "../../../core/s3";
 import {
   createChecklistItem,
   getCheckListItem,
@@ -209,12 +209,14 @@ export const deleteChecklistDocumentHandler = async (
   reply: FastifyReply
 ): Promise<void> => {
   const { key } = request.params;
-  const bucketName = process.env.DOCUMENT_BUCKET;
-  if (!bucketName) {
-    throw new Error("Bucket name is not defined");
-  }
 
-  await deleteS3Object(bucketName, key);
+  // 画面が送ってくるのは S3 のキーではなく文書 ID。使われていない
+  // アップロードだけ消せる（審査・チェックリストの文書は消せない）
+  await deleteUnattachedUpload({
+    documentId: key,
+    uploadAreas: ["checklist/original/"],
+    user: request.user!,
+  });
 
   reply.code(200).send({
     success: true,

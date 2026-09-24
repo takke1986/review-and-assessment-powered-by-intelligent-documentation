@@ -109,7 +109,7 @@ export const getPromptTemplateByIdHandler = async (
   const { id } = request.params;
 
   try {
-    const template = await getPromptTemplateById({ id });
+    const template = await getPromptTemplateById({ id, user: request.user! });
 
     reply.code(200).send({
       success: true,
@@ -187,6 +187,7 @@ export const updatePromptTemplateHandler = async (
         description,
         prompt,
       },
+      user: request.user!,
     });
 
     reply.code(200).send({
@@ -216,7 +217,7 @@ export const deletePromptTemplateHandler = async (
   const { id } = request.params;
 
   try {
-    await deletePromptTemplate({ id });
+    await deletePromptTemplate({ id, user: request.user! });
 
     reply.code(200).send({
       success: true,

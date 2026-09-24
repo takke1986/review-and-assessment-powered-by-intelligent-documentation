@@ -7,6 +7,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -111,4 +112,33 @@ export async function getS3ObjectSize(
 
   const response = await client.send(command);
   return response.ContentLength || 0;
+}
+
+/**
+ * 場所（prefix）の下にあるキーを並べる
+ * @param bucket バケット名
+ * @param prefix キーの先頭
+ * @returns キーの一覧
+ */
+export async function listS3Keys(
+  bucket: string,
+  prefix: string
+): Promise<string[]> {
+  const client = getS3Client();
+  const keys: string[] = [];
+  let token: string | undefined;
+  do {
+    const page = await client.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: prefix,
+        ContinuationToken: token,
+      })
+    );
+    for (const object of page.Contents ?? []) {
+      if (object.Key) keys.push(object.Key);
+    }
+    token = page.IsTruncated ? page.NextContinuationToken : undefined;
+  } while (token);
+  return keys;
 }

@@ -87,6 +87,14 @@ export const previewMcpToolsHandler = async (
   request: FastifyRequest<{ Body: { mcpConfig: any } }>,
   reply: FastifyReply
 ): Promise<void> => {
+  // 送られてきた設定の command をそのまま API の Lambda で実行する。
+  // 誰でも呼べると、DB の認証情報や S3 を読める権限でコマンドを動かせて
+  // しまうので、作成と同じく管理者だけにする。try の外に置くのは、
+  // 権限の拒否を 500 に変えずに 403 のまま返すため
+  assertIsAdminOrThrow(request.user, {
+    api: "previewMcpTools",
+    logger: console,
+  });
   try {
     const results = await previewMcpTools(request.body.mcpConfig);
     reply.code(200).send({ success: true, data: results });

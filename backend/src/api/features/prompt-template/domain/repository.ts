@@ -88,6 +88,8 @@ export const makePrismaPromptTemplateRepository = async (
       description: template.description || undefined,
       prompt: template.prompt,
       type: template.type as PromptTemplateType,
+      // 権限の判定（同じ部署の人も使える）に要る
+      departmentId: template.departmentId ?? undefined,
       createdAt: template.createdAt,
       updatedAt: template.updatedAt,
     };

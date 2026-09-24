@@ -22,6 +22,7 @@ import { canView, toViewer } from "./visibility";
  * 開けない」といった見え方になるため。実際に一度そうなっていた
  */
 
+/** チェックリストとプロンプトに共通の、権限を決める属性 */
 export interface CheckListSetAccess {
   id: string;
   userId: string;
@@ -94,3 +95,16 @@ export function assertCanDeleteCheckListSetOrThrow(
     logger: opts.logger,
   });
 }
+
+/**
+ * プロンプトも、チェックリストと同じく部署で使い回す道具なので同じ規則にする。
+ * 以前は一覧だけ部署で絞っていて、ID を指定した取得・更新・削除は
+ * 誰でもできた
+ */
+export const assertCanUsePromptTemplateOrThrow =
+  assertCanUseCheckListSetOrThrow;
+export const assertCanEditPromptTemplateOrThrow =
+  assertCanEditCheckListSetOrThrow;
+export const assertCanDeletePromptTemplateOrThrow =
+  assertCanDeleteCheckListSetOrThrow;
+export const canDeletePromptTemplate = canDeleteCheckListSet;

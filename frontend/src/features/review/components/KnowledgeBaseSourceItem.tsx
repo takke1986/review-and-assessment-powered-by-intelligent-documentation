@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { HiChevronDown, HiChevronRight, HiCheckCircle, HiDocumentText, HiExternalLink } from "react-icons/hi";
 import Button from "../../../components/Button";
@@ -31,6 +32,9 @@ export default function KnowledgeBaseSourceItem({ source }: KnowledgeBaseSourceI
   const [documentUrls, setDocumentUrls] = useState<Map<number, string>>(new Map());
   const [loadingUrls, setLoadingUrls] = useState<Set<number>>(new Set());
   const { getPresignedUrl } = usePresignedDownloadUrl();
+  // 出典は審査の詳細（/review/:id とその報告書）の中でだけ出す。
+  // どの審査の出典かを添えないと、サーバは開かせない
+  const { id: reviewJobId } = useParams<{ id: string }>();
 
   const data = useMemo(() => source.output ? JSON.parse(source.output) : null, [source.output]);
   const query = source.input?.query || "";
@@ -51,7 +55,11 @@ export default function KnowledgeBaseSourceItem({ source }: KnowledgeBaseSourceI
             loading.add(idx);
             setLoadingUrls(new Set(loading));
             try {
-              const presignedUrl = await getPresignedUrl(parsed.key, parsed.bucket);
+              const presignedUrl = await getPresignedUrl(
+                parsed.key,
+                parsed.bucket,
+                reviewJobId
+              );
               const finalUrl = result.metadata?.page
                 ? `${presignedUrl}#page=${result.metadata.page}`
                 : presignedUrl;

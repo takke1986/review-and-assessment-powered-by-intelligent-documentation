@@ -38,7 +38,13 @@ export function usePresignedDownloadUrl(
    * S3キーからpresigned URLを取得する
    */
   const getPresignedUrl = useCallback(
-    async (s3Key: string, bucketName?: string): Promise<string> => {
+    async (
+      s3Key: string,
+      bucketName?: string,
+      /** ほかのバケット（ナレッジベースの出典）を開くとき、出典が出てきた審査。
+       *  サーバはその審査の結果に出てきた場所しか開かない */
+      reviewJobId?: string
+    ): Promise<string> => {
       setIsLoading(true);
       setError(null);
 
@@ -50,6 +56,9 @@ export function usePresignedDownloadUrl(
 
         if (bucketName) {
           params.append("bucket", bucketName);
+        }
+        if (reviewJobId) {
+          params.append("reviewJobId", reviewJobId);
         }
 
         const response = await http.getOnce<{
