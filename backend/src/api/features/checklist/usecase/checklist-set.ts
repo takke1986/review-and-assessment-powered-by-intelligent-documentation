@@ -16,7 +16,7 @@ import {
 import { PaginatedResponse } from "../../../common/types";
 import { ListParams } from "../../../common/pagination";
 import { ulid } from "ulid";
-import { getPresignedUrl, getS3ObjectSize } from "../../../core/s3";
+import { getS3ObjectSize } from "../../../core/s3";
 import { getChecklistOriginalKey } from "../../../../checklist-workflow/common/storage-paths";
 import {
   ApplicationError,
@@ -34,11 +34,12 @@ import {
   canDeleteCheckListSet,
 } from "../../../core/access/checklist-access";
 import { ValidationError } from "../../../core/errors";
-import { assertUploadKeyOrThrow } from "../../../core/access/upload-key";
 import {
+  assertUploadKeyOrThrow,
   CHECKLIST_UPLOAD_EXTENSIONS,
+  presignUpload,
   uploadContentTypeOrThrow,
-} from "../../../core/upload-types";
+} from "../../../core/uploads";
 
 export const createChecklistSet = async (params: {
   req: CreateChecklistSetRequest;
@@ -280,29 +281,14 @@ export const getAllChecklistSets = async (
 
 export const getCheckListDocumentPresignedUrl = async (params: {
   filename: string;
-  contentType: string;
-}): Promise<{
-  url: string;
-  key: string;
-  documentId: string;
-  contentType: string;
-}> => {
-  const { filename } = params;
-  const bucketName = process.env.DOCUMENT_BUCKET;
-  if (!bucketName) {
-    throw new Error("S3_BUCKET_NAME is not defined");
-  }
-  // 送られてきた Content-Type は使わず、拡張子から決める（core/upload-types.ts）
-  const contentType = uploadContentTypeOrThrow(
-    filename,
-    CHECKLIST_UPLOAD_EXTENSIONS
+  /** 使わない。Content-Type はサーバが拡張子から決める */
+  contentType?: string;
+}) =>
+  presignUpload(
+    params.filename,
+    CHECKLIST_UPLOAD_EXTENSIONS,
+    getChecklistOriginalKey
   );
-  const documentId = ulid();
-  const key = getChecklistOriginalKey(documentId, filename);
-  const url = await getPresignedUrl(bucketName, key, contentType);
-
-  return { url, key, documentId, contentType };
-};
 
 export const getChecklistItems = async (params: {
   checkListSetId: string;

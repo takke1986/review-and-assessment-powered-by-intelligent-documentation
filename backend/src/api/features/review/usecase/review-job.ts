@@ -6,12 +6,13 @@ import {
   ReviewResultDetail,
 } from "../domain/model/review";
 import { assertCanUseCheckListSetOrThrow } from "../../../core/access/checklist-access";
-import { assertUploadKeyOrThrow } from "../../../core/access/upload-key";
 import {
+  assertUploadKeyOrThrow,
+  presignUpload,
   REVIEW_IMAGE_EXTENSIONS,
   REVIEW_UPLOAD_EXTENSIONS,
   uploadContentTypeOrThrow,
-} from "../../../core/upload-types";
+} from "../../../core/uploads";
 import { PaginatedResponse } from "../../../common/types";
 import { ListParams } from "../../../common/pagination";
 import {
@@ -24,7 +25,7 @@ import {
   makePrismaReviewResultRepository,
 } from "../domain/review-result-repository";
 import { ulid } from "ulid";
-import { getPresignedUrl, getS3ObjectSize } from "../../../core/s3";
+import { getS3ObjectSize } from "../../../core/s3";
 import {
   getReviewDocumentKey,
   getReviewImageKey,
@@ -254,116 +255,54 @@ export const resumeReviewJob = async (params: {
   }
 };
 
+type PresignedUpload = Awaited<ReturnType<typeof presignUpload>>;
+
 export const getReviewDocumentPresignedUrl = async (params: {
   filename: string;
-  contentType: string;
-}): Promise<{
-  url: string;
-  key: string;
-  documentId: string;
-  contentType: string;
-}> => {
-  const { filename } = params;
-  const bucketName = process.env.DOCUMENT_BUCKET;
-  if (!bucketName) {
-    throw new Error("S3_BUCKET_NAME is not defined");
-  }
-  // 送られてきた Content-Type は使わず、拡張子から決める（core/upload-types.ts）
-  const contentType = uploadContentTypeOrThrow(
-    filename,
-    REVIEW_UPLOAD_EXTENSIONS
+  /** 使わない。Content-Type はサーバが拡張子から決める */
+  contentType?: string;
+}): Promise<PresignedUpload> =>
+  presignUpload(
+    params.filename,
+    REVIEW_UPLOAD_EXTENSIONS,
+    getReviewDocumentKey
   );
-  const documentId = ulid();
-  const key = getReviewDocumentKey(documentId, filename);
-  const url = await getPresignedUrl(bucketName, key, contentType);
 
-  return { url, key, documentId, contentType };
+/** 審査ジョブ作成時の上限（createReviewJob）と同じ値に揃える */
+const assertUploadCount = (count: number, what: string): void => {
+  if (count > MAX_REVIEW_DOCUMENTS) {
+    throw new ApplicationError(
+      `Maximum ${MAX_REVIEW_DOCUMENTS} ${what} allowed`
+    );
+  }
 };
 
 export const getReviewDocumentsPresignedUrl = async (params: {
   filenames: string[];
-  contentTypes: string[];
-}): Promise<{
-  files: Array<{
-    url: string;
-    key: string;
-    filename: string;
-    documentId: string;
-    contentType: string;
-  }>;
-}> => {
-  const { filenames } = params;
-  const bucketName = process.env.DOCUMENT_BUCKET;
-  if (!bucketName) {
-    throw new Error("S3_BUCKET_NAME is not defined");
-  }
-
-  // 審査ジョブ作成時の上限（createReviewJob）と同じ値に揃える
-  if (filenames.length > MAX_REVIEW_DOCUMENTS) {
-    throw new ApplicationError(
-      `Maximum ${MAX_REVIEW_DOCUMENTS} documents allowed`
-    );
-  }
-
-  const results = await Promise.all(
-    filenames.map(async (filename, index) => {
-      // 送られてきた Content-Type は使わず、拡張子から決める
-      const contentType = uploadContentTypeOrThrow(
-        filename,
-        REVIEW_UPLOAD_EXTENSIONS
-      );
-      const documentId = ulid();
-      const key = getReviewDocumentKey(documentId, filename);
-      const url = await getPresignedUrl(bucketName, key, contentType);
-
-      return { url, key, filename, documentId, contentType };
-    })
+  /** 使わない。Content-Type はサーバが拡張子から決める */
+  contentTypes?: string[];
+}): Promise<{ files: PresignedUpload[] }> => {
+  assertUploadCount(params.filenames.length, "documents");
+  const files = await Promise.all(
+    params.filenames.map((filename) =>
+      presignUpload(filename, REVIEW_UPLOAD_EXTENSIONS, getReviewDocumentKey)
+    )
   );
-
-  return { files: results };
+  return { files };
 };
 
 export const getReviewImagesPresignedUrl = async (params: {
   filenames: string[];
-  contentTypes: string[];
-}): Promise<{
-  files: Array<{
-    url: string;
-    key: string;
-    filename: string;
-    documentId: string;
-    contentType: string;
-  }>;
-}> => {
-  const { filenames } = params;
-  const bucketName = process.env.DOCUMENT_BUCKET;
-  if (!bucketName) {
-    throw new Error("S3_BUCKET_NAME is not defined");
-  }
-
-  if (filenames.length > MAX_REVIEW_DOCUMENTS) {
-    throw new ApplicationError(
-      `Maximum ${MAX_REVIEW_DOCUMENTS} image files allowed`
-    );
-  }
-
-  const results = await Promise.all(
-    filenames.map(async (filename, index) => {
-      // 送られてきた Content-Type は使わず、拡張子から決める
-      const contentType = uploadContentTypeOrThrow(
-        filename,
-        REVIEW_IMAGE_EXTENSIONS
-      );
-      const documentId = ulid();
-      const key = getReviewImageKey(documentId, filename);
-      const url = await getPresignedUrl(bucketName, key, contentType);
-      return { url, key, filename, documentId, contentType };
-    })
+  /** 使わない。Content-Type はサーバが拡張子から決める */
+  contentTypes?: string[];
+}): Promise<{ files: PresignedUpload[] }> => {
+  assertUploadCount(params.filenames.length, "image files");
+  const files = await Promise.all(
+    params.filenames.map((filename) =>
+      presignUpload(filename, REVIEW_IMAGE_EXTENSIONS, getReviewImageKey)
+    )
   );
-
-  return {
-    files: results,
-  };
+  return { files };
 };
 
 /**

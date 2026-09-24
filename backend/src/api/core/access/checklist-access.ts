@@ -1,4 +1,4 @@
-import { ForbiddenError } from "../errors/application-errors";
+import { forbid } from "./forbid";
 import {
   assertHasOwnerAccessOrThrow,
   hasOwnerAccess,
@@ -60,13 +60,14 @@ const deny = (
   user: RequestUser | undefined,
   set: CheckListSetAccess,
   opts: { api: string; logger?: Logger }
-): never => {
-  opts.logger?.warn?.(
-    `Failure to authorize. : api=${opts.api}, ` +
-      `user_id=${user?.userId ?? "unknown_user"}, resource_id=${set.id}`
-  );
-  throw new ForbiddenError("Access to the requested resource is forbidden");
-};
+): never =>
+  forbid({
+    api: opts.api,
+    user,
+    detail: `resource_id=${set.id}`,
+    // 呼び出し側が logger を渡さなければ記録しない（これまでと同じ）
+    logger: opts.logger ?? {},
+  });
 
 export function assertCanUseCheckListSetOrThrow(
   user: RequestUser | undefined,

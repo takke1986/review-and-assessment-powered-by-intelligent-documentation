@@ -79,8 +79,17 @@ export const STATUS_VIEW: Record<
   },
 };
 
-/** 表の列。見出しを押すと並び替える */
-export const SORTABLE_COLUMNS = [
+/** 傾向の表の列。見出しを押すと並び替える */
+export interface TrendColumn {
+  key: string;
+  label: string;
+  alignRight: boolean;
+  /** 並べ替えの対象にしない列。既定は対象にする */
+  sortable?: boolean;
+}
+
+/** 項目ごとの傾向の表の列 */
+export const ITEM_TREND_COLUMNS: TrendColumn[] = [
   { key: "name", label: "trends.item", alignRight: false },
   { key: "status", label: "trends.status", alignRight: false },
   { key: "action", label: "trends.action", alignRight: false },
@@ -90,7 +99,7 @@ export const SORTABLE_COLUMNS = [
   { key: "reviewedCount", label: "trends.reviewed", alignRight: true },
   { key: "averageConfidence", label: "trends.confidence", alignRight: true },
   { key: "lastFailedAt", label: "trends.lastFailed", alignRight: false },
-] as const;
+];
 
 /**
  * 横断一覧の列。既定の並びは「手を入れる項目」の多い順。
@@ -98,15 +107,7 @@ export const SORTABLE_COLUMNS = [
  * 不合格率を既定にしない理由は set-trend-summary.ts に書いてある通りで、
  * 1回しか審査していないセットが 100% で先頭に来てしまうため。
  */
-interface SetTrendColumn {
-  key: string;
-  label: string;
-  alignRight: boolean;
-  /** 並べ替えの対象にしない列。既定は対象にする */
-  sortable?: boolean;
-}
-
-export const SET_TREND_COLUMNS: SetTrendColumn[] = [
+export const SET_TREND_COLUMNS: TrendColumn[] = [
   { key: "name", label: "trends.checkListSet", alignRight: false },
   { key: "reviewJobCount", label: "trends.reviewJobs", alignRight: true },
   { key: "failRate", label: "trends.failRate", alignRight: false },

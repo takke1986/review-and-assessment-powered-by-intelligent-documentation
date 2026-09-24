@@ -1,4 +1,6 @@
+import { ulid } from "ulid";
 import { ValidationError } from "./errors";
+import { getPresignedUrl } from "./s3";
 
 /**
  * 受け付けるファイルの種類。
@@ -102,4 +104,54 @@ export function downloadResponseHeaders(key: string): {
       : (CONTENT_TYPES[extension] ?? "application/octet-stream"),
     contentDisposition: `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(filename)}`,
   };
+}
+
+/**
+ * 画面から送られてきた文書の S3 キーが、その文書のアップロード先か。
+ *
+ * キーは画面から送られてくる。そのまま使うと、他人がアップロードした
+ * 書類のキーを書いて自分の審査にかけられる。アップロードのとき、サーバは
+ * `<場所><文書ID>/<ファイル名>` にしか署名しないので、キーがその形で、
+ * かつ文書 ID が一致していることを確かめる。文書 ID は文書の主キーでもあるので、
+ * 使われたものは二度と使えない
+ */
+export function assertUploadKeyOrThrow(
+  doc: { id: string; s3Key: string },
+  uploadAreas: string[]
+): void {
+  const ok = uploadAreas.some((area) => {
+    // S3 のキーは ".." を解釈しないので、この場所の下なら外には出ない
+    const prefix = `${area}${doc.id}/`;
+    return doc.s3Key.startsWith(prefix) && doc.s3Key.length > prefix.length;
+  });
+  if (!ok) {
+    throw new ValidationError(`Invalid document location: ${doc.id}`);
+  }
+}
+
+/**
+ * アップロード先を1つ発行する。拡張子から Content-Type を決め、文書 ID を振り、
+ * keyFor で決まる場所に署名する。画面はここで返す Content-Type でアップロードする
+ */
+export async function presignUpload(
+  filename: string,
+  allowed: string[],
+  keyFor: (documentId: string, filename: string) => string
+): Promise<{
+  url: string;
+  key: string;
+  filename: string;
+  documentId: string;
+  contentType: string;
+}> {
+  const bucket = process.env.DOCUMENT_BUCKET;
+  if (!bucket) {
+    throw new Error("DOCUMENT_BUCKET is not defined");
+  }
+  // 送られてきた Content-Type は使わず、拡張子から決める
+  const contentType = uploadContentTypeOrThrow(filename, allowed);
+  const documentId = ulid();
+  const key = keyFor(documentId, filename);
+  const url = await getPresignedUrl(bucket, key, contentType);
+  return { url, key, filename, documentId, contentType };
 }

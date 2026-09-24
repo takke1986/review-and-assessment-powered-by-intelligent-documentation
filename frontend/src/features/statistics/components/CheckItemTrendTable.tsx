@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { CHECK_TREND_STATUS, CheckFailureTrendItem } from "../types";
-import { SORTABLE_COLUMNS, STATUS_VIEW } from "../trendView";
+import { ITEM_TREND_COLUMNS, STATUS_VIEW } from "../trendView";
+import TrendTableHead from "./TrendTableHead";
 import { useRowLink } from "../rowLink";
 
 /** これより長い「すべきこと」は折り返して読ませる */
@@ -120,41 +121,12 @@ export default function CheckItemTrendTable({
     // 画面より広くなり、横に送れる
     <div className="overflow-x-auto rounded-lg border border-light-gray bg-white">
       <table className="min-w-full text-sm">
-        <thead className="bg-aws-paper-light text-left">
-          <tr>
-            {SORTABLE_COLUMNS.map((column) => (
-              <th
-                key={column.key}
-                scope="col"
-                aria-sort={
-                  sortBy === column.key
-                    ? sortOrder === "asc"
-                      ? "ascending"
-                      : "descending"
-                    : undefined
-                }
-                className={`whitespace-nowrap px-4 py-3 ${
-                  column.alignRight ? "text-right" : ""
-                }`}>
-                <button
-                  type="button"
-                  onClick={() => onSortChange(column.key)}
-                  className={`flex items-center gap-1 hover:text-aws-font-color-blue ${
-                    column.alignRight ? "ml-auto" : ""
-                  }`}>
-                  {t(column.label)}
-                  <span className="text-xs text-aws-font-color-gray">
-                    {sortBy === column.key
-                      ? sortOrder === "asc"
-                        ? "▲"
-                        : "▼"
-                      : "↕"}
-                  </span>
-                </button>
-              </th>
-            ))}
-          </tr>
-        </thead>
+        <TrendTableHead
+          columns={ITEM_TREND_COLUMNS}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onSortChange={onSortChange}
+        />
         <tbody>
           {items.map((item) => (
             <tr key={item.checkId} {...rowLink(destination(item)?.to ?? null)}>

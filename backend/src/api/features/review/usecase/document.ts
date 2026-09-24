@@ -5,11 +5,9 @@ import {
 } from "../../../core/s3";
 import { canView, toViewer } from "../../../core/access/visibility";
 import type { RequestUser } from "../../../core/middleware/authorization";
-import { downloadResponseHeaders } from "../../../core/upload-types";
-import {
-  ForbiddenError,
-  NotFoundError,
-} from "../../../core/errors/application-errors";
+import { forbid } from "../../../core/access/forbid";
+import { downloadResponseHeaders } from "../../../core/uploads";
+import { NotFoundError } from "../../../core/errors/application-errors";
 import {
   collectS3Locations,
   DocumentAccessRepository,
@@ -29,12 +27,8 @@ interface GetDocumentDownloadUrlParams {
 /** URL の有効期限の上限。送られてきた値をそのまま使うと、何日も使える URL を作れる */
 const MAX_EXPIRES_IN = 3600;
 
-const deny = (user: RequestUser, detail: string): never => {
-  console.warn(
-    `Failure to authorize. : api=getDocumentDownloadUrl, user_id=${user?.userId ?? "unknown_user"}, ${detail}`
-  );
-  throw new ForbiddenError("Access to the requested resource is forbidden");
-};
+const deny = (user: RequestUser, detail: string): never =>
+  forbid({ api: "getDocumentDownloadUrl", user, detail });
 
 /**
  * ドキュメントのダウンロード用 Presigned URL を取得する。
@@ -140,12 +134,12 @@ export async function deleteUnattachedUpload(params: {
   if (!bucket) {
     throw new Error("DOCUMENT_BUCKET is not defined");
   }
-  const refuse = (reason: string): never => {
-    console.warn(
-      `Failure to authorize. : api=deleteUnattachedUpload, user_id=${user?.userId ?? "unknown_user"}, resource_id=${documentId}, reason=${reason}`
-    );
-    throw new ForbiddenError("Access to the requested resource is forbidden");
-  };
+  const refuse = (reason: string): never =>
+    forbid({
+      api: "deleteUnattachedUpload",
+      user,
+      detail: `resource_id=${documentId}, reason=${reason}`,
+    });
   // 文書 ID の形でなければ、場所の外を指せる（"../" や別の場所のキー）
   if (!DOCUMENT_ID.test(documentId)) {
     refuse("not_a_document_id");

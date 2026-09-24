@@ -5,7 +5,8 @@ import {
   REVIEW_UPLOAD_EXTENSIONS,
   REVIEW_IMAGE_EXTENSIONS,
   CHECKLIST_UPLOAD_EXTENSIONS,
-} from "./upload-types";
+  assertUploadKeyOrThrow,
+} from "./uploads";
 
 describe("uploadContentTypeOrThrow", () => {
   it("decides the content type from the extension", () => {
@@ -65,5 +66,46 @@ describe("downloadResponseHeaders", () => {
     expect(
       downloadResponseHeaders("review/original/D/a.xlsx").contentDisposition
     ).toMatch(/^attachment;/);
+  });
+});
+
+const uploadAreas = ["review/original/", "review/images/"];
+
+describe("assertUploadKeyOrThrow", () => {
+  it("accepts the place the document was uploaded to", () => {
+    expect(() =>
+      assertUploadKeyOrThrow(
+        { id: "DOC1", s3Key: "review/original/DOC1/spec.pdf" },
+        uploadAreas
+      )
+    ).not.toThrow();
+    expect(() =>
+      assertUploadKeyOrThrow(
+        { id: "DOC1", s3Key: "review/images/DOC1/0_a.png" },
+        uploadAreas
+      )
+    ).not.toThrow();
+  });
+
+  it("refuses a key that belongs to another document", () => {
+    // 他人がアップロードした書類のキーを書いて審査にかけられないこと
+    expect(() =>
+      assertUploadKeyOrThrow(
+        { id: "DOC1", s3Key: "review/original/DOC2/spec.pdf" },
+        uploadAreas
+      )
+    ).toThrow("Invalid document location");
+  });
+
+  it("refuses a key outside the upload area", () => {
+    for (const s3Key of [
+      "checklist/original/DOC1/a.pdf",
+      "DOC1/a.pdf",
+      "review/original/DOC1/",
+    ]) {
+      expect(() =>
+        assertUploadKeyOrThrow({ id: "DOC1", s3Key }, uploadAreas)
+      ).toThrow();
+    }
   });
 });
