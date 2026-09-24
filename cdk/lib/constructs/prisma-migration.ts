@@ -5,7 +5,6 @@ import * as cdk from "aws-cdk-lib";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as path from "path";
 import * as cr from "aws-cdk-lib/custom-resources";
-import * as iam from "aws-cdk-lib/aws-iam";
 import * as rds from "aws-cdk-lib/aws-rds";
 import { Construct } from "constructs";
 import { DockerPrismaFunction } from "./docker-prisma-function";
@@ -39,7 +38,7 @@ export interface PrismaMigrationProps {
 export class PrismaMigration extends Construct {
   public readonly migrationLambda: DockerPrismaFunction;
   public readonly securityGroup: ec2.SecurityGroup;
-  public readonly migrationCustomResource?: cr.AwsCustomResource;
+  public readonly migrationCustomResource?: cdk.CustomResource;
 
   constructor(scope: Construct, id: string, props: PrismaMigrationProps) {
     super(scope, id);
@@ -75,55 +74,32 @@ export class PrismaMigration extends Construct {
       architecture: cdk.aws_lambda.Architecture.ARM_64,
     });
 
-    // 自動マイグレーションが有効な場合、Custom Resourceを作成
+    // 自動マイグレーションが有効な場合、デプロイのたびにマイグレーションを流す。
+    //
+    // Provider の onEvent にマイグレーションの Lambda を直接渡す。Lambda が例外を
+    // 投げると Provider が CloudFormation に FAILED を返し、デプロイは失敗して
+    // ロールバックされる。
+    //
+    // 以前は AwsCustomResource で Lambda の invoke API を呼んでいた。invoke は
+    // Lambda の中で例外が起きても API としては成功（FunctionError 付き）で返るので、
+    // マイグレーションが失敗しても CloudFormation には成功と伝わり、DB が古いまま
+    // 新しいコードが動いていた（稼働時間外で NAT が止まり、DB の接続情報を取りに
+    // 行けなかったとき）
     if (autoMigrate) {
-      // Lambda関数を呼び出すためのロールを作成
-      const role = new iam.Role(this, "MigrationInvokerRole", {
-        assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+      const provider = new cr.Provider(this, "MigrationProvider", {
+        onEventHandler: this.migrationLambda,
       });
 
-      // マイグレーションLambdaを呼び出す権限を追加
-      role.addToPolicy(
-        new iam.PolicyStatement({
-          actions: ["lambda:InvokeFunction"],
-          resources: [this.migrationLambda.functionArn],
-        }),
-      );
-
-      // マイグレーションを実行するCustom Resourceを作成
-      this.migrationCustomResource = new cr.AwsCustomResource(
+      this.migrationCustomResource = new cdk.CustomResource(
         this,
-        "MigrationInvoker",
+        "MigrationRun",
         {
-          onUpdate: {
-            service: "Lambda",
-            action: "invoke",
-            parameters: {
-              FunctionName: this.migrationLambda.functionName,
-              Payload: JSON.stringify({ command: "deploy" }),
-            },
-            physicalResourceId: cr.PhysicalResourceId.of(
-              `Migration-${Date.now()}`,
-            ),
+          serviceToken: provider.serviceToken,
+          properties: {
+            command: "deploy",
+            // 値を毎回変えて、デプロイのたびに更新（＝マイグレーション）を走らせる
+            deployedAt: Date.now().toString(),
           },
-          onCreate: {
-            service: "Lambda",
-            action: "invoke",
-            parameters: {
-              FunctionName: this.migrationLambda.functionName,
-              Payload: JSON.stringify({ command: "deploy" }),
-            },
-            physicalResourceId: cr.PhysicalResourceId.of(
-              `Migration-${Date.now()}`,
-            ),
-          },
-          policy: cr.AwsCustomResourcePolicy.fromStatements([
-            new iam.PolicyStatement({
-              actions: ["lambda:InvokeFunction"],
-              resources: [this.migrationLambda.functionArn],
-            }),
-          ]),
-          role: role,
         },
       );
 
@@ -140,7 +116,7 @@ export class PrismaMigration extends Construct {
     new cdk.CfnOutput(this, "DeployMigrationCommand", {
       value: `aws lambda invoke --function-name ${
         this.migrationLambda.functionName
-      } --payload '{"command":"deploy"}' --region ${
+      } --cli-binary-format raw-in-base64-out --payload '{"command":"deploy"}' --region ${
         cdk.Stack.of(this).region
       } output.json`,
       description: "マイグレーションを実行するコマンド (deploy)",
@@ -149,7 +125,7 @@ export class PrismaMigration extends Construct {
     new cdk.CfnOutput(this, "ResetMigrationCommand", {
       value: `aws lambda invoke --function-name ${
         this.migrationLambda.functionName
-      } --payload '{"command":"reset"}' --region ${
+      } --cli-binary-format raw-in-base64-out --payload '{"command":"reset"}' --region ${
         cdk.Stack.of(this).region
       } output.json`,
       description: "マイグレーションをリセットするコマンド (reset)",

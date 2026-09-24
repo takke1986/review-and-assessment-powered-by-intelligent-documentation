@@ -23,15 +23,33 @@ const validateCommand = (command: unknown): AllowedCommand => {
   return "deploy";
 };
 
+/** CloudFormation に返す物理 ID。変えると CloudFormation が置き換え（削除）を送ってくる */
+const PHYSICAL_RESOURCE_ID = "prisma-migration";
+
 /**
  * Handler for running Prisma migrations
+ *
+ * 2通りの呼ばれ方をする。
+ *
+ * - デプロイのたびに CloudFormation から（カスタムリソースの Provider 経由）。
+ *   ここで例外を投げると、デプロイが失敗してロールバックされる。以前は
+ *   AwsCustomResource が Lambda の invoke API を呼ぶだけだったので、失敗しても
+ *   invoke 自体は成功扱いになり、DB が古いままデプロイが「成功」していた
+ * - 手動で `aws lambda invoke --payload '{"command":"deploy"}'`
  */
 export const handler: Handler = async (event, _) => {
+  // スタックの削除や置き換えでは DB に触らない
+  if (event?.RequestType === "Delete") {
+    return { PhysicalResourceId: event.PhysicalResourceId ?? PHYSICAL_RESOURCE_ID };
+  }
+
   // DATABASE_URLを環境変数に設定（マイグレーション実行前に必要）
   process.env.DATABASE_URL = await getDatabaseUrl();
 
-  // Sanitize the command input
-  const command: AllowedCommand = validateCommand(event.command);
+  // Sanitize the command input。CloudFormation からはリソースのプロパティで届く
+  const command: AllowedCommand = validateCommand(
+    event?.ResourceProperties?.command ?? event?.command
+  );
   let options: string[] = [];
 
   if (command === "reset") {
@@ -59,6 +77,7 @@ export const handler: Handler = async (event, _) => {
 
     if (exitCode !== 0)
       throw Error(`command ${command} failed with exit code ${exitCode}`);
+    return { PhysicalResourceId: PHYSICAL_RESOURCE_ID };
   } catch (e) {
     console.log(e);
     throw e;
