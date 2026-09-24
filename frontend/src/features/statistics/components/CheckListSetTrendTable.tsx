@@ -1,3 +1,6 @@
+import { HiEye } from "react-icons/hi";
+import { useNavigate } from "react-router-dom";
+import Button from "../../../components/Button";
 import { useRowLink } from "../rowLink";
 import { useTranslation } from "react-i18next";
 import { CheckListSetTrendSummary } from "../types";
@@ -26,6 +29,7 @@ export default function CheckListSetTrendTable({
 }: Props) {
   const { t } = useTranslation();
   const rowLink = useRowLink();
+  const navigate = useNavigate();
   const percent = (rate: number) => `${Math.round(rate * 100)}%`;
 
   /** 覆された数は向きが分かるように出す。数だけでは打ち手が決まらない */
@@ -165,6 +169,18 @@ export default function CheckListSetTrendTable({
                 {row.lastReviewedAt
                   ? new Date(row.lastReviewedAt).toLocaleString()
                   : t("trends.neverReviewed")}
+              </td>
+              <td className="whitespace-nowrap px-4 py-3">
+                {/* 審査が無いセットは傾向が無いので押せない。行クリックと揃える */}
+                <Button
+                  variant="primary"
+                  outline
+                  size="sm"
+                  icon={<HiEye className="mr-1 h-4 w-4" />}
+                  disabled={row.reviewJobCount === 0}
+                  onClick={() => navigate(`/trends/${row.checkListSetId}`)}>
+                  {t("common.details")}
+                </Button>
               </td>
             </tr>
           ))}

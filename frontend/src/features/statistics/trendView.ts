@@ -113,4 +113,11 @@ export const SET_TREND_COLUMNS: SetTrendColumn[] = [
   { key: "actionableCount", label: "trends.actionableItems", alignRight: true },
   { key: "overturned", label: "trends.overturned", alignRight: true },
   { key: "lastReviewedAt", label: "trends.lastReviewed", alignRight: false },
+  // 他の一覧と同じく、行クリックに加えて操作列に詳細ボタンを置く
+  {
+    key: "actions",
+    label: "table.actions",
+    alignRight: false,
+    sortable: false,
+  },
 ];
