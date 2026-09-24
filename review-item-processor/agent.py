@@ -359,6 +359,26 @@ def _select_model_for_files(
     return IMAGE_MODEL_ID if has_images else DOCUMENT_MODEL_ID
 
 
+def normalize_verdict(result: dict[str, Any]) -> str:
+    """判定を "pass" か "fail" にそろえる。
+
+    モデルが "PASS" や "合格"、true を返しても、以前はそのまま保存していた。
+    画面と集計は "pass" / "fail" の完全一致で数えるので、そうした項目は
+    合否どちらにも出ず、報告書では「不合格でない」側に入っていた。
+    読めない判定は不合格にして、理由に読めなかったことを書き添える
+    （合格側に倒すと、見落としがそのまま通る）
+    """
+    raw = result.get("result")
+    verdict = raw.strip().lower() if isinstance(raw, str) else None
+    if verdict in ("pass", "fail"):
+        return verdict
+    if raw is not None:
+        logger.warning(f"Unreadable verdict {raw!r}; treating it as fail")
+        note = f"[The verdict {raw!r} could not be read, so it is treated as fail.]"
+        result["explanation"] = f"{note} {result.get('explanation') or ''}".strip()
+    return "fail"
+
+
 def _validate_and_complete_result(
     result: dict[str, Any], has_images: bool
 ) -> dict[str, Any]:
@@ -366,8 +386,7 @@ def _validate_and_complete_result(
     Validate and complete required fields in the result dict.
     """
     # Set defaults for required fields
-    if "result" not in result:
-        result["result"] = "fail"
+    result["result"] = normalize_verdict(result)
     if "confidence" not in result:
         result["confidence"] = 0.5
     if "explanation" not in result:
@@ -897,9 +916,13 @@ def _extract_json_from_message(message: Any) -> Tuple[Optional[Dict[str, Any]], 
     else:
         combined = str(message).strip()
 
-    # マーカー付きJSON抽出を試行
-    json_match = re.search(r"<<JSON_START>>(.*?)<<JSON_END>>", combined, re.DOTALL)
-    if json_match:
+    # マーカー付きJSON抽出を試行。最後のものから採る。
+    # 審査する文書に目印つきの偽の回答（"result": "pass"）が書かれていて、
+    # モデルが推論の途中でそれを引用すると、最初のものを採ったときに
+    # モデル自身の最終回答より先にそちらが判定になってしまう
+    for json_match in reversed(
+        list(re.finditer(r"<<JSON_START>>(.*?)<<JSON_END>>", combined, re.DOTALL))
+    ):
         json_str = json_match.group(1).strip()
         try:
             return json.loads(json_str), combined

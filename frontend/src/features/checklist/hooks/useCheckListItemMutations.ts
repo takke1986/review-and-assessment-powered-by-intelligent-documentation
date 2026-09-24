@@ -183,6 +183,29 @@ export function useUpdateCheckListItemImportance(setId: string) {
  * チェックリスト項目の着眼点の更新。
  * 着眼点は次の審査から効く補助情報なので、審査ジョブのあるチェックリストでも書ける
  */
+/** 過去の指摘の要約を消す */
+export function useClearCheckListItemFeedbackSummary(setId: string) {
+  const { mutateAsync, status, error } = useApiClient().useMutation<
+    { success: boolean },
+    void
+  >("delete", `/checklist-sets/${setId}/items`);
+
+  const clearFeedbackSummary = async (itemId: string) => {
+    const res = await mutateAsync(
+      undefined,
+      `/checklist-sets/${setId}/items/${itemId}/feedback-summary`
+    );
+    mutate(
+      (key) =>
+        typeof key === "string" &&
+        key.startsWith(`/checklist-sets/${setId}/items`)
+    );
+    return res;
+  };
+
+  return { clearFeedbackSummary, status, error };
+}
+
 export function useUpdateCheckListItemReviewGuidance(setId: string) {
   const { mutateAsync, status, error } = useApiClient().useMutation<
     UpdateChecklistItemReviewGuidanceResponse,

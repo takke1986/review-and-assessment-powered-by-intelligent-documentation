@@ -7,6 +7,7 @@ import { CheckListItemEntity } from "../types";
 import {
   useUpdateCheckListItem,
   useUpdateCheckListItemReviewGuidance,
+  useClearCheckListItemFeedbackSummary,
 } from "../hooks/useCheckListItemMutations";
 import { useToast } from "../../../contexts/ToastContext";
 
@@ -38,6 +39,7 @@ export default function CheckListItemEditModal({
     reviewGuidance: item.reviewGuidance || "",
   });
   const [resolveAmbiguity, setResolveAmbiguity] = useState(false);
+  const [clearFeedback, setClearFeedback] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const { addToast } = useToast();
@@ -48,6 +50,8 @@ export default function CheckListItemEditModal({
   } = useUpdateCheckListItem(checkListSetId);
   const { updateCheckListItemReviewGuidance } =
     useUpdateCheckListItemReviewGuidance(checkListSetId);
+  const { clearFeedbackSummary } =
+    useClearCheckListItemFeedbackSummary(checkListSetId);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -85,6 +89,10 @@ export default function CheckListItemEditModal({
           item.id,
           formData.reviewGuidance
         );
+      }
+      // 過去の指摘の要約も、鍵つきのチェックリストで消せる（次の審査から効くだけ）
+      if (clearFeedback) {
+        await clearFeedbackSummary(item.id);
       }
       addToast(t("checklist.editItemUpdateSuccess"), "success");
       onSuccess();
@@ -202,6 +210,34 @@ export default function CheckListItemEditModal({
             {t("checklist.reviewGuidanceHelp")}
           </p>
         </div>
+
+        {/* 過去の指摘の要約。自動で作られて審査に入るのに、以前は誰にも
+            見えなかった。中身を見せて、不適切なら消せるようにする */}
+        {item.feedbackSummary && (
+          <div className="mb-6">
+            <p className="mb-2 block font-medium text-aws-squid-ink-light">
+              {t("checklist.feedbackSummary")}
+            </p>
+            <p
+              className={`whitespace-pre-wrap rounded-md border border-light-gray bg-aws-paper-light px-4 py-2 text-sm ${
+                clearFeedback ? "text-aws-font-color-gray line-through" : ""
+              }`}>
+              {item.feedbackSummary}
+            </p>
+            <p className="mt-1 text-sm text-aws-font-color-gray">
+              {t("checklist.feedbackSummaryHelp")}
+            </p>
+            <label className="mt-2 flex items-center">
+              <input
+                type="checkbox"
+                checked={clearFeedback}
+                onChange={(e) => setClearFeedback(e.target.checked)}
+                className="mr-2 h-4 w-4"
+              />
+              <span className="text-sm">{t("checklist.clearFeedbackSummary")}</span>
+            </label>
+          </div>
+        )}
 
         {/* 指摘解消チェックボックス。鍵つきでは項目を更新しないので、
             チェックしても何も起きない。押せるのに効かない状態を避けて隠す */}

@@ -366,3 +366,39 @@ export const updateCheckListItemReviewGuidance = async (params: {
   });
   await markEdited(repo, params.setId, params.user);
 };
+
+/**
+ * 過去の指摘の要約を消す。
+ *
+ * 要約は、判定を上書きしたときのコメントから自動で作られ、この項目の
+ * これからの審査すべてに入る。中身が不適切でも以前は誰にも見えず、
+ * 消す手段も無かった。チェックリストを直せる人が消せるようにする。
+ * 着眼点と同じく次の審査から効くだけなので、審査ジョブのある
+ * チェックリストでも消せる
+ */
+export const clearCheckListItemFeedbackSummary = async (params: {
+  setId: string;
+  itemId: string;
+  user: RequestUser;
+  deps?: {
+    repo?: CheckRepository;
+  };
+}): Promise<void> => {
+  const repo = params.deps?.repo || (await makePrismaCheckRepository());
+
+  await assertChecklistSetEditor({
+    user: params.user,
+    setId: params.setId,
+    repo,
+    api: "clearCheckListItemFeedbackSummary",
+  });
+
+  // 権限を確かめたチェックリストの項目であることを確かめる
+  const item = await repo.findCheckListItemById(params.itemId);
+  if (item.setId !== params.setId) {
+    throw new ValidationError("Invalid setId");
+  }
+
+  await repo.clearFeedbackSummary(params.itemId);
+  await markEdited(repo, params.setId, params.user);
+};

@@ -278,6 +278,12 @@ export interface CheckListItemEntity {
   importance?: CHECK_ITEM_IMPORTANCE;
   /** 審査のときに見てほしい観点。人が書く補助情報で、判定を上書きしない */
   reviewGuidance?: string;
+  /**
+   * 過去の指摘の要約。判定を上書きしたときのコメントから自動で作られ、
+   * この項目のこれからの審査に参考として入る
+   */
+  feedbackSummary?: string;
+  feedbackSummaryUpdatedAt?: string;
   ambiguityReview?: AmbiguityDetectionResult;
 }
 

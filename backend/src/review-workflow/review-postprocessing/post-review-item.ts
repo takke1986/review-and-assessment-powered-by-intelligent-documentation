@@ -2,6 +2,7 @@ import { makePrismaReviewJobRepository } from "../../api/features/review/domain/
 import { makePrismaReviewResultRepository } from "../../api/features/review/domain/review-result-repository";
 import {
   REVIEW_FILE_TYPE,
+  REVIEW_RESULT,
   ReviewResultDomain,
 } from "../../api/features/review/domain/model/review";
 import { S3TempStorage } from "../../utils/s3-temp";
@@ -49,6 +50,14 @@ export interface PostReviewItemParams {
   reviewData: any; // Results from Python Lambda
 }
 
+/** 判定を "pass" か "fail" にそろえる。読めないものは不合格 */
+export const normalizeVerdict = (raw: unknown): REVIEW_RESULT => {
+  const verdict = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  return verdict === REVIEW_RESULT.PASS
+    ? REVIEW_RESULT.PASS
+    : REVIEW_RESULT.FAIL;
+};
+
 /**
  * Process the review result from MCP and store in database
  * @param params Processing parameters
@@ -77,6 +86,16 @@ export async function postReviewItemProcessor(
 
     if (!current) {
       throw new Error(`Review result not found: ${reviewResultId}`);
+    }
+
+    // 判定は "pass" / "fail" の2つだけ。画面と集計は完全一致で数えるので、
+    // それ以外（"PASS"、"合格" など）をそのまま保存すると合否どちらにも出ない。
+    // 審査処理の側でもそろえているが、ここでも確かめる。読めなければ不合格
+    const verdict = normalizeVerdict(resolvedReviewData.result);
+    if (verdict !== resolvedReviewData.result) {
+      console.log(
+        `[DEBUG POST] Unreadable verdict ${JSON.stringify(resolvedReviewData.result)} for ${reviewResultId}; saved as ${verdict}`
+      );
     }
 
     // Use explicit review type from the response instead of detection
@@ -127,8 +146,9 @@ export async function postReviewItemProcessor(
       // Use the unified review data method
       updated = ReviewResultDomain.fromReviewData({
         current,
-        result: resolvedReviewData.result || "fail",
-        confidenceScore: resolvedReviewData.confidence || 0.5,
+        result: verdict,
+        // 0 も自信度として意味があるので、無いときだけ既定値にする
+        confidenceScore: resolvedReviewData.confidence ?? 0.5,
         explanation: resolvedReviewData.explanation || "",
         shortExplanation: resolvedReviewData.shortExplanation || "",
         documents,
@@ -175,8 +195,9 @@ export async function postReviewItemProcessor(
       // Use the unified review data method
       updated = ReviewResultDomain.fromReviewData({
         current,
-        result: resolvedReviewData.result || "fail",
-        confidenceScore: resolvedReviewData.confidence || 0.5,
+        result: verdict,
+        // 0 も自信度として意味があるので、無いときだけ既定値にする
+        confidenceScore: resolvedReviewData.confidence ?? 0.5,
         explanation: resolvedReviewData.explanation || "",
         shortExplanation: resolvedReviewData.shortExplanation || "",
         documents,
@@ -205,7 +226,7 @@ export async function postReviewItemProcessor(
       status: "success",
       reviewResultId,
       checkId,
-      result: resolvedReviewData.result,
+      result: verdict,
     };
   } catch (error) {
     console.error(`[DEBUG POST] Error processing review result: ${error}`);

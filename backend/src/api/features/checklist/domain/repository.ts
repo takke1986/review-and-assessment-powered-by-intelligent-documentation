@@ -93,6 +93,11 @@ export interface CheckRepository {
     itemId: string;
     importance: CHECK_ITEM_IMPORTANCE;
   }): Promise<void>;
+  /**
+   * 過去の指摘の要約を消す。日時は「消した時点」にする。要約は日時より後の
+   * 上書きだけを足していくので、消す前のコメントがまた入り込まない
+   */
+  clearFeedbackSummary(itemId: string): Promise<void>;
   updateCheckListItemReviewGuidance(params: {
     itemId: string;
     reviewGuidance: string | null;
@@ -881,6 +886,13 @@ export const makePrismaCheckRepository = async (
     });
   };
 
+  const clearFeedbackSummary = async (itemId: string): Promise<void> => {
+    await client.checkList.update({
+      where: { id: itemId },
+      data: { feedbackSummary: null, feedbackSummaryUpdatedAt: new Date() },
+    });
+  };
+
   return {
     storeCheckListSet,
     deleteCheckListSetById,
@@ -903,5 +915,6 @@ export const makePrismaCheckRepository = async (
     updateCheckListItemModelId,
     updateCheckListItemImportance,
     updateCheckListItemReviewGuidance,
+    clearFeedbackSummary,
   };
 };

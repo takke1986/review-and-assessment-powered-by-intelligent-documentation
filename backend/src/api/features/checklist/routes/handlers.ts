@@ -21,6 +21,7 @@ import {
   getAvailableModels,
   updateCheckListItemModel,
   updateCheckListItemImportance,
+  clearCheckListItemFeedbackSummary,
   updateCheckListItemReviewGuidance,
 } from "../usecase/checklist-item";
 import { CHECK_LIST_STATUS, AmbiguityFilter } from "../domain/model/checklist";
@@ -491,6 +492,19 @@ export const updateChecklistItemImportanceHandler = async (
     success: true,
     data: {},
   });
+};
+
+export const clearChecklistItemFeedbackSummaryHandler = async (
+  request: FastifyRequest<{ Params: { setId: string; itemId: string } }>,
+  reply: FastifyReply
+): Promise<void> => {
+  const { setId, itemId } = request.params;
+  await clearCheckListItemFeedbackSummary({
+    setId,
+    itemId,
+    user: request.user!,
+  });
+  reply.code(200).send({ success: true, data: {} });
 };
 
 export const updateChecklistItemReviewGuidanceHandler = async (

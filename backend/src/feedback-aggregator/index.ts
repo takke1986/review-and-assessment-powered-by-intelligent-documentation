@@ -248,6 +248,7 @@ async function processChecklist(
       name: true,
       description: true,
       feedbackSummary: true,
+      checkListSet: { select: { userId: true, departmentId: true } },
     },
   });
 
@@ -262,6 +263,18 @@ async function processChecklist(
       checkId,
       userOverride: true,
       userComment: { not: null },
+      // 要約は、この項目のこれからの審査すべてに入る。集めるのは、この
+      // チェックリストを直せる人（作成者と同じ部署）の審査での上書きだけにする。
+      // 誰の上書きでも集めると、1人のコメント（「常に合格でよい」など）が
+      // 全員の審査を動かせてしまう
+      reviewJob: {
+        OR: [
+          { userId: checklist.checkListSet.userId },
+          ...(checklist.checkListSet.departmentId
+            ? [{ departmentId: checklist.checkListSet.departmentId }]
+            : []),
+        ],
+      },
       // Only filter by date if lastUpdateDate exists (incremental update)
       ...(lastUpdateDate && { updatedAt: { gt: lastUpdateDate } }),
     },

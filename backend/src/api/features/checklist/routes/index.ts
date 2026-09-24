@@ -21,6 +21,7 @@ import {
   updateChecklistItemModelHandler,
   updateChecklistItemImportanceHandler,
   updateChecklistItemReviewGuidanceHandler,
+  clearChecklistItemFeedbackSummaryHandler,
 } from "./handlers";
 
 /**
@@ -116,5 +117,11 @@ export function registerChecklistRoutes(fastify: FastifyInstance): void {
   // 審査ジョブのあるチェックリストでも書ける
   fastify.patch("/checklist-sets/:setId/items/:itemId/review-guidance", {
     handler: updateChecklistItemReviewGuidanceHandler,
+  });
+
+  // 過去の指摘の要約を消す。要約はこの項目のこれからの審査に入るので、
+  // 不適切な中身をチェックリストを直せる人が取り除けるようにする
+  fastify.delete("/checklist-sets/:setId/items/:itemId/feedback-summary", {
+    handler: clearChecklistItemFeedbackSummaryHandler,
   });
 }
