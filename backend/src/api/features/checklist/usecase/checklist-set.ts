@@ -26,28 +26,14 @@ import { startStateMachineExecution } from "../../../core/sfn";
 import { sendMessage } from "../../../core/sqs";
 import { validateFileSize } from "../../../core/file-validation";
 import { MAX_FILE_SIZE } from "../../../constants/index";
+import { RequestUser } from "../../../core/middleware/authorization";
 import {
-  assertHasOwnerAccessOrThrow,
-  RequestUser,
-} from "../../../core/middleware/authorization";
+  assertCanDeleteCheckListSetOrThrow,
+  assertCanEditCheckListSetOrThrow,
+  assertCanUseCheckListSetOrThrow,
+  canDeleteCheckListSet,
+} from "../../../core/access/checklist-access";
 import { ValidationError } from "../../../core/errors";
-
-const assertChecklistSetOwner = async (params: {
-  user: RequestUser;
-  checkListSetId: string;
-  repo: CheckRepository;
-  api: string;
-  resourceId?: string;
-}): Promise<void> => {
-  const ownerUserId = await params.repo.findCheckListSetOwner(
-    params.checkListSetId
-  );
-  assertHasOwnerAccessOrThrow(params.user, ownerUserId, {
-    api: params.api,
-    resourceId: params.resourceId ?? params.checkListSetId,
-    logger: console,
-  });
-};
 
 export const createChecklistSet = async (params: {
   req: CreateChecklistSetRequest;
@@ -115,6 +101,8 @@ export const duplicateChecklistSet = async (params: {
   newName?: string;
   newDescription?: string;
   userId: string;
+  /** 複製する人。元のチェックリストを使える人だけが複製できる */
+  user: RequestUser;
   deps?: {
     repo?: CheckRepository;
   };
@@ -125,6 +113,10 @@ export const duplicateChecklistSet = async (params: {
   // 1. 元のチェックリストセットを取得
   const sourceCheckListSet =
     await repo.findCheckListSetDetailById(sourceCheckListSetId);
+  assertCanUseCheckListSetOrThrow(params.user, sourceCheckListSet, {
+    api: "duplicateChecklistSet",
+    logger: console,
+  });
 
   // 2. 新しいチェックリストセットを作成
   const newCheckListSet = CheckListSetDomain.fromDuplicateRequest(
@@ -234,10 +226,8 @@ export const removeChecklistSet = async (params: {
   const { checkListSetId } = params;
 
   const checkListSet = await repo.findCheckListSetDetailById(checkListSetId);
-  const ownerUserId = checkListSet.userId;
-  assertHasOwnerAccessOrThrow(params.user, ownerUserId, {
+  assertCanDeleteCheckListSetOrThrow(params.user, checkListSet, {
     api: "removeChecklistSet",
-    resourceId: checkListSetId,
     logger: console,
   });
 
@@ -267,7 +257,13 @@ export const getAllChecklistSets = async (
     visibleTo: toViewer(params.user),
     search: params.search,
   });
-  return result;
+  return {
+    ...result,
+    items: result.items.map((set) => ({
+      ...set,
+      canDelete: canDeleteCheckListSet(params.user, set),
+    })),
+  };
 };
 
 export const getCheckListDocumentPresignedUrl = async (params: {
@@ -300,12 +296,11 @@ export const getChecklistItems = async (params: {
 }): Promise<CheckListItemDetail[]> => {
   const repo = params.deps?.repo || (await makePrismaCheckRepository());
 
-  await assertChecklistSetOwner({
-    user: params.user,
-    checkListSetId: params.checkListSetId,
-    repo,
-    api: "getChecklistItems",
-  });
+  assertCanUseCheckListSetOrThrow(
+    params.user,
+    await repo.findCheckListSetAccess(params.checkListSetId),
+    { api: "getChecklistItems", logger: console }
+  );
 
   const { checkListSetId, parentId, includeAllChildren, ambiguityFilter } =
     params;
@@ -336,14 +331,15 @@ export const getChecklistSetById = async (params: {
   const { checkListSetId } = params;
   const checkListSet = await repo.findCheckListSetDetailById(checkListSetId);
 
-  const ownerUserId = checkListSet.userId;
-  assertHasOwnerAccessOrThrow(params.user, ownerUserId, {
+  assertCanUseCheckListSetOrThrow(params.user, checkListSet, {
     api: "getChecklistSetById",
-    resourceId: checkListSetId,
     logger: console,
   });
 
-  return checkListSet;
+  return {
+    ...checkListSet,
+    canDelete: canDeleteCheckListSet(params.user, checkListSet),
+  };
 };
 
 export const startAmbiguityDetection = async (params: {
@@ -359,12 +355,11 @@ export const startAmbiguityDetection = async (params: {
   const queueUrl =
     params.deps?.sqsQueueUrl || process.env.AMBIGUITY_DETECTION_QUEUE_URL!;
 
-  await assertChecklistSetOwner({
-    user: params.user,
-    checkListSetId: params.checkListSetId,
-    repo,
-    api: "startAmbiguityDetection",
-  });
+  assertCanEditCheckListSetOrThrow(
+    params.user,
+    await repo.findCheckListSetAccess(params.checkListSetId),
+    { api: "startAmbiguityDetection", logger: console }
+  );
 
   // Update document status to detecting
   const checkListSet = await repo.findCheckListSetDetailById(

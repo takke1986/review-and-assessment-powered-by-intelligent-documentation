@@ -76,6 +76,10 @@ export interface CheckListSetSummary {
   description: string;
   processingStatus: CHECK_LIST_STATUS;
   isEditable: boolean;
+  /** 作成者。消せるかどうかを見る人ごとに決めるために使う */
+  userId: string;
+  /** 見ている人が消せるか。作成者と管理者だけ（core/access/checklist-access.ts） */
+  canDelete?: boolean;
   createdAt: Date;
 }
 
@@ -85,6 +89,12 @@ export interface CheckListSetDetailModel {
   name: string;
   description: string;
   userId: string;
+  departmentId?: string;
+  /** 最後に直した人の名前（そのときの値）と日時。直されていなければ無い */
+  lastEditedByName?: string;
+  lastEditedAt?: Date;
+  /** 見ている人が消せるか。作成者と管理者だけ */
+  canDelete?: boolean;
   documents: ChecklistDocumentEntity[];
   processingStatus: CHECK_LIST_STATUS;
   isEditable: boolean;

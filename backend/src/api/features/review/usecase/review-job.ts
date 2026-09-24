@@ -5,6 +5,7 @@ import {
   ReviewJobDocument,
   ReviewResultDetail,
 } from "../domain/model/review";
+import { assertCanUseCheckListSetOrThrow } from "../../../core/access/checklist-access";
 import { PaginatedResponse } from "../../../common/types";
 import { ListParams } from "../../../common/pagination";
 import {
@@ -384,7 +385,8 @@ const validateJobDocuments = async (
 
 export const createReviewJob = async (params: {
   requestBody: CreateReviewJobRequest & { userId: string; userName?: string };
-  user?: RequestUser;
+  /** 始める人。使えるチェックリストかどうかを確かめる */
+  user: RequestUser;
   deps?: {
     checkRepo?: CheckRepository;
     reviewJobRepo?: ReviewJobRepository;
@@ -395,6 +397,14 @@ export const createReviewJob = async (params: {
     params.deps?.checkRepo || (await makePrismaCheckRepository());
   const reviewJobRepo =
     params.deps?.reviewJobRepo || (await makePrismaReviewJobRepository());
+
+  // 使えるチェックリストでしか審査を始められない。ID さえ分かれば
+  // 他部署のチェックリストで審査できる状態だった
+  assertCanUseCheckListSetOrThrow(
+    params.user,
+    await checkRepo.findCheckListSetAccess(params.requestBody.checkListSetId),
+    { api: "createReviewJob", logger: console }
+  );
 
   await validateJobDocuments(params.requestBody);
 

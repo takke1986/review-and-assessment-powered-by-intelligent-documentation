@@ -200,7 +200,8 @@ export default function CheckListSetList({
       icon: <HiTrash className="mr-1 h-4 w-4" />,
       label: t("common.delete"),
       onClick: handleDelete,
-      disabled: (item) => !item.isEditable,
+      // 審査に使われたものと、作成者でも管理者でもない人（同じ部署の人）は消せない
+      disabled: (item) => !item.isEditable || item.canDelete === false,
       variant: "danger",
       outline: true,
       className: "transition-all duration-200",

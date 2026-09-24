@@ -115,6 +115,8 @@ export type GetAllChecklistSetsResponse = ApiResponse<{
     description: string;
     processingStatus: CHECK_LIST_STATUS;
     isEditable: boolean;
+    /** 見ている人が消せるか。作成者と管理者だけ */
+    canDelete?: boolean;
     createdAt: string;
   }[];
 }>;
@@ -324,6 +326,11 @@ export interface CheckListSetDetailModel {
   documents: ChecklistDocumentEntity[];
   processingStatus: CHECK_LIST_STATUS;
   isEditable: boolean;
+  /** 見ている人が消せるか。作成者と管理者だけ。同じ部署の人は直せるが消せない */
+  canDelete?: boolean;
+  /** 最後に直した人の名前（そのときの値）と日時 */
+  lastEditedByName?: string;
+  lastEditedAt?: string;
   errorSummary?: string;
   hasError: boolean;
 }
@@ -337,6 +344,7 @@ export interface CheckListSetSummary {
   description: string;
   processingStatus: CHECK_LIST_STATUS;
   isEditable: boolean;
+  canDelete?: boolean;
   createdAt: string;
   documents?: ChecklistDocumentEntity[];
 }

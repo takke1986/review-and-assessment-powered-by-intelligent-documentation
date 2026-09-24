@@ -16,26 +16,42 @@ import {
   CreateChecklistItemRequest,
   UpdateChecklistItemRequest,
 } from "../routes/handlers";
+import { RequestUser } from "../../../core/middleware/authorization";
 import {
-  assertHasOwnerAccessOrThrow,
-  RequestUser,
-} from "../../../core/middleware/authorization";
+  assertCanEditCheckListSetOrThrow,
+  assertCanUseCheckListSetOrThrow,
+} from "../../../core/access/checklist-access";
+import { displayNameOf } from "../../../core/access/display-name";
 import { MAX_REVIEW_GUIDANCE_LENGTH } from "../../../constants";
 
-const assertChecklistSetOwner = async (params: {
+/** 直せるか。作成者のほか、同じ部署の人と管理者も直せる */
+const assertChecklistSetEditor = async (params: {
   user: RequestUser;
   setId: string;
   repo: CheckRepository;
   api: string;
-  resourceId?: string;
 }): Promise<void> => {
-  const ownerUserId = await params.repo.findCheckListSetOwner(params.setId);
-  assertHasOwnerAccessOrThrow(params.user, ownerUserId, {
+  const set = await params.repo.findCheckListSetAccess(params.setId);
+  assertCanEditCheckListSetOrThrow(params.user, set, {
     api: params.api,
-    resourceId: params.resourceId ?? params.setId,
     logger: console,
   });
 };
+
+/**
+ * 誰が最後に直したかを残す。部署の誰でも直せるので、これが無いと
+ * 変わった理由を聞く相手が分からない。直す処理が成功したあとに呼ぶ
+ */
+const markEdited = (
+  repo: CheckRepository,
+  setId: string,
+  user: RequestUser
+): Promise<void> =>
+  repo.markCheckListSetEdited({
+    setId,
+    userId: user.userId,
+    userName: displayNameOf(user),
+  });
 
 export const createChecklistItem = async (params: {
   req: CreateChecklistItemRequest;
@@ -50,7 +66,7 @@ export const createChecklistItem = async (params: {
   const { setId } = req.Params;
   const { parentId, importance } = req.Body;
 
-  await assertChecklistSetOwner({
+  await assertChecklistSetEditor({
     user: params.user,
     setId,
     repo,
@@ -82,6 +98,7 @@ export const createChecklistItem = async (params: {
   await repo.storeCheckListItem({
     item,
   });
+  await markEdited(repo, setId, params.user);
 };
 
 export const getCheckListItem = async (params: {
@@ -96,13 +113,11 @@ export const getCheckListItem = async (params: {
   const { itemId } = params;
   const checkListItem = await repo.findCheckListItemById(itemId);
 
-  await assertChecklistSetOwner({
-    user: params.user,
-    setId: checkListItem.setId,
-    repo,
-    api: "getCheckListItem",
-    resourceId: itemId,
-  });
+  assertCanUseCheckListSetOrThrow(
+    params.user,
+    await repo.findCheckListSetAccess(checkListItem.setId),
+    { api: "getCheckListItem", logger: console }
+  );
 
   return checkListItem;
 };
@@ -116,12 +131,11 @@ export const modifyCheckListItem = async (params: {
 }): Promise<void> => {
   const repo = params.deps?.repo || (await makePrismaCheckRepository());
 
-  await assertChecklistSetOwner({
+  await assertChecklistSetEditor({
     user: params.user,
     setId: params.req.Params.setId,
     repo,
     api: "modifyCheckListItem",
-    resourceId: params.req.Params.itemId,
   });
 
   const isEditable = await repo.checkSetEditable({
@@ -145,7 +159,7 @@ export const modifyCheckListItem = async (params: {
   await repo.updateCheckListItem({
     newItem,
   });
-  return;
+  await markEdited(repo, params.req.Params.setId, params.user);
 };
 
 export const removeCheckListItem = async (params: {
@@ -158,12 +172,11 @@ export const removeCheckListItem = async (params: {
 }): Promise<void> => {
   const repo = params.deps?.repo || (await makePrismaCheckRepository());
 
-  await assertChecklistSetOwner({
+  await assertChecklistSetEditor({
     user: params.user,
     setId: params.setId,
     repo,
     api: "removeCheckListItem",
-    resourceId: params.itemId,
   });
 
   const isEditable = await repo.checkSetEditable({
@@ -177,6 +190,7 @@ export const removeCheckListItem = async (params: {
   await repo.deleteCheckListItemById({
     itemId,
   });
+  await markEdited(repo, params.setId, params.user);
 };
 
 export const bulkAssignToolConfiguration = async (params: {
@@ -195,7 +209,7 @@ export const bulkAssignToolConfiguration = async (params: {
     throw new ValidationError("Mixed checklist set ids are not supported");
   }
   const [setId] = setIds;
-  await assertChecklistSetOwner({
+  await assertChecklistSetEditor({
     user: params.user,
     setId,
     repo,
@@ -205,6 +219,9 @@ export const bulkAssignToolConfiguration = async (params: {
     checkIds: params.checkIds,
     toolConfigurationId: params.toolConfigurationId,
   });
+  if (updatedCount > 0) {
+    await markEdited(repo, setId, params.user);
+  }
   return updatedCount;
 };
 
@@ -229,16 +246,19 @@ export const updateCheckListItemModel = async (params: {
 }): Promise<void> => {
   const repo = params.deps?.repo || (await makePrismaCheckRepository());
 
-  await assertChecklistSetOwner({
+  await assertChecklistSetEditor({
     user: params.user,
     setId: params.setId,
     repo,
     api: "updateCheckListItemModel",
-    resourceId: params.itemId,
   });
 
-  // 項目の存在確認（NotFoundError をスローする）
-  await repo.findCheckListItemById(params.itemId);
+  // 権限を確かめたチェックリストの項目であることを確かめる。無いと、
+  // 直せるチェックリストの ID を使って、他のチェックリストの項目を変えられる
+  const item = await repo.findCheckListItemById(params.itemId);
+  if (item.setId !== params.setId) {
+    throw new ValidationError("Invalid setId");
+  }
 
   // modelId が指定されている場合、availableModels に含まれるか検証
   if (params.modelId !== null) {
@@ -255,6 +275,7 @@ export const updateCheckListItemModel = async (params: {
     itemId: params.itemId,
     modelId: params.modelId,
   });
+  await markEdited(repo, params.setId, params.user);
 };
 
 /**
@@ -273,12 +294,11 @@ export const updateCheckListItemImportance = async (params: {
 }): Promise<void> => {
   const repo = params.deps?.repo || (await makePrismaCheckRepository());
 
-  await assertChecklistSetOwner({
+  await assertChecklistSetEditor({
     user: params.user,
     setId: params.setId,
     repo,
     api: "updateCheckListItemImportance",
-    resourceId: params.itemId,
   });
 
   const importance = parseCheckItemImportance(params.importance);
@@ -286,7 +306,7 @@ export const updateCheckListItemImportance = async (params: {
     throw new ValidationError(`Invalid importance: "${params.importance}"`);
   }
 
-  // 所有者を確かめたチェックリストの項目であることを確かめる
+  // 権限を確かめたチェックリストの項目であることを確かめる
   const item = await repo.findCheckListItemById(params.itemId);
   if (item.setId !== params.setId) {
     throw new ValidationError("Invalid setId");
@@ -296,6 +316,7 @@ export const updateCheckListItemImportance = async (params: {
     itemId: params.itemId,
     importance,
   });
+  await markEdited(repo, params.setId, params.user);
 };
 
 /**
@@ -314,12 +335,11 @@ export const updateCheckListItemReviewGuidance = async (params: {
 }): Promise<void> => {
   const repo = params.deps?.repo || (await makePrismaCheckRepository());
 
-  await assertChecklistSetOwner({
+  await assertChecklistSetEditor({
     user: params.user,
     setId: params.setId,
     repo,
     api: "updateCheckListItemReviewGuidance",
-    resourceId: params.itemId,
   });
 
   const guidance = (params.reviewGuidance ?? "").trim();
@@ -330,7 +350,7 @@ export const updateCheckListItemReviewGuidance = async (params: {
     );
   }
 
-  // 所有者を確かめたチェックリストの項目であることを確かめる
+  // 権限を確かめたチェックリストの項目であることを確かめる
   const item = await repo.findCheckListItemById(params.itemId);
   if (item.setId !== params.setId) {
     throw new ValidationError("Invalid setId");
@@ -344,4 +364,5 @@ export const updateCheckListItemReviewGuidance = async (params: {
     // 効果を測る起点になるので、実際に変えたときだけ更新する
     changed: (item.reviewGuidance ?? null) !== next,
   });
+  await markEdited(repo, params.setId, params.user);
 };

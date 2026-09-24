@@ -177,6 +177,7 @@
     "deleteError": "チェックリストセットの削除に失敗しました",
     "deleteConfirmation": "チェックリストセット「{{name}}」を削除してもよろしいですか？",
     "notEditable": "このチェックリストセットは審査ジョブに紐づいているため削除できません",
+    "lastEdited": "最終更新: {{name}}（{{date}}）",
     "notEditableTitle": "このチェックリストは編集できません",
     "noChecklists": "チェックリストセットがありません。",
     "loadError": "チェックリストセットの取得に失敗しました。",

@@ -214,6 +214,16 @@ export function CheckListSetDetailPage() {
             </p>
           )}
 
+          {/* 同じ部署の人も直せるので、誰が最後に直したかを出す */}
+          {checklistSet?.lastEditedAt && (
+            <p className="mt-1 text-sm text-aws-font-color-gray">
+              {t("checklist.lastEdited", {
+                name: checklistSet.lastEditedByName ?? t("common.unknown"),
+                date: new Date(checklistSet.lastEditedAt).toLocaleString(),
+              })}
+            </p>
+          )}
+
           {/* ドキュメント情報を表示 */}
           {checklistSet &&
             checklistSet.documents &&
@@ -236,15 +246,17 @@ export function CheckListSetDetailPage() {
             {t("common.duplicate")}
           </Button>
 
-          {/* 削除ボタン - 編集可能な場合のみ表示 */}
-          {checklistSet && checklistSet.isEditable && (
-            <Button
-              variant="danger"
-              onClick={handleDelete}
-              icon={<HiTrash className="h-5 w-5" />}>
-              {t("common.delete")}
-            </Button>
-          )}
+          {/* 削除ボタン - 編集可能で、作成者か管理者のときだけ表示 */}
+          {checklistSet &&
+            checklistSet.isEditable &&
+            checklistSet.canDelete !== false && (
+              <Button
+                variant="danger"
+                onClick={handleDelete}
+                icon={<HiTrash className="h-5 w-5" />}>
+                {t("common.delete")}
+              </Button>
+            )}
         </div>
       </div>
 

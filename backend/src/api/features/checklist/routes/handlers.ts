@@ -126,6 +126,7 @@ export const duplicateChecklistSetHandler = async (
     newDescription: description,
     // 新規作成物の所有者を設定するためにユーザーIDを渡す
     userId: request.user!.userId,
+    user: request.user!,
   });
 
   reply.code(200).send({

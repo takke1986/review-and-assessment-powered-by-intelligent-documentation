@@ -2,10 +2,8 @@ import {
   CheckRepository,
   makePrismaCheckRepository,
 } from "../../checklist/domain/repository";
-import {
-  assertHasOwnerAccessOrThrow,
-  RequestUser,
-} from "../../../core/middleware/authorization";
+import { RequestUser } from "../../../core/middleware/authorization";
+import { assertCanUseCheckListSetOrThrow } from "../../../core/access/checklist-access";
 import {
   CheckFailureTrendRow,
   StatisticsRepository,
@@ -34,9 +32,9 @@ export const getCheckFailureTrends = async (params: {
   const checkListSet = await checkRepo.findCheckListSetDetailById(
     params.checkListSetId
   );
-  assertHasOwnerAccessOrThrow(params.user, checkListSet.userId, {
+  // チェックリストを見られる人は傾向も見られる。一覧（同じ部署のものも出る）と揃える
+  assertCanUseCheckListSetOrThrow(params.user, checkListSet, {
     api: "getCheckFailureTrends",
-    resourceId: params.checkListSetId,
     logger: console,
   });
 

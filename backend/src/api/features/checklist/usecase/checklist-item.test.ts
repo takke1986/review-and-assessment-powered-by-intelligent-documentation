@@ -21,7 +21,10 @@ const makeRequest = (): CreateChecklistItemRequest => ({
 describe("createChecklistItem authorization", () => {
   it("throws ForbiddenError when user is not owner", async () => {
     const repo = {
-      findCheckListSetOwner: vi.fn().mockResolvedValue("owner-1"),
+      findCheckListSetAccess: vi
+        .fn()
+        .mockResolvedValue({ id: "set-1", userId: "owner-1" }),
+      markCheckListSetEdited: vi.fn().mockResolvedValue(undefined),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({
         userId: "owner-1",
       }),
@@ -41,7 +44,10 @@ describe("createChecklistItem authorization", () => {
 
   it("allows owner to create checklist item", async () => {
     const repo = {
-      findCheckListSetOwner: vi.fn().mockResolvedValue("owner-1"),
+      findCheckListSetAccess: vi
+        .fn()
+        .mockResolvedValue({ id: "set-1", userId: "owner-1" }),
+      markCheckListSetEdited: vi.fn().mockResolvedValue(undefined),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({
         userId: "owner-1",
       }),
@@ -63,7 +69,10 @@ describe("createChecklistItem authorization", () => {
 describe("checklist item edit/delete authorization", () => {
   it("throws ForbiddenError when non-owner modifies item", async () => {
     const repo = {
-      findCheckListSetOwner: vi.fn().mockResolvedValue("owner-1"),
+      findCheckListSetAccess: vi
+        .fn()
+        .mockResolvedValue({ id: "set-1", userId: "owner-1" }),
+      markCheckListSetEdited: vi.fn().mockResolvedValue(undefined),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({
         userId: "owner-1",
       }),
@@ -95,7 +104,10 @@ describe("checklist item edit/delete authorization", () => {
 
   it("throws ForbiddenError when non-owner deletes item", async () => {
     const repo = {
-      findCheckListSetOwner: vi.fn().mockResolvedValue("owner-1"),
+      findCheckListSetAccess: vi
+        .fn()
+        .mockResolvedValue({ id: "set-1", userId: "owner-1" }),
+      markCheckListSetEdited: vi.fn().mockResolvedValue(undefined),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({
         userId: "owner-1",
       }),
@@ -191,7 +203,10 @@ describe("updateCheckListItemModel", () => {
 
   it("updates modelId for a valid item owned by the user", async () => {
     const repo = {
-      findCheckListSetOwner: vi.fn().mockResolvedValue("owner-1"),
+      findCheckListSetAccess: vi
+        .fn()
+        .mockResolvedValue({ id: "set-1", userId: "owner-1" }),
+      markCheckListSetEdited: vi.fn().mockResolvedValue(undefined),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({
         userId: "owner-1",
       }),
@@ -219,7 +234,10 @@ describe("updateCheckListItemModel", () => {
 
   it("resets modelId to null (default fallback)", async () => {
     const repo = {
-      findCheckListSetOwner: vi.fn().mockResolvedValue("owner-1"),
+      findCheckListSetAccess: vi
+        .fn()
+        .mockResolvedValue({ id: "set-1", userId: "owner-1" }),
+      markCheckListSetEdited: vi.fn().mockResolvedValue(undefined),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({
         userId: "owner-1",
       }),
@@ -247,7 +265,10 @@ describe("updateCheckListItemModel", () => {
 
   it("throws NotFoundError when item does not exist", async () => {
     const repo = {
-      findCheckListSetOwner: vi.fn().mockResolvedValue("owner-1"),
+      findCheckListSetAccess: vi
+        .fn()
+        .mockResolvedValue({ id: "set-1", userId: "owner-1" }),
+      markCheckListSetEdited: vi.fn().mockResolvedValue(undefined),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({
         userId: "owner-1",
       }),
@@ -272,7 +293,10 @@ describe("updateCheckListItemModel", () => {
 
   it("throws ForbiddenError when non-owner updates model", async () => {
     const repo = {
-      findCheckListSetOwner: vi.fn().mockResolvedValue("owner-1"),
+      findCheckListSetAccess: vi
+        .fn()
+        .mockResolvedValue({ id: "set-1", userId: "owner-1" }),
+      markCheckListSetEdited: vi.fn().mockResolvedValue(undefined),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({
         userId: "owner-1",
       }),
@@ -299,7 +323,10 @@ describe("updateCheckListItemModel", () => {
 
   it("throws ValidationError when modelId is not in availableModels", async () => {
     const repo = {
-      findCheckListSetOwner: vi.fn().mockResolvedValue("owner-1"),
+      findCheckListSetAccess: vi
+        .fn()
+        .mockResolvedValue({ id: "set-1", userId: "owner-1" }),
+      markCheckListSetEdited: vi.fn().mockResolvedValue(undefined),
       findCheckListSetDetailById: vi.fn().mockResolvedValue({
         userId: "owner-1",
       }),
@@ -321,6 +348,95 @@ describe("updateCheckListItemModel", () => {
       })
     ).rejects.toBeInstanceOf(ValidationError);
 
+    expect(repo.updateCheckListItemModelId).not.toHaveBeenCalled();
+  });
+});
+
+describe("editing by the same department", () => {
+  const colleague = {
+    userId: "colleague-1",
+    isAdmin: false,
+    rawClaims: { "custom:departments": "営業部", "custom:name": "佐藤" },
+  };
+  const repoFor = () => ({
+    findCheckListSetAccess: vi.fn().mockResolvedValue({
+      id: "set-1",
+      userId: "owner-1",
+      departmentId: "営業部",
+    }),
+    markCheckListSetEdited: vi.fn().mockResolvedValue(undefined),
+    checkSetEditable: vi.fn().mockResolvedValue(true),
+    findCheckListItemById: vi.fn().mockResolvedValue({
+      id: "item-1",
+      setId: "set-1",
+      name: "Item",
+      description: "Desc",
+    }),
+    updateCheckListItem: vi.fn().mockResolvedValue(undefined),
+    updateCheckListItemModelId: vi.fn().mockResolvedValue(undefined),
+  });
+
+  it("lets a colleague edit and records who did it", async () => {
+    // 作成者が退職しても、部署の人が直せる。誰が直したかは残る
+    const repo = repoFor();
+    await modifyCheckListItem({
+      req: {
+        Params: { setId: "set-1", itemId: "item-1" },
+        Body: {
+          name: "Updated",
+          description: "Updated",
+          resolveAmbiguity: false,
+        },
+      },
+      user: colleague,
+      deps: { repo: repo as never },
+    });
+    expect(repo.updateCheckListItem).toHaveBeenCalledTimes(1);
+    expect(repo.markCheckListSetEdited).toHaveBeenCalledWith({
+      setId: "set-1",
+      userId: "colleague-1",
+      userName: "佐藤",
+    });
+  });
+
+  it("does not record an edit that was rejected", async () => {
+    const repo = repoFor();
+    repo.checkSetEditable.mockResolvedValue(false);
+    await expect(
+      modifyCheckListItem({
+        req: {
+          Params: { setId: "set-1", itemId: "item-1" },
+          Body: {
+            name: "Updated",
+            description: "Updated",
+            resolveAmbiguity: false,
+          },
+        },
+        user: colleague,
+        deps: { repo: repo as never },
+      })
+    ).rejects.toThrow("Set is not editable");
+    expect(repo.markCheckListSetEdited).not.toHaveBeenCalled();
+  });
+
+  it("refuses to change the model of an item in another checklist", async () => {
+    // 直せるチェックリストの ID を使って、他のチェックリストの項目を変えられないこと
+    const repo = repoFor();
+    repo.findCheckListItemById.mockResolvedValue({
+      id: "item-9",
+      setId: "other-set",
+      name: "Other",
+      description: "",
+    });
+    await expect(
+      updateCheckListItemModel({
+        setId: "set-1",
+        itemId: "item-9",
+        modelId: null,
+        user: colleague,
+        deps: { repo: repo as never },
+      })
+    ).rejects.toThrow("Invalid setId");
     expect(repo.updateCheckListItemModelId).not.toHaveBeenCalled();
   });
 });

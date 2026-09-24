@@ -20,6 +20,7 @@ import {
 } from "./model/checklist";
 import { PaginatedResponse } from "../../../common/types";
 import { Viewer, visibilityFilter } from "../../../core/access/visibility";
+import type { CheckListSetAccess } from "../../../core/access/checklist-access";
 import {
   ListParams,
   resolvePaging,
@@ -49,8 +50,14 @@ export interface CheckRepository {
     importanceFilter?: CHECK_ITEM_IMPORTANCE
   ): Promise<CheckListItemDetail[]>;
   findCheckListSetDetailById(setId: string): Promise<CheckListSetDetailModel>;
-  /** 所有者だけを見る。権限の確認に詳細（文書全件と審査回数）まで読む必要はない */
-  findCheckListSetOwner(setId: string): Promise<string>;
+  /** 作成者と部署だけを見る。権限の確認に詳細（文書全件と審査回数）まで読む必要はない */
+  findCheckListSetAccess(setId: string): Promise<CheckListSetAccess>;
+  /** 誰が最後に直したかを残す。直す処理が成功したあとに呼ぶ */
+  markCheckListSetEdited(params: {
+    setId: string;
+    userId: string;
+    userName?: string;
+  }): Promise<void>;
   /** 複数の項目がどのセットに属するかをまとめて引く。一括操作で1件ずつ読まないため */
   findSetIdsForCheckItems(checkIds: string[]): Promise<string[]>;
   storeCheckListItem(params: { item: CheckListItemEntity }): Promise<void>;
@@ -295,6 +302,7 @@ export const makePrismaCheckRepository = async (
       id: string;
       name: string;
       description?: string | null;
+      userId: string;
       createdAt: Date;
       documents: Array<{
         id: string;
@@ -316,6 +324,7 @@ export const makePrismaCheckRepository = async (
           id: true,
           name: true,
           description: true,
+          userId: true,
           createdAt: true,
           // ドキュメントの詳細情報を取得（userId を含める）
           documents: {
@@ -372,6 +381,7 @@ export const makePrismaCheckRepository = async (
         description: s.description ?? "",
         processingStatus,
         isEditable: s._count.reviewJobs === 0,
+        userId: s.userId,
         createdAt: s.createdAt,
         documents: s.documents.map((doc) => ({
           id: doc.id,
@@ -529,15 +539,36 @@ export const makePrismaCheckRepository = async (
     return Array.from(new Set(rows.map((row) => row.checkListSetId)));
   };
 
-  const findCheckListSetOwner = async (setId: string): Promise<string> => {
+  const findCheckListSetAccess = async (
+    setId: string
+  ): Promise<CheckListSetAccess> => {
     const found = await client.checkListSet.findUnique({
       where: { id: setId },
-      select: { userId: true },
+      select: { userId: true, departmentId: true },
     });
     if (!found) {
       throw new NotFoundError(`CheckListSet not found`, setId);
     }
-    return found.userId;
+    return {
+      id: setId,
+      userId: found.userId,
+      departmentId: found.departmentId,
+    };
+  };
+
+  const markCheckListSetEdited = async (params: {
+    setId: string;
+    userId: string;
+    userName?: string;
+  }): Promise<void> => {
+    await client.checkListSet.update({
+      where: { id: params.setId },
+      data: {
+        lastEditedBy: params.userId,
+        lastEditedByName: params.userName ?? null,
+        lastEditedAt: new Date(),
+      },
+    });
   };
 
   const findCheckListSetDetailById = async (
@@ -600,6 +631,9 @@ export const makePrismaCheckRepository = async (
       name: checkListSet.name,
       description: checkListSet.description ?? "",
       userId: checkListSet.userId,
+      departmentId: checkListSet.departmentId ?? undefined,
+      lastEditedByName: checkListSet.lastEditedByName ?? undefined,
+      lastEditedAt: checkListSet.lastEditedAt ?? undefined,
       documents: checkListSet.documents.map((doc: any) => ({
         id: doc.id,
         filename: doc.filename,
@@ -855,7 +889,8 @@ export const makePrismaCheckRepository = async (
     deleteCheckListSetById,
     findAllCheckListSets,
     findCheckListItems,
-    findCheckListSetOwner,
+    findCheckListSetAccess,
+    markCheckListSetEdited,
     findSetIdsForCheckItems,
     findCheckListSetDetailById,
     storeCheckListItem,

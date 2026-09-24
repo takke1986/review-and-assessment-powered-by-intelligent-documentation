@@ -12,7 +12,10 @@ import {
 const owner = { userId: "owner-1", isAdmin: false };
 
 const makeRepo = (overrides: Record<string, unknown> = {}) => ({
-  findCheckListSetOwner: vi.fn().mockResolvedValue("owner-1"),
+  findCheckListSetAccess: vi
+    .fn()
+    .mockResolvedValue({ id: "set-1", userId: "owner-1" }),
+  markCheckListSetEdited: vi.fn().mockResolvedValue(undefined),
   findCheckListSetDetailById: vi.fn().mockResolvedValue({ userId: "owner-1" }),
   checkSetEditable: vi.fn().mockResolvedValue(true),
   validateParentItem: vi.fn().mockResolvedValue(true),

@@ -177,6 +177,7 @@
     "deleteError": "Failed to delete checklist set",
     "deleteConfirmation": "Are you sure you want to delete checklist set \"{{name}}\"?",
     "notEditable": "This checklist set cannot be deleted because it is linked to review jobs",
+    "lastEdited": "Last edited by {{name}} ({{date}})",
     "notEditableTitle": "This checklist cannot be edited",
     "noChecklists": "No checklist sets available.",
     "loadError": "Failed to retrieve checklist sets.",
