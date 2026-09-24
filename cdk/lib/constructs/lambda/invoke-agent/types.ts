@@ -7,6 +7,8 @@ export interface StepFunctionsInput {
       checkName: string;
       checkDescription: string;
       feedbackSummary: string | null;
+      /** 項目の持ち主が書いた着眼点。空なら null */
+      reviewGuidance: string | null;
       languageName: string;
       documentPaths: string[];
       documentIds: string[];
@@ -31,6 +33,7 @@ export interface AgentPayload {
   checkName: string;
   checkDescription: string;
   feedbackSummary: string | null;
+  reviewGuidance: string | null;
   languageName: string;
   mcpServers: McpServerConfig[];
   toolConfiguration: any;

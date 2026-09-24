@@ -65,24 +65,36 @@ client.middlewareStack.add(
   },
 );
 
+/**
+ * Step Functions の入力を、エージェントに渡す形に詰め直す。
+ *
+ * ここで拾い忘れたキーはエージェントに届かず、黙って無視される。
+ * 着眼点（reviewGuidance）は前処理で読んでいたのにここで落ちていて、
+ * 書いても審査に効いていなかった。前処理の出力にキーを足したら、ここにも足す
+ */
+export function toAgentPayload(event: StepFunctionsInput): AgentPayload {
+  const pre = event.preItemResult.Payload;
+  return {
+    reviewJobId: event.reviewJobId,
+    checkId: event.checkId,
+    reviewResultId: event.reviewResultId,
+    documentPaths: pre.documentPaths,
+    checkName: pre.checkName,
+    checkDescription: pre.checkDescription,
+    feedbackSummary: pre.feedbackSummary,
+    reviewGuidance: pre.reviewGuidance ?? null,
+    languageName: pre.languageName,
+    mcpServers: pre.mcpServers,
+    toolConfiguration: pre.toolConfiguration,
+    modelId: pre.modelId,
+  };
+}
+
 export const handler: Handler = async (event: StepFunctionsInput) => {
   console.log("Received event:", JSON.stringify(event, null, 2));
 
   try {
-    // Transform Step Functions payload to Agent payload format
-    const agentPayload: AgentPayload = {
-      reviewJobId: event.reviewJobId,
-      checkId: event.checkId,
-      reviewResultId: event.reviewResultId,
-      documentPaths: event.preItemResult.Payload.documentPaths,
-      checkName: event.preItemResult.Payload.checkName,
-      checkDescription: event.preItemResult.Payload.checkDescription,
-      feedbackSummary: event.preItemResult.Payload.feedbackSummary,
-      languageName: event.preItemResult.Payload.languageName,
-      mcpServers: event.preItemResult.Payload.mcpServers,
-      toolConfiguration: event.preItemResult.Payload.toolConfiguration,
-      modelId: event.preItemResult.Payload.modelId,
-    };
+    const agentPayload = toAgentPayload(event);
 
     console.log("Transformed payload:", JSON.stringify(agentPayload, null, 2));
 
