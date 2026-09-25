@@ -37,11 +37,9 @@ import { ValidationError } from "../../../core/errors";
 import {
   deleteCheckListFiles,
   deleteReviewJobFiles,
-} from "../../review/usecase/document";
-import {
-  DocumentAccessRepository,
-  makePrismaDocumentAccessRepository,
-} from "../../review/domain/document-access";
+  FileStoreDeps,
+} from "../../stored-files/usecase/stored-files";
+import { makePrismaFileReferenceRepository } from "../../stored-files/domain/file-references";
 import {
   assertUploadKeyOrThrow,
   CHECKLIST_UPLOAD_EXTENSIONS,
@@ -240,11 +238,7 @@ export const removeChecklistSet = async (params: {
   user: RequestUser;
   deps?: {
     repo?: CheckRepository;
-    files?: {
-      repo?: DocumentAccessRepository;
-      listKeys?: (bucket: string, prefix: string) => Promise<string[]>;
-      deleteObject?: (bucket: string, key: string) => Promise<unknown>;
-    };
+    files?: FileStoreDeps;
   };
 }): Promise<void> => {
   const repo = params.deps?.repo || (await makePrismaCheckRepository());
@@ -260,7 +254,7 @@ export const removeChecklistSet = async (params: {
   // チェックリストを消すと、それを使った審査ジョブの行も一緒に消える。
   // 行が消えると引けなくなるので、消す前にそれぞれの文書のキーを控えておく
   const filesRepo =
-    params.deps?.files?.repo || (await makePrismaDocumentAccessRepository());
+    params.deps?.files?.repo || (await makePrismaFileReferenceRepository());
   const reviewJobs =
     await filesRepo.findReviewJobsOfCheckListSet(checkListSetId);
 

@@ -36,7 +36,7 @@ describe("removeChecklistSet", () => {
               ];
             }),
             findReferencedChecklistKeys: vi.fn().mockResolvedValue(new Set()),
-            findReferencedKeys: vi.fn().mockResolvedValue(new Set()),
+            findReferencedReviewKeys: vi.fn().mockResolvedValue(new Set()),
           } as never,
           listKeys: vi.fn().mockResolvedValue([]),
           deleteObject,

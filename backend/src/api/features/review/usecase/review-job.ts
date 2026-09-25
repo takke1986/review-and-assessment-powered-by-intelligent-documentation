@@ -6,7 +6,10 @@ import {
   ReviewResultDetail,
 } from "../domain/model/review";
 import { assertCanUseCheckListSetOrThrow } from "../../../core/access/checklist-access";
-import { deleteReviewJobFiles } from "./document";
+import {
+  deleteReviewJobFiles,
+  FileStoreDeps,
+} from "../../stored-files/usecase/stored-files";
 import {
   assertUploadKeyOrThrow,
   presignUpload,
@@ -499,7 +502,7 @@ export const removeReviewJob = async (params: {
   user: RequestUser;
   deps?: {
     repo?: ReviewJobRepository;
-    files?: Parameters<typeof deleteReviewJobFiles>[0]["deps"];
+    files?: FileStoreDeps;
   };
 }): Promise<void> => {
   const repo = params.deps?.repo || (await makePrismaReviewJobRepository());

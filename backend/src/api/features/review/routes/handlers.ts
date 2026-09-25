@@ -23,10 +23,8 @@ import {
   overrideReviewResult,
   getReviewResults,
 } from "../usecase/review-result";
-import {
-  deleteUnattachedUpload,
-  getDocumentDownloadUrl,
-} from "../usecase/document";
+import { getDocumentDownloadUrl } from "../usecase/document";
+import { deleteUnattachedUpload } from "../../stored-files/usecase/stored-files";
 import { MAX_REVIEW_DOCUMENTS } from "../../../constants";
 import { resolveDepartment } from "../../../core/access/departments";
 

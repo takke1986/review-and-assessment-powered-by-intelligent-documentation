@@ -1,6 +1,6 @@
 import { resolveDepartment } from "../../../core/access/departments";
 import { FastifyReply, FastifyRequest } from "fastify";
-import { deleteUnattachedUpload } from "../../review/usecase/document";
+import { deleteUnattachedUpload } from "../../stored-files/usecase/stored-files";
 import { parseListQuery } from "../../../common/pagination";
 import {
   createChecklistSet,

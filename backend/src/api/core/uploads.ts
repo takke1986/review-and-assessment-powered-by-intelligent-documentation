@@ -2,6 +2,15 @@ import { ulid } from "ulid";
 import { ValidationError } from "./errors";
 import { getPresignedUrl } from "./s3";
 
+/** 審査・チェックリストの文書を置くバケット */
+export function documentBucket(): string {
+  const bucket = process.env.DOCUMENT_BUCKET;
+  if (!bucket) {
+    throw new Error("DOCUMENT_BUCKET is not defined");
+  }
+  return bucket;
+}
+
 /**
  * 受け付けるファイルの種類。
  *
@@ -144,10 +153,7 @@ export async function presignUpload(
   documentId: string;
   contentType: string;
 }> {
-  const bucket = process.env.DOCUMENT_BUCKET;
-  if (!bucket) {
-    throw new Error("DOCUMENT_BUCKET is not defined");
-  }
+  const bucket = documentBucket();
   // 送られてきた Content-Type は使わず、拡張子から決める
   const contentType = uploadContentTypeOrThrow(filename, allowed);
   const documentId = ulid();

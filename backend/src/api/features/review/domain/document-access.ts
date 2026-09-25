@@ -1,11 +1,12 @@
 import { getPrismaClient, PrismaClient } from "../../../core/db";
 
 /**
- * 文書の取り出し・削除を許してよいかを調べるための読み取り。
+ * 文書の取り出しを許してよいかを調べるための読み取り。
  *
  * S3 のキーは画面から送られてくるので、そのまま信じると、キーさえ分かれば
- * 誰の文書でも取り出せて消せる。キーが「どの審査の文書か」をここで引き、
- * 見てよい審査の文書かどうかを使う側で確かめる
+ * 誰の文書でも取り出せる。キーが「どの審査の文書か」をここで引き、
+ * 見てよい審査の文書かどうかを使う側で確かめる。
+ * ファイルを消すときの判定は features/stored-files にある
  */
 
 export interface ReviewJobAccess {
@@ -23,22 +24,6 @@ export interface DocumentAccessRepository {
   findReviewJob(reviewJobId: string): Promise<ReviewJobAccess | null>;
   /** 審査の結果に出てきた外部の出典（ナレッジベースの s3://…）の生の値 */
   findExternalSources(reviewJobId: string): Promise<unknown[]>;
-  /** 審査かチェックリストの文書として登録済みか */
-  isDocumentRegistered(documentId: string): Promise<boolean>;
-  /**
-   * まだどれかの審査文書が指しているキー。再審査では元の審査の文書を
-   * 引き継ぐので、審査を1つ消しても、同じファイルを別の審査が使っていることがある
-   */
-  findReferencedKeys(keys: string[]): Promise<Set<string>>;
-  /**
-   * まだどれかのチェックリスト文書が指しているキー。チェックリストを複製すると、
-   * 複製先は複製元の元の書類のファイルを共有する
-   */
-  findReferencedChecklistKeys(keys: string[]): Promise<Set<string>>;
-  /** そのチェックリストを使った審査ジョブと、その文書のキー。チェックリストと一緒に消える */
-  findReviewJobsOfCheckListSet(
-    checkListSetId: string
-  ): Promise<Array<{ id: string; documentKeys: string[] }>>;
 }
 
 const toAccess = (job: {
@@ -78,39 +63,6 @@ export const makePrismaDocumentAccessRepository = async (
         select: { externalSources: true },
       });
       return rows.map((r) => r.externalSources).filter((v) => v != null);
-    },
-    async findReferencedKeys(keys) {
-      if (keys.length === 0) return new Set();
-      const rows = await client.reviewDocument.findMany({
-        where: { s3Path: { in: keys } },
-        select: { s3Path: true },
-      });
-      return new Set(rows.map((row) => row.s3Path));
-    },
-    async findReferencedChecklistKeys(keys) {
-      if (keys.length === 0) return new Set();
-      const rows = await client.checkListDocument.findMany({
-        where: { s3Path: { in: keys } },
-        select: { s3Path: true },
-      });
-      return new Set(rows.map((row) => row.s3Path));
-    },
-    async findReviewJobsOfCheckListSet(checkListSetId) {
-      const jobs = await client.reviewJob.findMany({
-        where: { checkListSetId },
-        select: { id: true, documents: { select: { s3Path: true } } },
-      });
-      return jobs.map((job) => ({
-        id: job.id,
-        documentKeys: job.documents.map((doc) => doc.s3Path),
-      }));
-    },
-    async isDocumentRegistered(documentId) {
-      const [review, checklist] = await Promise.all([
-        client.reviewDocument.count({ where: { id: documentId } }),
-        client.checkListDocument.count({ where: { id: documentId } }),
-      ]);
-      return review + checklist > 0;
     },
   };
 };

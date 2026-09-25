@@ -30,7 +30,7 @@ describe("removeReviewJob", () => {
         repo: r,
         files: {
           repo: {
-            findReferencedKeys: vi.fn().mockResolvedValue(new Set()),
+            findReferencedReviewKeys: vi.fn().mockResolvedValue(new Set()),
           } as never,
           listKeys: vi.fn().mockResolvedValue([]),
           deleteObject,
@@ -55,7 +55,7 @@ describe("removeReviewJob", () => {
           repo: r,
           files: {
             repo: {
-              findReferencedKeys: vi
+              findReferencedReviewKeys: vi
                 .fn()
                 .mockRejectedValue(new Error("S3 down")),
             } as never,
