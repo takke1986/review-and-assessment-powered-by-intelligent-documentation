@@ -6,6 +6,7 @@ import {
   ReviewResultDetail,
 } from "../domain/model/review";
 import { assertCanUseCheckListSetOrThrow } from "../../../core/access/checklist-access";
+import { deleteReviewJobFiles } from "./document";
 import {
   assertUploadKeyOrThrow,
   presignUpload,
@@ -498,6 +499,7 @@ export const removeReviewJob = async (params: {
   user: RequestUser;
   deps?: {
     repo?: ReviewJobRepository;
+    files?: Parameters<typeof deleteReviewJobFiles>[0]["deps"];
   };
 }): Promise<void> => {
   const repo = params.deps?.repo || (await makePrismaReviewJobRepository());
@@ -513,6 +515,28 @@ export const removeReviewJob = async (params: {
   await repo.deleteReviewJobById({
     reviewJobId: params.reviewJobId,
   });
+
+  // DB の行を消してからファイルを消す。先にファイルを消して DB の削除が
+  // 失敗すると、ファイルの無い審査が残る。ファイルを消せなくても審査の削除は
+  // 済んでいるので、利用者には成功を返し、残ったファイルをログに残す
+  const documentKeys = (job.documents ?? []).map((doc) => doc.s3Path);
+  try {
+    const { deleted, keptInUse } = await deleteReviewJobFiles({
+      reviewJobId: params.reviewJobId,
+      documentKeys,
+      deps: params.deps?.files,
+    });
+    console.log(
+      `Deleted ${deleted.length} files of review job ${params.reviewJobId}; ` +
+        `${keptInUse.length} still used by other review jobs`
+    );
+  } catch (error) {
+    console.error(
+      `Failed to delete the files of review job ${params.reviewJobId}; ` +
+        `they remain in S3: ${JSON.stringify(documentKeys)}`,
+      error
+    );
+  }
 };
 
 export const modifyJobStatus = async (params: {

@@ -13,7 +13,11 @@ vi.mock("../../../core/s3", () => ({
   listS3Keys: vi.fn(),
 }));
 
-import { getDocumentDownloadUrl, deleteUnattachedUpload } from "./document";
+import {
+  getDocumentDownloadUrl,
+  deleteUnattachedUpload,
+  deleteReviewJobFiles,
+} from "./document";
 import type { DocumentAccessRepository } from "../domain/document-access";
 import type { RequestUser } from "../../../core/middleware/authorization";
 
@@ -32,6 +36,7 @@ const repo = (over: Partial<DocumentAccessRepository> = {}) =>
     findReviewJob: vi.fn().mockResolvedValue(null),
     findExternalSources: vi.fn().mockResolvedValue([]),
     isDocumentRegistered: vi.fn().mockResolvedValue(false),
+    findReferencedKeys: vi.fn().mockResolvedValue(new Set()),
     ...over,
   }) as DocumentAccessRepository;
 
@@ -232,5 +237,38 @@ describe("deleteUnattachedUpload", () => {
         })
       ).rejects.toThrow("forbidden");
     }
+  });
+});
+
+describe("deleteReviewJobFiles", () => {
+  const own = "review/original/DOC1/申込書.pdf";
+  const shared = "review/original/DOC2/契約書.pdf";
+
+  it("deletes files no other review uses, their partial reads, and the job's read-ahead", async () => {
+    const deleteObject = vi.fn();
+    const listKeys = vi.fn(async (_b: string, prefix: string) => {
+      if (prefix === `digest/partials/${own}/`) return [`${prefix}a.json`];
+      if (prefix === "digest/JOB1/") return [`digest/JOB1/${own}.json`];
+      return [];
+    });
+    const result = await deleteReviewJobFiles({
+      reviewJobId: "JOB1",
+      documentKeys: [own, shared],
+      deps: {
+        // 再審査が同じ契約書を引き継いでいる
+        repo: repo({
+          findReferencedKeys: vi.fn().mockResolvedValue(new Set([shared])),
+        }),
+        listKeys,
+        deleteObject,
+      },
+    });
+
+    expect(deleteObject.mock.calls.map((c) => c[1])).toEqual([
+      own,
+      `digest/partials/${own}/a.json`,
+      `digest/JOB1/${own}.json`,
+    ]);
+    expect(result.keptInUse).toEqual([shared]);
   });
 });

@@ -25,6 +25,11 @@ export interface DocumentAccessRepository {
   findExternalSources(reviewJobId: string): Promise<unknown[]>;
   /** 審査かチェックリストの文書として登録済みか */
   isDocumentRegistered(documentId: string): Promise<boolean>;
+  /**
+   * まだどれかの審査文書が指しているキー。再審査では元の審査の文書を
+   * 引き継ぐので、審査を1つ消しても、同じファイルを別の審査が使っていることがある
+   */
+  findReferencedKeys(keys: string[]): Promise<Set<string>>;
 }
 
 const toAccess = (job: {
@@ -64,6 +69,14 @@ export const makePrismaDocumentAccessRepository = async (
         select: { externalSources: true },
       });
       return rows.map((r) => r.externalSources).filter((v) => v != null);
+    },
+    async findReferencedKeys(keys) {
+      if (keys.length === 0) return new Set();
+      const rows = await client.reviewDocument.findMany({
+        where: { s3Path: { in: keys } },
+        select: { s3Path: true },
+      });
+      return new Set(rows.map((row) => row.s3Path));
     },
     async isDocumentRegistered(documentId) {
       const [review, checklist] = await Promise.all([

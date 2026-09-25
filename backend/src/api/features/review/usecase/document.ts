@@ -157,3 +157,55 @@ export async function deleteUnattachedUpload(params: {
     }
   }
 }
+
+/**
+ * 消した審査ジョブのファイルを S3 から消す。審査ジョブを消す処理が、DB の行を
+ * 消したあとに呼ぶ。
+ *
+ * 以前は DB の行だけを消していて、元の書類・画像・前読みの書き起こしが残り
+ * 続けた。利用者は審査を消したつもりでも、申込書などの中身が残る。
+ *
+ * - 元の書類・画像: ほかの審査がまだ指していなければ消す（再審査は元の審査の
+ *   文書を引き継ぐので、同じファイルを使っていることがある）。その書類の
+ *   前読みの途中経過（digest/partials/<キー>/）も消す
+ * - 前読みの書き起こし（digest/<ジョブID>/）: ジョブごとの置き場なので丸ごと消す
+ */
+export async function deleteReviewJobFiles(params: {
+  reviewJobId: string;
+  /** 消したジョブの文書のキー（s3Path） */
+  documentKeys: string[];
+  deps?: {
+    repo?: DocumentAccessRepository;
+    listKeys?: (bucket: string, prefix: string) => Promise<string[]>;
+    deleteObject?: (bucket: string, key: string) => Promise<unknown>;
+  };
+}): Promise<{ deleted: string[]; keptInUse: string[] }> {
+  const bucket = process.env.DOCUMENT_BUCKET;
+  if (!bucket) {
+    throw new Error("DOCUMENT_BUCKET is not defined");
+  }
+  const repo =
+    params.deps?.repo || (await makePrismaDocumentAccessRepository());
+  const listKeys = params.deps?.listKeys ?? listS3Keys;
+  const deleteObject = params.deps?.deleteObject ?? deleteS3Object;
+
+  const keys = [...new Set(params.documentKeys)];
+  const inUse = await repo.findReferencedKeys(keys);
+  const deleted: string[] = [];
+  for (const key of keys.filter((k) => !inUse.has(k))) {
+    await deleteObject(bucket, key);
+    deleted.push(key);
+    for (const partial of await listKeys(bucket, `digest/partials/${key}/`)) {
+      await deleteObject(bucket, partial);
+      deleted.push(partial);
+    }
+  }
+  for (const digest of await listKeys(
+    bucket,
+    `digest/${params.reviewJobId}/`
+  )) {
+    await deleteObject(bucket, digest);
+    deleted.push(digest);
+  }
+  return { deleted, keptInUse: keys.filter((k) => inUse.has(k)) };
+}
