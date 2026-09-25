@@ -85,9 +85,9 @@ class ImageReview(BaseModel):
 # 推論も explanation の中に書かせる。文章で推論を書いてから道具にも説明を
 # 書かせると、出力が倍になり、評価で費用が約4割増えた
 _TOOL_ANSWER = (
-    "When you have finished reading, reply only by calling the output tool with "
-    "these fields. Put all of your reasoning in explanation; do not write it, or "
-    "the answer, in your reply text:"
+    "While reading, keep any notes short. When you have finished, reply only by "
+    "calling the output tool with these fields, and put your full reasoning in "
+    "explanation rather than in your reply text:"
 )
 
 # 文章の中の JSON を取り出していたころの指示を、ツールで答える指示に置き換える

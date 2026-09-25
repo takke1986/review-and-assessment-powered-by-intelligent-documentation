@@ -16,6 +16,7 @@ import argparse
 import json
 import os
 import sys
+import threading
 import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -25,10 +26,38 @@ from statistics import median
 
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE.parent))
+sys.path.insert(0, str(HERE))
 
 os.environ.setdefault("BEDROCK_REGION", "us-west-2")  # 本番と同じ
 
 import agent  # noqa: E402
+from cases import cases as load_cases  # noqa: E402
+
+# どの経路で読ませたか（文書を丸ごと渡す／道具で読ませる／file_read）。
+# 長い書類のケースが本当に道具の経路を通ったかを確かめるため、
+# スレッドごとに記録する
+_route = threading.local()
+_choose_route = agent._choose_route
+
+
+def _recording_choose_route(*args, **kwargs):
+    _route.value = _choose_route(*args, **kwargs)
+    return _route.value
+
+
+agent._choose_route = _recording_choose_route
+
+# 丸ごと渡せない書類（100ページ超など）は、途中で道具の経路に切り替わる。
+# 最初の選択だけでなく、実際に道具で読ませたかも記録する
+_run_with_tools = agent._run_agent_with_document_tools
+
+
+def _recording_run_with_tools(*args, **kwargs):
+    _route.value = "document_tools"
+    return _run_with_tools(*args, **kwargs)
+
+
+agent._run_agent_with_document_tools = _recording_run_with_tools
 
 MODES = {"structured": "1", "legacy": "0"}
 
@@ -38,9 +67,10 @@ def run_case(case: dict, mode: str, model_id: str | None) -> dict:
     # 両方を流すので、ケースごとに直前で決める（並列では同じモードだけ流す）
     os.environ["REVIEW_STRUCTURED_OUTPUT"] = MODES[mode]
     started = time.time()
+    _route.value = None
     try:
         result = agent.process_review_from_local(
-            [str(HERE / "fixtures" / case["file"])],
+            [str(HERE / "fixtures" / name) for name in case["files"]],
             case["check"]["name"],
             case["check"]["description"],
             language_name="日本語",
@@ -69,6 +99,11 @@ def run_case(case: dict, mode: str, model_id: str | None) -> dict:
         "shortExplanation": result.get("shortExplanation"),
         "explanation": explanation[:400],
         "unreadable": unreadable,
+        "route": _route.value,
+        # 道具を呼んだ回数。読み回るほど入力が増える
+        "toolCalls": len(
+            ((result.get("verificationDetails") or {}).get("sourcesDetails")) or []
+        ),
         "error": error,
         "seconds": round(time.time() - started, 1),
         "cost": meta.get("total_cost"),
@@ -116,7 +151,7 @@ def main() -> None:
     parser.add_argument("--workers", type=int, default=4)
     args = parser.parse_args()
 
-    cases = json.loads((HERE / "cases.json").read_text())
+    cases = load_cases()
     if args.only:
         wanted = set(args.only.split(","))
         cases = [c for c in cases if c["id"] in wanted]
