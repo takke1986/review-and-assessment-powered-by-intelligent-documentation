@@ -229,3 +229,31 @@ def test_tools_return_text_json_and_images_to_the_model(tmp_path):
     assert page["content"][1]["image"]["format"] == "jpeg"
     schema = tools["read_pdf_pages"].tool_spec["inputSchema"]["json"]
     assert schema["required"] == ["file", "first_page"]
+
+
+def test_search_finds_a_scanned_page_through_its_transcription(tmp_path):
+    # 文字の取れないページは、前読みの書き起こしで探す。以前は検索だけ
+    # ファイルの文字しか見ず、スキャンした書類では何を探しても0件だった
+    from document_digest import DocumentDigest, PageDigest
+
+    file = blank_pdf(tmp_path, "スキャン.pdf")
+    digest = DocumentDigest(
+        pages=[PageDigest(page=1, text="第9条（反社会的勢力の排除）甲および乙は…")]
+    )
+    library = DocumentLibrary([file], digests={file.path: digest})
+
+    found = library.search("反社会的勢力")
+
+    assert found["totalMatches"] == 1
+    assert found["hits"][0]["page"] == 1
+
+
+def test_search_does_not_use_a_transcription_for_a_page_with_text(tmp_path):
+    # 文字の取れるページはファイルの文字で探す（読む道具と同じ判定）
+    from document_digest import DocumentDigest, PageDigest
+
+    file = text_pdf(tmp_path, "本文.pdf")
+    digest = DocumentDigest(pages=[PageDigest(page=1, text="書き起こしにだけある語")])
+    library = DocumentLibrary([file], digests={file.path: digest})
+
+    assert library.search("書き起こしにだけある語")["totalMatches"] == 0

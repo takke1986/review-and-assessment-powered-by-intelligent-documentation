@@ -303,6 +303,21 @@ class DocumentLibrary:
             self._count_chars(sum(len(hit["snippet"]) for hit in hits))
             return {"totalMatches": len(matches), "hits": hits}
 
+    def _searchable_page_text(self, document: _Document, page: int) -> str:
+        """検索にかける本文。文字の取れないページは、前読みの書き起こしを使う。
+
+        ページを読む道具（pdf_pages_text）と同じ判定にそろえる。以前は検索だけ
+        ファイルの文字しか見ておらず、スキャンした書類では何を探しても0件だった。
+        モデルは空振りのあと全ページを読みにいくので、60ページの書類で入力が
+        数万トークン増えた。読める文字数には上限があるので、もっと長い書類では
+        読み切れずに「無い」と判定するおそれもあった
+        """
+        text = self._page_text(document, page)
+        read = document.digest.get(page)
+        if len(text) < _SCANNED_PAGE_CHARS and read and read.text.strip():
+            return read.text
+        return text
+
     def pdf_pages_text(
         self, name: str, first_page: int, last_page: Optional[int] = None
     ) -> str:
@@ -547,7 +562,7 @@ class DocumentLibrary:
     def _searchable(self, document: _Document):
         if document.kind == "pdf":
             for page in range(1, len(self._pdf(document).pages) + 1):
-                yield {"page": page}, self._page_text(document, page)
+                yield {"page": page}, self._searchable_page_text(document, page)
         elif document.kind in _OFFICE_KINDS:
             _, sections = self._office(document)
             for number, section in enumerate(sections, start=1):
