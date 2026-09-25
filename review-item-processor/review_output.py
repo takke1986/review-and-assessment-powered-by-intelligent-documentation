@@ -117,6 +117,11 @@ _REPLACEMENTS = [
 ]
 
 
+def prepare_prompt(prompt: str) -> str:
+    """構造化出力が有効なら、答え方の指示を出力用のツールに向けて書き換える"""
+    return adapt_prompt(prompt) if structured_output_enabled() else prompt
+
+
 def adapt_prompt(prompt: str) -> str:
     """文章で JSON を書かせる指示を、出力用のツールで答える指示に変える"""
     for pattern, replacement in _REPLACEMENTS:

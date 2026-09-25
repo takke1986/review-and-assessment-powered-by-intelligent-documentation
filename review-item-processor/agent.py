@@ -648,25 +648,39 @@ def list_tools_sync(client: MCPClient) -> List[Dict[str, Any]]:
 
 
 # Agent execution functions
-def _ask(agent: Agent, request: Any, output_model: type) -> Tuple[Any, Optional[Any]]:
-    """エージェントに聞く。構造化出力が有効なら、答えを output_model の形で受け取る。
+def _ask(
+    agent: Agent,
+    request: Any,
+    output_model: type,
+    use_citations: bool = False,
+) -> Tuple[Any, Dict[str, Any]]:
+    """エージェントに聞き、答えを結果の辞書にして返す。
 
-    構造化出力を使えなかったとき（モデルがツールを呼ばなかった等）は、
-    これまでどおり文章から取り出せるよう、答えを None にして返す
+    構造化出力が有効なら、答えを output_model の形（出力用のツールの入力）で
+    受け取る。使えなかったとき（無効にしてある、モデルがツールを呼ばなかった）は、
+    これまでどおり返答の文章から取り出す。request のプロンプトは、呼ぶ側が
+    review_output.prepare_prompt() を通しておく
     """
+    answer = None
     if not review_output.structured_output_enabled():
-        return agent(request), None
-    try:
-        response = agent(request, structured_output_model=output_model)
-    except StructuredOutputException as error:
-        # 構造化出力の失敗（モデルが出力用のツールを最後まで呼ばなかった）
-        # だけで審査ごと落とさない。同じ依頼を構造化出力なしでやり直す。
-        # ほかの例外（スロットリング等）はここで捕まえない。捕まえると、
-        # 本物のエラーのたびに黙って呼び直し、費用が二重にかかる
-        logger.warning(f"Structured output failed, retrying without it: {error}")
-        agent.messages.clear()
-        return agent(request), None
-    return response, getattr(response, "structured_output", None)
+        response = agent(request)
+    else:
+        try:
+            response = agent(request, structured_output_model=output_model)
+            answer = getattr(response, "structured_output", None)
+        except StructuredOutputException as error:
+            # 構造化出力の失敗（モデルが出力用のツールを最後まで呼ばなかった）
+            # だけで審査ごと落とさない。同じ依頼を構造化出力なしでやり直す。
+            # ほかの例外（スロットリング等）はここで捕まえない。捕まえると、
+            # 本物のエラーのたびに黙って呼び直し、費用が二重にかかる
+            logger.warning(f"Structured output failed, retrying without it: {error}")
+            agent.messages.clear()
+            response = agent(request)
+    if answer is not None:
+        return response, review_output.to_result(answer, use_citations=use_citations)
+    return response, _agent_message_to_dict(
+        response.message, response, use_citations=use_citations
+    )
 
 
 def _run_agent_with_file_read_tool(
@@ -681,8 +695,7 @@ def _run_agent_with_file_read_tool(
     output_model: type = review_output.DocumentReview,
 ) -> Dict[str, Any]:
     """Run Strands agent with traditional file_read approach"""
-    if review_output.structured_output_enabled():
-        prompt = review_output.adapt_prompt(prompt)
+    prompt = review_output.prepare_prompt(prompt)
     logger.debug(f"Running Strands agent with {len(files)} files")
     logger.debug(f"Tool configuration: {toolConfiguration}")
 
@@ -740,14 +753,8 @@ def _run_agent_with_file_read_tool(
 
     # Run agent synchronously
     logger.debug("Executing agent completion")
-    response, answer = _ask(agent, full_prompt, output_model)
+    response, result = _ask(agent, full_prompt, output_model)
     logger.debug("Agent response received")
-
-    result = (
-        review_output.to_result(answer, use_citations=False)
-        if answer is not None
-        else _agent_message_to_dict_legacy(response.message, response)
-    )
     logger.debug("type(response.message)=%s", type(response.message))
     logger.debug("message.content (trunc)=%s", str(response.message)[:300])
 
@@ -823,9 +830,7 @@ def _run_agent_with_document_block(
     if model.supports_caching and content:
         content.append({"cachePoint": {"type": "default"}})
 
-    if review_output.structured_output_enabled():
-        prompt = review_output.adapt_prompt(prompt)
-    content.append({"text": prompt})
+    content.append({"text": review_output.prepare_prompt(prompt)})
 
     # Configure model
     bedrock_config = {
@@ -846,14 +851,11 @@ def _run_agent_with_document_block(
     )
 
     logger.debug("Executing agent with document block")
-    response, answer = _ask(agent, content, review_output.DocumentReview)
-
-    result = (
-        review_output.to_result(answer, use_citations=model.supports_citation)
-        if answer is not None
-        else _agent_message_to_dict(
-            response.message, response, use_citations=model.supports_citation
-        )
+    response, result = _ask(
+        agent,
+        content,
+        review_output.DocumentReview,
+        use_citations=model.supports_citation,
     )
 
     result["verificationDetails"] = {"sourcesDetails": history_collector.executions}
@@ -909,14 +911,8 @@ def _run_agent_with_document_tools(
     )
 
     logger.debug(f"Executing agent with document tools: {len(files)} files")
-    if review_output.structured_output_enabled():
-        prompt = review_output.adapt_prompt(prompt)
-    response, answer = _ask(agent, prompt, review_output.DocumentReview)
-
-    result = (
-        review_output.to_result(answer, use_citations=False)
-        if answer is not None
-        else _agent_message_to_dict_legacy(response.message, response)
+    response, result = _ask(
+        agent, review_output.prepare_prompt(prompt), review_output.DocumentReview
     )
     result["verificationDetails"] = {"sourcesDetails": history_collector.executions}
     review_meta = meta_tracker.get_review_meta(response)
@@ -1065,9 +1061,6 @@ def _agent_message_to_dict(
     return fallback
 
 
-def _agent_message_to_dict_legacy(message: Any, agent_response=None) -> Dict[str, Any]:
-    """Convert AgentResult.message (dict or list) to a result dict."""
-    return _agent_message_to_dict(message, agent_response, use_citations=False)
 
 
 # Helper function for dynamic tool section generation

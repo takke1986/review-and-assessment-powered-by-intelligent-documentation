@@ -66,9 +66,10 @@ def test_falls_back_to_reading_the_text_when_the_model_skips_the_tool(monkeypatc
                 raise StructuredOutputException("did not call the tool")
             return _Response()
 
-    response, answer = agent._ask(FakeAgent(), "prompt", review_output.DocumentReview)
-    assert answer is None
+    response, result = agent._ask(FakeAgent(), "prompt", review_output.DocumentReview)
+    # 構造化出力なしでやり直し、返答の文章から取り出した結果になる
     assert len(calls) == 2 and calls[1] == {}
+    assert result["explanation"] == "fallback"
 
 
 def test_other_errors_are_not_retried(monkeypatch):

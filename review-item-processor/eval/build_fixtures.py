@@ -36,7 +36,6 @@ with sync_playwright() as p:
                 import io
 
                 import pypdfium2
-                from PIL import Image
 
                 page.set_content(how[1], wait_until="networkidle")
                 page.evaluate("document.fonts.ready")
