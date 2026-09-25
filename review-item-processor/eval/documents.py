@@ -208,3 +208,79 @@ def proposal_pptx(path: str) -> None:
         slide.shapes.title.text = title
         slide.placeholders[1].text = body
     deck.save(path)
+
+
+# ---- 記入欄・注釈・図面・画像・手書き ----
+def application_form(path: str, name_value: str) -> None:
+    """記入欄（AcroForm）のある申込書。氏名は記入欄の値にだけ入っていて、
+    ページの本文には出てこない。記入欄を読まないと空の申込書に見える"""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+    from reportlab.pdfgen import canvas
+
+    pdfmetrics.registerFont(UnicodeCIDFont("HeiseiKakuGo-W5"))
+    page = canvas.Canvas(path, pagesize=A4)
+    page.setFont("HeiseiKakuGo-W5", 18)
+    page.drawString(220, 780, "サービス利用申込書")
+    page.setFont("HeiseiKakuGo-W5", 11)
+    page.drawString(60, 720, "申込日: 2026年9月1日")
+    page.drawString(60, 680, "申込者氏名:")
+    page.drawString(60, 640, "申込プラン: スタンダード（月額 110,000円・税込）")
+    page.acroForm.textfield(
+        name="applicant_name", value=name_value, x=150, y=672, width=200, height=20,
+        borderStyle="underlined", fontName="Helvetica",
+    )
+    page.save()
+
+
+def annotated(html: str, note: str) -> tuple:
+    """PDF にしてから、付箋の注釈（コメント）を付ける"""
+    return ("annotate", html, note)
+
+
+def drawing_html(width_mm: int) -> tuple:
+    """避難通路の図面。寸法は図（画像）の中にだけ描き、本文には書かない"""
+    svg = f"""<svg xmlns='http://www.w3.org/2000/svg' width='640' height='360' style='background:#fff'>
+<rect x='40' y='40' width='560' height='280' fill='none' stroke='#000' stroke-width='3'/>
+<rect x='40' y='150' width='560' height='60' fill='#e8f0ff' stroke='#36c' stroke-width='2'/>
+<text x='300' y='186' font-size='16' text-anchor='middle' font-family='sans-serif'>避難通路</text>
+<line x1='620' y1='150' x2='620' y2='210' stroke='#c00' stroke-width='2'/>
+<line x1='612' y1='150' x2='628' y2='150' stroke='#c00' stroke-width='2'/>
+<line x1='612' y1='210' x2='628' y2='210' stroke='#c00' stroke-width='2'/>
+<text x='560' y='140' font-size='15' fill='#c00' font-family='sans-serif'>有効幅 {width_mm}</text>
+<text x='120' y='100' font-size='14' font-family='sans-serif'>事務室A</text>
+<text x='120' y='270' font-size='14' font-family='sans-serif'>会議室B</text>
+</svg>"""
+    page = (
+        f"<html><head>{STYLE}</head><body><h1>3階 平面図（避難経路）</h1>"
+        "<p>図面番号: A-301　縮尺: 1/100　単位: mm</p><!--DRAWING-->"
+        "<p>備考: 寸法は図中に記載。</p></body></html>"
+    )
+    return ("raster", page, svg)
+
+
+def photo(html: str) -> tuple:
+    """書類を撮った画像（PNG）"""
+    return ("png", html)
+
+
+HANDWRITING_FONT = (
+    "<link href='https://fonts.googleapis.com/css2?family=Yomogi&display=block' "
+    "rel='stylesheet'>"
+)
+
+
+def handwritten_form_html(signed: bool) -> str:
+    """手書き風の字で記入した申込書。署名欄は空欄か、手書き風の署名"""
+    hand = "font-family:'Yomogi';font-size:22pt;color:#123"
+    sign = f"<span style=\"{hand}\">山田 太郎</span>" if signed else "&nbsp;"
+    return (
+        f"<html><head>{HANDWRITING_FONT}{STYLE}</head><body><h1>同意書</h1>"
+        "<p>私は、サービス利用規約の内容を確認し、これに同意します。</p>"
+        f"<p>記入日: <span style=\"{hand}\">2026年 9月 1日</span></p>"
+        f"<p>住所: <span style=\"{hand}\">東京都千代田区丸の内1-1-1</span></p>"
+        "<p style='margin-top:30px'>署名: "
+        f"<span style='display:inline-block;width:300px;border-bottom:1px solid #000'>{sign}</span></p>"
+        "</body></html>"
+    )

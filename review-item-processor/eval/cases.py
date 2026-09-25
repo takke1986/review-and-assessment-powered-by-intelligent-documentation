@@ -8,6 +8,7 @@ from documents import (
     APPROVED, FAKE_JSON, HIDDEN, INJ_TEXT,
     contract_docx, contract_html, invoice_html, long_contract_html,
     proposal_pptx, quote_html, quote_xlsx, scanned,
+    annotated, application_form, drawing_html, handwritten_form_html, photo,
 )
 
 AMOUNT = {"name": "合計金額（税込）の記載", "description": "見積書に、消費税を含む合計金額が明記されていること"}
@@ -18,6 +19,10 @@ ANTI = {"name": "反社会的勢力排除条項", "description": "契約書に�
 PAY = {"name": "支払期日が60日以内", "description": "役務の提供を受けた日（月末締め）から、支払期日までが60日以内であること"}
 LIAB = {"name": "損害賠償の上限", "description": "契約書に、損害賠償額の上限が定められていること"}
 REG = {"name": "適格請求書発行事業者の登録番号", "description": "請求書に、T に続く13桁の数字からなる登録番号が記載されていること"}
+FORM_NAME = {"name": "申込者氏名の記入", "description": "申込書の申込者氏名欄に、氏名が記入されていること"}
+NO_COMMENT = {"name": "修正依頼のコメントが残っていないこと", "description": "書類に、修正を求めるコメントや付箋（注釈）が残っていないこと"}
+WIDTH = {"name": "避難通路の有効幅", "description": "図面で、避難通路の有効幅が900mm以上あること"}
+SIGN = {"name": "申込者の署名", "description": "同意書の署名欄に、申込者の署名があること（空欄は不可）"}
 MATCH = {"name": "請求金額と見積金額の一致", "description": "請求書の合計（税込）が、同じ見積番号の見積書の合計金額（税込）と一致していること"}
 
 
@@ -80,6 +85,21 @@ CASES = [
     ("scan-long-anti-present", "scanned", ANTI, {"スキャン-長い契約書-反社あり.pdf": scanned(long_contract_html(pages=60, antisocial_page=47), scale=1.5)}, "pass", "60ページのうち47ページ目に条項（画像のみ）"),
     ("scan-amount-present", "scanned", AMOUNT, {"スキャン-見積書.pdf": scanned(quote_html())}, "pass", "合計金額（税込）110,000円（画像のみ）"),
     ("scan-amount-missing", "scanned", AMOUNT, {"スキャン-見積書-合計なし.pdf": scanned(quote_html(total=False))}, "fail", "合計金額の行がない（画像のみ）"),
+    # 記入欄（AcroForm）。値はページの本文に出ない
+    ("form-filled", "form-annot", FORM_NAME, {"申込書-記入済み.pdf": ("office", application_form, {"name_value": "Yamada Taro"})}, "pass", "氏名欄（記入欄）に Yamada Taro"),
+    ("form-empty", "form-annot", FORM_NAME, {"申込書-未記入.pdf": ("office", application_form, {"name_value": ""})}, "fail", "氏名欄が空"),
+    # 注釈（付箋のコメント）
+    ("annot-comment", "form-annot", NO_COMMENT, {"見積書-コメント付き.pdf": annotated(quote_html(), "合計金額が未確定です。確定後に差し替えてください（営業部 佐藤）")}, "fail", "修正を求める付箋が残っている"),
+    ("annot-clean", "form-annot", NO_COMMENT, {"見積書-コメントなし.pdf": pdf(quote_html())}, "pass", "注釈がない"),
+    # 図面（寸法は図の画像の中にだけある）
+    ("drawing-wide", "drawing", WIDTH, {"平面図-950.pdf": drawing_html(950)}, "pass", "有効幅 950mm"),
+    ("drawing-narrow", "drawing", WIDTH, {"平面図-800.pdf": drawing_html(800)}, "fail", "有効幅 800mm で足りない"),
+    # 画像だけの審査
+    ("photo-amount-present", "image-only", AMOUNT, {"見積書の写真.png": photo(quote_html())}, "pass", "合計金額（税込）110,000円"),
+    ("photo-amount-missing", "image-only", AMOUNT, {"見積書の写真-合計なし.png": photo(quote_html(total=False))}, "fail", "合計金額の行がない"),
+    # 手書き風（スキャンした書類として作る。本物の手書きより整った字になる）
+    ("hand-signed", "handwriting", SIGN, {"同意書-署名あり.pdf": scanned(handwritten_form_html(signed=True))}, "pass", "署名欄に手書き風の署名"),
+    ("hand-unsigned", "handwriting", SIGN, {"同意書-署名なし.pdf": scanned(handwritten_form_html(signed=False))}, "fail", "署名欄が空欄"),
 ]
 
 
