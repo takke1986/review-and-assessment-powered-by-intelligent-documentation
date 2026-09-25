@@ -35,6 +35,14 @@ import {
 } from "../../../core/access/checklist-access";
 import { ValidationError } from "../../../core/errors";
 import {
+  deleteCheckListFiles,
+  deleteReviewJobFiles,
+} from "../../review/usecase/document";
+import {
+  DocumentAccessRepository,
+  makePrismaDocumentAccessRepository,
+} from "../../review/domain/document-access";
+import {
   assertUploadKeyOrThrow,
   CHECKLIST_UPLOAD_EXTENSIONS,
   presignUpload,
@@ -232,6 +240,11 @@ export const removeChecklistSet = async (params: {
   user: RequestUser;
   deps?: {
     repo?: CheckRepository;
+    files?: {
+      repo?: DocumentAccessRepository;
+      listKeys?: (bucket: string, prefix: string) => Promise<string[]>;
+      deleteObject?: (bucket: string, key: string) => Promise<unknown>;
+    };
   };
 }): Promise<void> => {
   const repo = params.deps?.repo || (await makePrismaCheckRepository());
@@ -244,9 +257,48 @@ export const removeChecklistSet = async (params: {
     logger: console,
   });
 
+  // チェックリストを消すと、それを使った審査ジョブの行も一緒に消える。
+  // 行が消えると引けなくなるので、消す前にそれぞれの文書のキーを控えておく
+  const filesRepo =
+    params.deps?.files?.repo || (await makePrismaDocumentAccessRepository());
+  const reviewJobs =
+    await filesRepo.findReviewJobsOfCheckListSet(checkListSetId);
+
   await repo.deleteCheckListSetById({
     checkListSetId,
   });
+
+  // DB の行を消してからファイルを消す（審査ジョブの削除と同じ考え方）。
+  // ファイルを消せなくても削除は済んでいるので、成功を返してログに残す
+  const files = { ...params.deps?.files, repo: filesRepo };
+  try {
+    const checklist = await deleteCheckListFiles({
+      documents: checkListSet.documents.map((doc) => ({
+        id: doc.id,
+        s3Key: doc.s3Key,
+      })),
+      deps: files,
+    });
+    let reviewFiles = 0;
+    for (const job of reviewJobs) {
+      const { deleted } = await deleteReviewJobFiles({
+        reviewJobId: job.id,
+        documentKeys: job.documentKeys,
+        deps: files,
+      });
+      reviewFiles += deleted.length;
+    }
+    console.log(
+      `Deleted ${checklist.deleted.length} files of checklist ${checkListSetId} ` +
+        `(${checklist.keptInUse.length} originals still used by copies) and ` +
+        `${reviewFiles} files of its ${reviewJobs.length} review jobs`
+    );
+  } catch (error) {
+    console.error(
+      `Failed to delete the files of checklist ${checkListSetId}; some remain in S3`,
+      error
+    );
+  }
 };
 
 export const getAllChecklistSets = async (

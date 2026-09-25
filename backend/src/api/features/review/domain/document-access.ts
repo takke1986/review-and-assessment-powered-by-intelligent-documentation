@@ -30,6 +30,15 @@ export interface DocumentAccessRepository {
    * 引き継ぐので、審査を1つ消しても、同じファイルを別の審査が使っていることがある
    */
   findReferencedKeys(keys: string[]): Promise<Set<string>>;
+  /**
+   * まだどれかのチェックリスト文書が指しているキー。チェックリストを複製すると、
+   * 複製先は複製元の元の書類のファイルを共有する
+   */
+  findReferencedChecklistKeys(keys: string[]): Promise<Set<string>>;
+  /** そのチェックリストを使った審査ジョブと、その文書のキー。チェックリストと一緒に消える */
+  findReviewJobsOfCheckListSet(
+    checkListSetId: string
+  ): Promise<Array<{ id: string; documentKeys: string[] }>>;
 }
 
 const toAccess = (job: {
@@ -77,6 +86,24 @@ export const makePrismaDocumentAccessRepository = async (
         select: { s3Path: true },
       });
       return new Set(rows.map((row) => row.s3Path));
+    },
+    async findReferencedChecklistKeys(keys) {
+      if (keys.length === 0) return new Set();
+      const rows = await client.checkListDocument.findMany({
+        where: { s3Path: { in: keys } },
+        select: { s3Path: true },
+      });
+      return new Set(rows.map((row) => row.s3Path));
+    },
+    async findReviewJobsOfCheckListSet(checkListSetId) {
+      const jobs = await client.reviewJob.findMany({
+        where: { checkListSetId },
+        select: { id: true, documents: { select: { s3Path: true } } },
+      });
+      return jobs.map((job) => ({
+        id: job.id,
+        documentKeys: job.documents.map((doc) => doc.s3Path),
+      }));
     },
     async isDocumentRegistered(documentId) {
       const [review, checklist] = await Promise.all([

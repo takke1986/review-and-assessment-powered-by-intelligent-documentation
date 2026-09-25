@@ -17,6 +17,7 @@ import {
   getDocumentDownloadUrl,
   deleteUnattachedUpload,
   deleteReviewJobFiles,
+  deleteCheckListFiles,
 } from "./document";
 import type { DocumentAccessRepository } from "../domain/document-access";
 import type { RequestUser } from "../../../core/middleware/authorization";
@@ -37,6 +38,8 @@ const repo = (over: Partial<DocumentAccessRepository> = {}) =>
     findExternalSources: vi.fn().mockResolvedValue([]),
     isDocumentRegistered: vi.fn().mockResolvedValue(false),
     findReferencedKeys: vi.fn().mockResolvedValue(new Set()),
+    findReferencedChecklistKeys: vi.fn().mockResolvedValue(new Set()),
+    findReviewJobsOfCheckListSet: vi.fn().mockResolvedValue([]),
     ...over,
   }) as DocumentAccessRepository;
 
@@ -270,5 +273,39 @@ describe("deleteReviewJobFiles", () => {
       `digest/JOB1/${own}.json`,
     ]);
     expect(result.keptInUse).toEqual([shared]);
+  });
+});
+
+describe("deleteCheckListFiles", () => {
+  it("deletes originals no copy uses and everything derived from each document", async () => {
+    const deleteObject = vi.fn();
+    const listKeys = vi.fn(async (_b: string, prefix: string) =>
+      prefix === "checklist/pages/CD1/" ? [`${prefix}page_1.png`] : []
+    );
+    const result = await deleteCheckListFiles({
+      documents: [
+        { id: "CD1", s3Key: "checklist/original/CD1/規程.pdf" },
+        // 複製先がまだ同じファイルを指している
+        { id: "CD2", s3Key: "checklist/original/CD0/共有.pdf" },
+      ],
+      deps: {
+        repo: repo({
+          findReferencedChecklistKeys: vi
+            .fn()
+            .mockResolvedValue(new Set(["checklist/original/CD0/共有.pdf"])),
+        }),
+        listKeys,
+        deleteObject,
+      },
+    });
+    expect(deleteObject.mock.calls.map((c) => c[1])).toEqual([
+      "checklist/original/CD1/規程.pdf",
+      "checklist/pages/CD1/page_1.png",
+    ]);
+    expect(result.keptInUse).toEqual(["checklist/original/CD0/共有.pdf"]);
+    // 派生ファイルの置き場は4つとも見る
+    expect(
+      listKeys.mock.calls.filter((c) => String(c[1]).endsWith("/CD1/"))
+    ).toHaveLength(4);
   });
 });

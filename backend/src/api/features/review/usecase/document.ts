@@ -209,3 +209,57 @@ export async function deleteReviewJobFiles(params: {
   }
   return { deleted, keptInUse: keys.filter((k) => inUse.has(k)) };
 }
+
+/** チェックリストの文書から作られるファイルの置き場。文書 ID ごとに分かれている */
+const CHECKLIST_DERIVED_AREAS = [
+  "checklist/processed/",
+  "checklist/pages/",
+  "checklist/llm_ocr/",
+  "checklist/aggregate/",
+];
+
+/**
+ * 消したチェックリストのファイルを S3 から消す。チェックリストを消す処理が、
+ * DB の行を消したあとに呼ぶ。
+ *
+ * 以前は DB の行だけを消していて、元の書類・ページの画像・読み取り結果が
+ * 残り続けた。
+ *
+ * - 元の書類: ほかのチェックリストの文書がまだ指していなければ消す（複製すると、
+ *   複製先は複製元のファイルを共有する）
+ * - ページの画像・読み取り結果など: その文書 ID の下にしか無いので丸ごと消す
+ */
+export async function deleteCheckListFiles(params: {
+  documents: Array<{ id: string; s3Key: string }>;
+  deps?: {
+    repo?: DocumentAccessRepository;
+    listKeys?: (bucket: string, prefix: string) => Promise<string[]>;
+    deleteObject?: (bucket: string, key: string) => Promise<unknown>;
+  };
+}): Promise<{ deleted: string[]; keptInUse: string[] }> {
+  const bucket = process.env.DOCUMENT_BUCKET;
+  if (!bucket) {
+    throw new Error("DOCUMENT_BUCKET is not defined");
+  }
+  const repo =
+    params.deps?.repo || (await makePrismaDocumentAccessRepository());
+  const listKeys = params.deps?.listKeys ?? listS3Keys;
+  const deleteObject = params.deps?.deleteObject ?? deleteS3Object;
+
+  const originals = [...new Set(params.documents.map((doc) => doc.s3Key))];
+  const inUse = await repo.findReferencedChecklistKeys(originals);
+  const deleted: string[] = [];
+  for (const key of originals.filter((k) => !inUse.has(k))) {
+    await deleteObject(bucket, key);
+    deleted.push(key);
+  }
+  for (const doc of params.documents) {
+    for (const area of CHECKLIST_DERIVED_AREAS) {
+      for (const key of await listKeys(bucket, `${area}${doc.id}/`)) {
+        await deleteObject(bucket, key);
+        deleted.push(key);
+      }
+    }
+  }
+  return { deleted, keptInUse: originals.filter((k) => inUse.has(k)) };
+}
