@@ -65,7 +65,7 @@ def _document_names(monkeypatch, file_paths):
         def __init__(self, **kwargs):
             pass
 
-        def __call__(self, content):
+        def __call__(self, content, **kwargs):
             sent["content"] = content
             raise Sent
 

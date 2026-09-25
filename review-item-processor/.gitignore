@@ -66,3 +66,6 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# 評価の結果（eval/README.md に基準を残す）
+eval/results/

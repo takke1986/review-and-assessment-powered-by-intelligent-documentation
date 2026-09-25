@@ -54,6 +54,7 @@ from strands import Agent
 from strands.models import BedrockModel
 from strands.models.model import CacheConfig
 from strands.tools.mcp import MCPClient
+from strands.types.exceptions import StructuredOutputException
 from strands_tools import file_read
 
 from PIL import Image
@@ -80,6 +81,7 @@ from review_documents import (
 )
 from review_images import prepare_image_file
 import digest_store
+import review_output
 from pdf_extras import has_hidden_content
 from review_pictures import PictureViewer, create_picture_tools, _pictures_already_read
 from review_sources import _normalize_sources
@@ -607,6 +609,11 @@ def _execute_review_core(
                 base_tools=tools,
                 toolConfiguration=toolConfiguration,
                 picture_viewer=picture_viewer,
+                output_model=(
+                    review_output.ImageReview
+                    if has_images
+                    else review_output.DocumentReview
+                ),
             )
         result["reviewType"] = review_type
         logger.debug("Used file_read tool processing")
@@ -641,6 +648,27 @@ def list_tools_sync(client: MCPClient) -> List[Dict[str, Any]]:
 
 
 # Agent execution functions
+def _ask(agent: Agent, request: Any, output_model: type) -> Tuple[Any, Optional[Any]]:
+    """エージェントに聞く。構造化出力が有効なら、答えを output_model の形で受け取る。
+
+    構造化出力を使えなかったとき（モデルがツールを呼ばなかった等）は、
+    これまでどおり文章から取り出せるよう、答えを None にして返す
+    """
+    if not review_output.structured_output_enabled():
+        return agent(request), None
+    try:
+        response = agent(request, structured_output_model=output_model)
+    except StructuredOutputException as error:
+        # 構造化出力の失敗（モデルが出力用のツールを最後まで呼ばなかった）
+        # だけで審査ごと落とさない。同じ依頼を構造化出力なしでやり直す。
+        # ほかの例外（スロットリング等）はここで捕まえない。捕まえると、
+        # 本物のエラーのたびに黙って呼び直し、費用が二重にかかる
+        logger.warning(f"Structured output failed, retrying without it: {error}")
+        agent.messages.clear()
+        return agent(request), None
+    return response, getattr(response, "structured_output", None)
+
+
 def _run_agent_with_file_read_tool(
     prompt: str,
     files: List[ReviewFile],
@@ -650,8 +678,11 @@ def _run_agent_with_file_read_tool(
     base_tools: Optional[List[Any]] = None,
     toolConfiguration: Optional[Dict[str, Any]] = None,
     picture_viewer: Optional["PictureViewer"] = None,
+    output_model: type = review_output.DocumentReview,
 ) -> Dict[str, Any]:
     """Run Strands agent with traditional file_read approach"""
+    if review_output.structured_output_enabled():
+        prompt = review_output.adapt_prompt(prompt)
     logger.debug(f"Running Strands agent with {len(files)} files")
     logger.debug(f"Tool configuration: {toolConfiguration}")
 
@@ -709,10 +740,14 @@ def _run_agent_with_file_read_tool(
 
     # Run agent synchronously
     logger.debug("Executing agent completion")
-    response = agent(full_prompt)
+    response, answer = _ask(agent, full_prompt, output_model)
     logger.debug("Agent response received")
 
-    result = _agent_message_to_dict_legacy(response.message, response)
+    result = (
+        review_output.to_result(answer, use_citations=False)
+        if answer is not None
+        else _agent_message_to_dict_legacy(response.message, response)
+    )
     logger.debug("type(response.message)=%s", type(response.message))
     logger.debug("message.content (trunc)=%s", str(response.message)[:300])
 
@@ -788,6 +823,8 @@ def _run_agent_with_document_block(
     if model.supports_caching and content:
         content.append({"cachePoint": {"type": "default"}})
 
+    if review_output.structured_output_enabled():
+        prompt = review_output.adapt_prompt(prompt)
     content.append({"text": prompt})
 
     # Configure model
@@ -809,10 +846,14 @@ def _run_agent_with_document_block(
     )
 
     logger.debug("Executing agent with document block")
-    response = agent(content)
+    response, answer = _ask(agent, content, review_output.DocumentReview)
 
-    result = _agent_message_to_dict(
-        response.message, response, use_citations=model.supports_citation
+    result = (
+        review_output.to_result(answer, use_citations=model.supports_citation)
+        if answer is not None
+        else _agent_message_to_dict(
+            response.message, response, use_citations=model.supports_citation
+        )
     )
 
     result["verificationDetails"] = {"sourcesDetails": history_collector.executions}
@@ -868,9 +909,15 @@ def _run_agent_with_document_tools(
     )
 
     logger.debug(f"Executing agent with document tools: {len(files)} files")
-    response = agent(prompt)
+    if review_output.structured_output_enabled():
+        prompt = review_output.adapt_prompt(prompt)
+    response, answer = _ask(agent, prompt, review_output.DocumentReview)
 
-    result = _agent_message_to_dict_legacy(response.message, response)
+    result = (
+        review_output.to_result(answer, use_citations=False)
+        if answer is not None
+        else _agent_message_to_dict_legacy(response.message, response)
+    )
     result["verificationDetails"] = {"sourcesDetails": history_collector.executions}
     review_meta = meta_tracker.get_review_meta(response)
     # 何枚見たか、上限で断ったかを残す。断ったなら「全部は見ていない判定」
@@ -1178,7 +1225,8 @@ def process_review_from_local(
         toolConfiguration=toolConfiguration,
         feedback_summary=feedback_summary,
         review_guidance=review_guidance,
-        review_job_id=review_job_id,
+        # ローカルでは読み取り結果（ジョブごとに S3 に置く）が無いので、
+        # digests は渡さない
     )
 
     logger.info("Local review completed successfully")

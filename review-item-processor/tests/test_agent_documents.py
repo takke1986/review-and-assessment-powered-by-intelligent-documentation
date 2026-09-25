@@ -31,7 +31,7 @@ def test_document_block_sends_office_files_as_markdown_after_their_names(
         def __init__(self, **kwargs):
             pass
 
-        def __call__(self, content):
+        def __call__(self, content, **kwargs):
             sent["content"] = content
             raise Sent
 
@@ -181,7 +181,7 @@ def test_files_too_large_for_one_request_are_read_through_document_tools(
         def __init__(self, **kwargs):
             sent["tools"] = [tool.tool_name for tool in kwargs["tools"]]
 
-        def __call__(self, prompt):
+        def __call__(self, prompt, **kwargs):
             sent["prompt"] = prompt
             raise Sent
 
@@ -253,7 +253,7 @@ def test_a_transcribed_file_is_read_through_document_tools(tmp_path, monkeypatch
         def __init__(self, **kwargs):
             sent["tools"] = [tool.tool_name for tool in kwargs["tools"]]
 
-        def __call__(self, prompt):
+        def __call__(self, prompt, **kwargs):
             sent["prompt"] = prompt
             raise Sent
 
@@ -291,7 +291,7 @@ def test_a_file_with_no_transcription_is_sent_as_it_is(tmp_path, monkeypatch):
         def __init__(self, **kwargs):
             pass
 
-        def __call__(self, content):
+        def __call__(self, content, **kwargs):
             sent["content"] = content
             raise Sent
 
@@ -335,7 +335,7 @@ def test_a_pdf_with_notes_actually_runs_through_the_document_tools(
             sent["tools"] = [tool.tool_name for tool in kwargs["tools"]]
             sent["system_prompt"] = kwargs.get("system_prompt")
 
-        def __call__(self, prompt):
+        def __call__(self, prompt, **kwargs):
             sent["prompt"] = prompt
             raise Sent
 

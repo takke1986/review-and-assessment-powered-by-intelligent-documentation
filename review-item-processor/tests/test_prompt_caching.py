@@ -89,7 +89,7 @@ def _sent_kinds(monkeypatch, tmp_path, model_id):
         def __init__(self, **kwargs):
             pass
 
-        def __call__(self, content):
+        def __call__(self, content, **kwargs):
             sent["content"] = content
             raise _Sent
 

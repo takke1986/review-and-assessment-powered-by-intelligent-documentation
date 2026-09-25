@@ -2,6 +2,8 @@
 test_*.py
 *_test.py
 tests/
+# 評価セット（手元で流すもの。PDF がある）
+eval/
 sample.pdf
 
 # Development files
