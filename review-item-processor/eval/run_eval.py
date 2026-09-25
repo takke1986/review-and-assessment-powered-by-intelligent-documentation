@@ -1,6 +1,6 @@
 """評価セットを流して、判定が正解とどれだけ合うかを測る。
 
-審査の中核（process_review_from_local）を手元で直接呼ぶ。Bedrock を実際に
+検証環境と同じ入口（agent.process_review）を、S3 の代わり（local_s3.py）を差し込んで呼ぶ。Bedrock を実際に
 呼ぶので費用がかかる（1ケース数円）。本番のデータは使わない。
 
     cd review-item-processor
@@ -18,6 +18,7 @@ import re
 import os
 import sys
 import threading
+import uuid
 import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -34,6 +35,34 @@ os.environ.setdefault("BEDROCK_REGION", "us-west-2")  # 本番と同じ
 import agent  # noqa: E402
 from cases import cases as load_cases  # noqa: E402
 from predigest import predigest  # noqa: E402
+from local_s3 import LocalS3  # noqa: E402
+import digest_store  # noqa: E402
+from document_digest import to_json  # noqa: E402
+
+# 検証環境と同じ入口（process_review）を通すため、S3 の代わりを差し込む。
+# 入口は boto3.client("s3") で書類を落とし、同じ client で前読みを読む
+BUCKET = "eval-documents"
+_local_s3 = LocalS3()
+_boto3_client = agent.boto3.client
+
+
+def _client(service, *args, **kwargs):
+    return _local_s3 if service == "s3" else _boto3_client(service, *args, **kwargs)
+
+
+agent.boto3.client = _client
+
+# 前読みを作ったのに審査で使われなかったかを見るため、読み込めた数を記録する
+_load_for_documents = digest_store.load_for_documents
+
+
+def _recording_load(*args, **kwargs):
+    loaded = _load_for_documents(*args, **kwargs)
+    _route.loaded = len(loaded)
+    return loaded
+
+
+digest_store.load_for_documents = _recording_load
 
 # どの経路で読ませたか（文書を丸ごと渡す／道具で読ませる／file_read）。
 # 長い書類のケースが本当に道具の経路を通ったかを確かめるため、
@@ -71,17 +100,31 @@ def run_case(case: dict, mode: str, model_id: str | None, use_predigest: bool) -
     started = time.time()
     _route.value = None
     paths = [str(HERE / "fixtures" / name) for name in case["files"]]
+    # 検証環境と同じ形のキーとジョブ ID。前読みもジョブごとのキーに置く
+    job_id = f"eval-{case['id']}-{uuid.uuid4().hex[:8]}"
+    keys = [f"review/original/{case['id']}/{name}" for name in case["files"]]
+    _route.loaded = 0
+    stored = 0
     try:
         # 検証環境と同じく、前読みが要る書類（長い・スキャン）は先に読み取る。
         # 見るべき観点は、検証環境ではジョブの項目名。ここでは項目1つ
         digests = predigest(paths, [case["check"]["name"]]) if use_predigest else {}
-        result = agent.process_review_from_local(
-            paths,
-            case["check"]["name"],
-            case["check"]["description"],
+        for key, path in zip(keys, paths):
+            _local_s3.put_file(key, path)
+            if path in digests:
+                read = digests[path]
+                _local_s3.put_object_text(
+                    digest_store.key_for(key, job_id), to_json(read.pages, read.images)
+                )
+                stored += 1
+        result = agent.process_review(
+            document_bucket=BUCKET,
+            document_paths=keys,
+            check_name=case["check"]["name"],
+            check_description=case["check"]["description"],
             language_name="日本語",
             model_id=model_id,
-            digests=digests or None,
+            review_job_id=job_id,
         )
         error = None
     except Exception as e:  # noqa: BLE001 - 評価では落ちたことも結果として残す
@@ -117,6 +160,8 @@ def run_case(case: dict, mode: str, model_id: str | None, use_predigest: bool) -
         "explanation": explanation[:400],
         "unreadable": unreadable,
         "route": _route.value,
+        # 前読みを置いたのに、審査が読み込まなかった（受け渡しの漏れなど）
+        "readAheadUnused": stored > 0 and getattr(_route, "loaded", 0) < stored,
         "coverage": coverage,
         "overclaim": overclaim,
         # 道具を呼んだ回数。読み回るほど入力が増える
@@ -145,6 +190,7 @@ def summarize(rows: list[dict]) -> None:
               f"  読めない答え {sum(r['unreadable'] for r in items)}"
               f"  エラー {sum(bool(r['error']) for r in items)}"
               f"  読んでいない範囲まで確認と書いた {sum(r['overclaim'] for r in items)}"
+              f"  前読みが使われなかった {sum(r['readAheadUnused'] for r in items)}"
               f"  費用 ${cost:.3f}  平均 {sum(r['seconds'] for r in items) / total:.1f}秒")
         # 費用は、同じ文書を続けて流すとキャッシュが効いて安く出る。方式どうしを
         # 比べるのはトークン数で行う（入力はキャッシュ分も含めた量）
@@ -197,6 +243,12 @@ def main() -> None:
         ensure_ascii=False, indent=1))
     summarize(rows)
     print(f"\n結果: {out}")
+    # 正解数だけでは見逃す不具合がある。前読みの受け渡しが漏れても、短い
+    # スキャン書類は丸ごと画像で渡せば正解してしまう。使われなかったら失敗で終える
+    unused = [r["id"] for r in rows if r["readAheadUnused"]]
+    if unused:
+        print(f"\n前読みが使われなかったケース: {sorted(set(unused))}")
+        sys.exit(2)
 
 
 if __name__ == "__main__":
