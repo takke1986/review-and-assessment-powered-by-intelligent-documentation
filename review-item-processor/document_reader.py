@@ -178,6 +178,11 @@ def render_pages(path: str, batch: DigestBatch) -> list[tuple[int, str, bytes]]:
 
     images: list[tuple[int, str, bytes]] = []
     pdf = pypdfium2.PdfDocument(path)
+    # 記入欄（AcroForm）の値は、init_forms() を呼んでからでないと描かれない。
+    # 呼ばずに描くと、記入済みの申込書が空欄の画像になり、モデルは値を文字で
+    # 受け取っていても見た目を信じて「未記入」と判定した（評価で2回とも）。
+    # ページを読み込む前に呼ぶ必要がある
+    pdf.init_forms()
     try:
         for number in range(batch.first_page, batch.last_page + 1):
             try:

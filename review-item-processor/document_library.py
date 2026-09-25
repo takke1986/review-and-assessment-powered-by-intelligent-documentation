@@ -402,6 +402,11 @@ class DocumentLibrary:
             self._check_image_budget()
             try:
                 pdf = pypdfium2.PdfDocument(document.file.path)
+                # 記入欄（AcroForm）の値は、init_forms() を呼んでからでないと描かれない。
+                # 呼ばずに描くと、記入済みの申込書が空欄の画像になり、モデルは値を文字で
+                # 受け取っていても見た目を信じて「未記入」と判定した（評価で2回とも）。
+                # ページを読み込む前に呼ぶ必要がある
+                pdf.init_forms()
                 try:
                     pdf_page = pdf[page - 1]
                     scale = PAGE_IMAGE_LONG_SIDE / max(*pdf_page.get_size(), 1)

@@ -283,3 +283,26 @@ def test_reading_progress_tells_what_is_left_and_coverage_counts_what_was_return
 def test_ranges_are_written_compactly():
     assert dl._ranges([1, 2, 3, 7, 9, 10]) == "1-3, 7, 9-10"
     assert dl._ranges([]) == "none"
+
+
+def test_a_page_image_shows_what_was_typed_into_form_fields():
+    # 記入欄の値は init_forms() を呼ばないと描かれない。以前は記入済みの
+    # 申込書が空欄の画像になり、モデルは「未記入」と判定した
+    fixtures = os.path.join(os.path.dirname(__file__), "..", "eval", "fixtures")
+    filled = ReviewFile(os.path.join(fixtures, "申込書-記入済み.pdf"), "記入済み.pdf")
+    empty = ReviewFile(os.path.join(fixtures, "申込書-未記入.pdf"), "未記入.pdf")
+    library = DocumentLibrary([filled, empty])
+
+    def field_area(name):
+        image = Image.open(io.BytesIO(library.pdf_page_image(name, 1).data))
+        width, height = image.size
+        # 氏名欄のあたり（ページ上端から約2割の高さ、左右の中ほど）
+        return image.convert("L").crop(
+            (int(width * 0.25), int(height * 0.14), int(width * 0.6), int(height * 0.2))
+        )
+
+    filled_area, empty_area = field_area("記入済み.pdf"), field_area("未記入.pdf")
+    difference = sum(
+        abs(a - b) for a, b in zip(filled_area.getdata(), empty_area.getdata())
+    )
+    assert difference > 0
