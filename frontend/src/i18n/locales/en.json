@@ -506,6 +506,8 @@
     "clearFilter": "Clear the filter",
     "searchPlaceholderJobs": "Job name, or a document name",
     "overriddenByOn": "changed by {{who}} ({{when}})",
+    "coveragePages": "{{file}}: read the text of {{read}} of {{total}} pages (search covered every page). Pages not read: {{unread}}",
+    "coverageSections": "{{file}}: read {{read}} of {{total}} sections (search covered every section). Sections not read: {{unread}}",
     "imageLimitReached": "This verdict was made after looking at {{seen}} pictures, which is the limit, so not everything was seen.",
     "resumed": "The review is carrying on from where it stopped",
     "resumeError": "Could not carry on with the review",

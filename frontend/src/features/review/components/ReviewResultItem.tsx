@@ -342,15 +342,44 @@ export default function ReviewResultItem({
             {/* 見られる画像の枚数に達した判定。全部を見たわけではないので、
                 人が確かめられるようにここで断っておく。黙っていると
                 「全部見たうえでの判定」だと思われる */}
-            {result.reviewMeta?.image_limit_reached && (
+            {result.reviewMeta?.imageLimitReached && (
               <div className="mt-1 rounded border border-aws-squid-ink-light/20 bg-yellow-50 px-2 py-1">
                 <p className="text-xs text-aws-font-color-gray">
                   {t("review.imageLimitReached", {
-                    seen: result.reviewMeta.images_seen ?? 0,
+                    seen: result.reviewMeta.imagesSeen ?? 0,
                   })}
                 </p>
               </div>
             )}
+
+            {/* 本文を一部しか読んでいない書類。「見つからない」判定では、読んだ
+                範囲が判断の材料になるので、人が確かめられるように出す。
+                合格の判定では、検索で見つけた箇所だけ読むのは普通なので目立たせない */}
+            {result.reviewMeta?.coverage
+              ?.filter((entry) => entry.read < entry.total)
+              .map((entry) => (
+                <div
+                  key={entry.file}
+                  className={`mt-1 rounded px-2 py-1 ${
+                    result.result === REVIEW_RESULT.FAIL
+                      ? "border border-aws-squid-ink-light/20 bg-yellow-50"
+                      : ""
+                  }`}>
+                  <p className="text-xs text-aws-font-color-gray">
+                    {t(
+                      entry.unit === "page"
+                        ? "review.coveragePages"
+                        : "review.coverageSections",
+                      {
+                        file: entry.file,
+                        total: entry.total,
+                        read: entry.read,
+                        unread: entry.unread,
+                      }
+                    )}
+                  </p>
+                </div>
+              ))}
 
             {/* 短い説明文を表示 */}
             {result.shortExplanation && (

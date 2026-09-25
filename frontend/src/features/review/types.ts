@@ -459,12 +459,29 @@ export interface ReviewResultEntity {
     };
     duration_seconds: number;
     timestamp: string;
+    /** 使ったモデル（保存の前に model_id から直された名前） */
+    modelId?: string;
+    // 審査処理は snake_case で書くが、保存の前に camelCase に直される
+    // （post-review-item.ts の convertSnakeToCamelCase）。画面は camelCase で読む。
+    // 以前は snake_case で読んでいて、画像の上限の注意が一度も出ていなかった
     /** 実際に目で見た画像の枚数 */
-    images_seen?: number;
+    imagesSeen?: number;
     /** 1項目で見られる枚数 */
-    image_limit?: number;
+    imageLimit?: number;
     /** 上限に達して、それ以上は見られなかったか */
-    image_limit_reached?: boolean;
+    imageLimitReached?: boolean;
+    /**
+     * 書類ごとに、全体のうちどれだけの本文を読んだか（道具で読んだときだけ）。
+     * 検索は全体を対象にするので、読んでいない部分も検索はされている
+     */
+    coverage?: Array<{
+      file: string;
+      unit: "page" | "section";
+      total: number;
+      read: number;
+      /** 読んでいない範囲。"21-99, 101" の形。全部読んだら "none" */
+      unread: string;
+    }>;
   };
   inputTokens?: number;
   outputTokens?: number;

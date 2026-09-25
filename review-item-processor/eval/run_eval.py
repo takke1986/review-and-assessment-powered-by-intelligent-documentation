@@ -14,6 +14,7 @@
 
 import argparse
 import json
+import re
 import os
 import sys
 import threading
@@ -90,6 +91,16 @@ def run_case(case: dict, mode: str, model_id: str | None, use_predigest: bool) -
     # 答えを読めなかった印。読めなければ不合格として扱うので、正解が不合格の
     # ケースでは「たまたま正解」になる。実際、偽の答えに引きずられて "pass" と
     # 書き、JSON が壊れて読めずに不合格になった例があった。正解には数えない
+    # 読んでいない部分があるのに「全ページ」「すべて」を確認したと書いたか
+    coverage = meta.get("coverage") or []
+    incomplete = [c for c in coverage if c["read"] < c["total"]]
+    # 文ごとに見る。「全120ページ）を全文検索および直接読み取りにより確認」の
+    # ように、全体を指す語と確認の語が離れて書かれることがある
+    overclaim = bool(incomplete) and any(
+        re.search(r"全\s*\d*\s*(ページ|頁)|全文|すべてのページ|全体", sentence)
+        and re.search(r"確認|読|精査|検討", sentence)
+        for sentence in re.split(r"[。\n]", explanation)
+    )
     unreadable = (
         "Failed to analyze JSON parse" in str(result.get("shortExplanation"))
         or "could not be read" in explanation
@@ -106,6 +117,8 @@ def run_case(case: dict, mode: str, model_id: str | None, use_predigest: bool) -
         "explanation": explanation[:400],
         "unreadable": unreadable,
         "route": _route.value,
+        "coverage": coverage,
+        "overclaim": overclaim,
         # 道具を呼んだ回数。読み回るほど入力が増える
         "toolCalls": len(
             ((result.get("verificationDetails") or {}).get("sourcesDetails")) or []
@@ -131,6 +144,7 @@ def summarize(rows: list[dict]) -> None:
         print(f"\n== {mode}: 正解 {correct}/{total}"
               f"  読めない答え {sum(r['unreadable'] for r in items)}"
               f"  エラー {sum(bool(r['error']) for r in items)}"
+              f"  読んでいない範囲まで確認と書いた {sum(r['overclaim'] for r in items)}"
               f"  費用 ${cost:.3f}  平均 {sum(r['seconds'] for r in items) / total:.1f}秒")
         # 費用は、同じ文書を続けて流すとキャッシュが効いて安く出る。方式どうしを
         # 比べるのはトークン数で行う（入力はキャッシュ分も含めた量）

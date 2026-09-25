@@ -927,6 +927,9 @@ def _run_agent_with_document_tools(
     review_meta["image_limit_reached"] = (
         library.images_returned >= MAX_IMAGES_PER_REVIEW
     )
+    # 書類ごとに、全体のうちどれだけの本文を読んだか。「見つからない」判定が
+    # 全部を読んだうえでのものかを、人が確かめられるようにする
+    review_meta["coverage"] = library.coverage()
     result["reviewMeta"] = review_meta
     # キャッシュから読んだ分も含めた「実際に読ませた量」。inputTokens だけを
     # 入れると、キャッシュが効くほど読ませた量が小さく見える

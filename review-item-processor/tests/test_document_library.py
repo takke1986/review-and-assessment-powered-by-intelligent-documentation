@@ -257,3 +257,29 @@ def test_search_does_not_use_a_transcription_for_a_page_with_text(tmp_path):
     library = DocumentLibrary([file], digests={file.path: digest})
 
     assert library.search("書き起こしにだけある語")["totalMatches"] == 0
+
+
+def test_reading_progress_tells_what_is_left_and_coverage_counts_what_was_returned(
+    tmp_path,
+):
+    # 道具は1回20ページまで。以前はモデルが読み直さずに先へ進み、読んでいない
+    # ページまで「全ページを確認した」と書いた。読んだ範囲と残りを毎回見せる
+    file = text_pdf(tmp_path, "長い.pdf", copies=13)  # 26ページ
+    library = DocumentLibrary([file])
+
+    first = library.pdf_pages_text("長い.pdf", 1, 30)
+
+    assert "read so far: 1-20 of 26" in first
+    assert "Not read yet: 21-26" in first
+    assert library.coverage() == [
+        {"file": "長い.pdf", "unit": "page", "total": 26, "read": 20, "unread": "21-26"}
+    ]
+
+    rest = library.pdf_pages_text("長い.pdf", 21, 26)
+    assert "You have now read every page of 長い.pdf" in rest
+    assert library.coverage()[0]["unread"] == "none"
+
+
+def test_ranges_are_written_compactly():
+    assert dl._ranges([1, 2, 3, 7, 9, 10]) == "1-3, 7, 9-10"
+    assert dl._ranges([]) == "none"

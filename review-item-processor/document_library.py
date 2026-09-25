@@ -153,6 +153,21 @@ def _split_lines(text: str, limit: int) -> list[str]:
     return parts or [""]
 
 
+def _ranges(numbers: list[int]) -> str:
+    """[1, 2, 3, 7, 9, 10] → "1-3, 7, 9-10"。何も無ければ "none" """
+    if not numbers:
+        return "none"
+    parts, start, prev = [], numbers[0], numbers[0]
+    for number in numbers[1:] + [None]:
+        if number is not None and number == prev + 1:
+            prev = number
+            continue
+        parts.append(f"{start}-{prev}" if start != prev else str(start))
+        if number is not None:
+            start = prev = number
+    return ", ".join(parts)
+
+
 class DocumentLibrary:
     """審査するファイルを、ツールから読むためのもの。読んだ量を数え、上限を守る"""
 
@@ -187,6 +202,10 @@ class DocumentLibrary:
             )
         self.chars_returned = 0
         self.images_returned = 0
+        # 実際にモデルへ返したページ（PDF）と節（Office）。書類の名前 → 番号。
+        # 頼まれた範囲ではなく返した中身で数える（上限で切れた分は読んでいない）
+        self._pages_read: dict[str, set[int]] = {}
+        self._sections_read: dict[str, set[int]] = {}
 
     # ---- ツールから呼ぶもの ----
 
@@ -362,7 +381,17 @@ class DocumentLibrary:
                     f"(Pages {last + 1}-{min(last_page, count)} were not returned: read at "
                     f"most {MAX_PAGES_PER_READ} pages at a time.)"
                 )
-            return self._spend("\n\n".join(blocks))
+            returned = self._spend("\n\n".join(blocks))
+            header = re.compile(
+                rf"^--- {re.escape(document.name)}, page (\d+) of {count} ---$", re.M
+            )
+            self._pages_read.setdefault(document.name, set()).update(
+                int(match) for match in header.findall(returned)
+            )
+            # 読んだ範囲の案内もモデルに返す文字なので、読んだ量に数える
+            progress = self._reading_progress(document, count)
+            self._count_chars(len(progress))
+            return returned + progress
 
     def pdf_page_image(self, name: str, page: int) -> EmbeddedImage:
         with self._lock:
@@ -385,6 +414,7 @@ class DocumentLibrary:
                 ) from error
             image_format, data = encode_image(bitmap)
             self.images_returned += 1
+            self._pages_read.setdefault(document.name, set()).add(page)
             return EmbeddedImage(f"page {page}", image_format, data)
 
     @property
@@ -434,7 +464,9 @@ class DocumentLibrary:
             header = f"--- {document.name}, section {section} ({chosen.heading})"
             if len(chosen.parts) > 1:
                 header += f", part {part} of {len(chosen.parts)}"
-            return self._spend(f"{header} ---\n{chosen.parts[part - 1]}")
+            returned = self._spend(f"{header} ---\n{chosen.parts[part - 1]}")
+            self._sections_read.setdefault(document.name, set()).add(section)
+            return returned
 
     def embedded_image(self, name: str, image: str) -> EmbeddedImage:
         with self._lock:
@@ -574,6 +606,65 @@ class DocumentLibrary:
                     if len(section.parts) > 1:
                         location["part"] = part_number
                     yield location, text
+
+    def _reading_progress(self, document: _Document, count: int) -> str:
+        """このファイルをどこまで読んだかを、返す本文の末尾に添える。
+
+        道具は1回20ページまでで、超えた分は「返していない」と断っているのに、
+        モデルは読み直さずに先へ進み、最後に「全ページを確認した」と書いた
+        （評価で、1〜20・100〜120ページしか読まずに「全120ページを確認」）。
+        読んだ範囲と残りを毎回見せる
+        """
+        if os.environ.get("REVIEW_READING_PROGRESS", "1") == "0":
+            # 評価で、案内が無いときと比べるため
+            return ""
+        read = self._pages_read.get(document.name, set())
+        unread = [page for page in range(1, count + 1) if page not in read]
+        if not unread:
+            return f"\n\n(You have now read every page of {document.name}.)"
+        return (
+            f"\n\n(Pages of {document.name} you have read so far: "
+            f"{_ranges(sorted(read))} of {count}. Not read yet: {_ranges(unread)}. "
+            "If your judgment depends on the pages you have not read, read them or "
+            "say in your explanation which pages you did not read.)"
+        )
+
+    def coverage(self) -> list[dict[str, Any]]:
+        """書類ごとに、全体のうちどれだけの本文を読んだか。結果に残して画面に出す。
+
+        検索は全ページ・全節を対象にするので、読んでいない部分も検索はされている。
+        それでも「見つからなかった」判定では、本文を読んだ範囲が判断の材料になる
+        """
+        result = []
+        for document in self._documents:
+            if document.kind == "pdf":
+                try:
+                    total = len(self._pdf(document).pages)
+                except DocumentToolError:
+                    continue
+                read = self._pages_read.get(document.name, set())
+                unit = "page"
+            elif document.kind in _OFFICE_KINDS:
+                try:
+                    _, sections = self._office(document)
+                except DocumentToolError:
+                    continue
+                total = len(sections)
+                read = self._sections_read.get(document.name, set())
+                unit = "section"
+            else:
+                continue
+            unread = [n for n in range(1, total + 1) if n not in read]
+            result.append(
+                {
+                    "file": document.name,
+                    "unit": unit,
+                    "total": total,
+                    "read": len(read & set(range(1, total + 1))),
+                    "unread": _ranges(unread),
+                }
+            )
+        return result
 
     def _spend(self, text: str) -> str:
         remaining = MAX_CHARS_PER_REVIEW - self.chars_returned

@@ -40,7 +40,8 @@ export function useReviewItemCost(
       ? {
           inputTokens: item.inputTokens || item.reviewMeta.input_tokens || 0,
           outputTokens: item.outputTokens || item.reviewMeta.output_tokens || 0,
-          modelId: item.reviewMeta.model_id,
+          // 保存の前に camelCase に直されている（types.ts の reviewMeta を参照）
+          modelId: item.reviewMeta.modelId ?? item.reviewMeta.model_id,
         }
       : undefined;
 

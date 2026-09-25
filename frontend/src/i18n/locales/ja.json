@@ -506,6 +506,8 @@
     "clearFilter": "絞り込みを解除",
     "searchPlaceholderJobs": "ジョブ名か、審査した文書の名前",
     "overriddenByOn": "{{who}} が変更（{{when}}）",
+    "coveragePages": "{{file}}：{{total}}ページのうち、本文を読んだのは{{read}}ページです（検索は全ページが対象）。読んでいないページ: {{unread}}",
+    "coverageSections": "{{file}}：{{total}}節のうち、本文を読んだのは{{read}}節です（検索は全節が対象）。読んでいない節: {{unread}}",
     "imageLimitReached": "画像を{{seen}}枚まで見た時点で上限に達しました。書類の一部だけを見た判定です。",
     "resumed": "続きから審査を始めました",
     "resumeError": "続きから流せませんでした",
