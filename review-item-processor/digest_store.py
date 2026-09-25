@@ -82,6 +82,12 @@ def load_for_documents(
     使えない。中身の無いものは入れない（呼び出し側が「読み取りなし」と
     判断できるように）
     """
+    if not job_id:
+        # 前読みはジョブごとに置いてあるので、ジョブが分からなければ引けない。
+        # 読めないこと自体はよくある（前読みしない書類が多い）ので普段は黙るが、
+        # ジョブ ID が無いのは呼び出し側の間違いなので知らせる
+        logger.warning("No review job id was given, so no read-ahead can be found")
+        return {}
     client = s3 or _client()
     digests: dict[str, DocumentDigest] = {}
     for document_key, local_path in local_paths.items():

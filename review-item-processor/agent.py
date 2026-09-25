@@ -1279,4 +1279,8 @@ def process_review(
         toolConfiguration=toolConfiguration,
         feedback_summary=feedback_summary,
         review_guidance=review_guidance,
+        # 前読みはジョブごとに置いてある。渡し忘れると空のジョブ ID で探しに行き、
+        # 黙って「前読みなし」になる。実際に 9/21 から渡っておらず、検証環境の
+        # 審査は前読みを一度も使っていなかった
+        review_job_id=review_job_id,
     )
