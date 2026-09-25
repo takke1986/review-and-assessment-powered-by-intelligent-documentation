@@ -7,7 +7,7 @@
 from documents import (
     APPROVED, FAKE_JSON, HIDDEN, INJ_TEXT,
     contract_docx, contract_html, invoice_html, long_contract_html,
-    proposal_pptx, quote_html, quote_xlsx,
+    proposal_pptx, quote_html, quote_xlsx, scanned,
 )
 
 AMOUNT = {"name": "合計金額（税込）の記載", "description": "見積書に、消費税を含む合計金額が明記されていること"}
@@ -72,6 +72,14 @@ CASES = [
     # 長い書類（100ページを超えるので、道具で読む経路に入る）
     ("long-anti-present", "long", ANTI, {"長い契約書-反社あり.pdf": pdf(long_contract_html(pages=120, antisocial_page=87))}, "pass", "120ページのうち87ページ目に条項"),
     ("long-anti-missing", "long", ANTI, {"長い契約書-反社なし.pdf": pdf(long_contract_html(pages=120, antisocial_page=None))}, "fail", "120ページのどこにも条項がない"),
+    # スキャンした書類（文字が取れないので前読みの書き起こしで読む）
+    ("scan-anti-present", "scanned", ANTI, {"スキャン-契約書-反社あり.pdf": scanned(long_contract_html(pages=12, antisocial_page=9))}, "pass", "12ページのうち9ページ目に条項（画像のみ）"),
+    ("scan-anti-missing", "scanned", ANTI, {"スキャン-契約書-反社なし.pdf": scanned(long_contract_html(pages=12, antisocial_page=None))}, "fail", "12ページのどこにも条項がない（画像のみ）"),
+    # 1回で読める20ページを超えるスキャン。検索で見つからないと、全ページを
+    # 読まずに「ない」と結論する見落としが起きうる
+    ("scan-long-anti-present", "scanned", ANTI, {"スキャン-長い契約書-反社あり.pdf": scanned(long_contract_html(pages=60, antisocial_page=47), scale=1.5)}, "pass", "60ページのうち47ページ目に条項（画像のみ）"),
+    ("scan-amount-present", "scanned", AMOUNT, {"スキャン-見積書.pdf": scanned(quote_html())}, "pass", "合計金額（税込）110,000円（画像のみ）"),
+    ("scan-amount-missing", "scanned", AMOUNT, {"スキャン-見積書-合計なし.pdf": scanned(quote_html(total=False))}, "fail", "合計金額の行がない（画像のみ）"),
 ]
 
 

@@ -32,6 +32,7 @@ os.environ.setdefault("BEDROCK_REGION", "us-west-2")  # 本番と同じ
 
 import agent  # noqa: E402
 from cases import cases as load_cases  # noqa: E402
+from predigest import predigest  # noqa: E402
 
 # どの経路で読ませたか（文書を丸ごと渡す／道具で読ませる／file_read）。
 # 長い書類のケースが本当に道具の経路を通ったかを確かめるため、
@@ -62,19 +63,24 @@ agent._run_agent_with_document_tools = _recording_run_with_tools
 MODES = {"structured": "1", "legacy": "0"}
 
 
-def run_case(case: dict, mode: str, model_id: str | None) -> dict:
+def run_case(case: dict, mode: str, model_id: str | None, use_predigest: bool) -> dict:
     # 構造化出力の切り替えは呼ぶたびに環境変数を読む。同じプロセスの中で
     # 両方を流すので、ケースごとに直前で決める（並列では同じモードだけ流す）
     os.environ["REVIEW_STRUCTURED_OUTPUT"] = MODES[mode]
     started = time.time()
     _route.value = None
+    paths = [str(HERE / "fixtures" / name) for name in case["files"]]
     try:
+        # 検証環境と同じく、前読みが要る書類（長い・スキャン）は先に読み取る。
+        # 見るべき観点は、検証環境ではジョブの項目名。ここでは項目1つ
+        digests = predigest(paths, [case["check"]["name"]]) if use_predigest else {}
         result = agent.process_review_from_local(
-            [str(HERE / "fixtures" / name) for name in case["files"]],
+            paths,
             case["check"]["name"],
             case["check"]["description"],
             language_name="日本語",
             model_id=model_id,
+            digests=digests or None,
         )
         error = None
     except Exception as e:  # noqa: BLE001 - 評価では落ちたことも結果として残す
@@ -149,6 +155,11 @@ def main() -> None:
     parser.add_argument("--repeat", type=int, default=1, help="同じケースを何回流すか（揺れを見る）")
     parser.add_argument("--model", default=None, help="モデルID。省略時は本番と同じ既定")
     parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument(
+        "--no-predigest",
+        action="store_true",
+        help="前読みを作らない（検証環境と違う形で審査される。前読みの効果を見るとき）",
+    )
     args = parser.parse_args()
 
     cases = load_cases()
@@ -161,7 +172,9 @@ def main() -> None:
     for mode in modes:
         jobs = [c for c in cases for _ in range(args.repeat)]
         with ThreadPoolExecutor(max_workers=args.workers) as pool:
-            rows += list(pool.map(lambda c: run_case(c, mode, args.model), jobs))
+            rows += list(pool.map(
+                lambda c: run_case(c, mode, args.model, not args.no_predigest), jobs
+            ))
 
     out = HERE / "results" / f"{datetime.now():%Y%m%d-%H%M%S}.json"
     out.parent.mkdir(exist_ok=True)

@@ -69,3 +69,4 @@ Thumbs.db
 
 # 評価の結果（eval/README.md に基準を残す）
 eval/results/
+eval/.digest-cache/

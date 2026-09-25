@@ -1178,6 +1178,7 @@ def process_review_from_local(
     toolConfiguration: dict[str, Any] | None = None,
     feedback_summary: str | None = None,
     review_guidance: str | None = None,
+    digests: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Execute review directly from local files (for eval environment).
@@ -1225,8 +1226,9 @@ def process_review_from_local(
         toolConfiguration=toolConfiguration,
         feedback_summary=feedback_summary,
         review_guidance=review_guidance,
-        # ローカルでは読み取り結果（ジョブごとに S3 に置く）が無いので、
-        # digests は渡さない
+        # 前読みの結果。検証環境では S3 から読むが、手元では呼ぶ側が作って渡す
+        # （eval/predigest.py）。キーはファイルのパス
+        digests=digests,
     )
 
     logger.info("Local review completed successfully")

@@ -144,6 +144,12 @@ def long_contract_html(pages=120, antisocial_page=87) -> str:
     return "".join(parts)
 
 
+def scanned(html: str, scale: float = 2) -> tuple:
+    """スキャンした書類。PDF にしてから各ページを画像にし、文字の無い PDF にする。
+    ページの多い書類は scale を下げて、ファイルを大きくしすぎない"""
+    return ("scan", html, scale)
+
+
 # ---- Office ----
 def contract_docx(path: str, antisocial: bool) -> None:
     import docx
